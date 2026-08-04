@@ -3,15 +3,8 @@ import prisma from '../prisma';
 import config from '../config';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import {
-  hashPassword,
-  verifyPassword,
-  signAccessToken,
-  generateRefreshToken,
-  storeSession,
-  storeRefreshToken,
-  refreshTokenExpiryDate,
-} from '../utils/auth';
+import {hashPassword,verifyPassword,signAccessToken, generateRefreshToken,storeSession,
+  storeRefreshToken,refreshTokenExpiryDate,} from '../utils/auth';
 import { createHttpError } from '../utils/httpError';
 
 function accessExpiryFromNow() {
@@ -159,13 +152,12 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
     // mark session revoked
     await prisma.session.updateMany({ where: { jwt_id: jti }, data: { revoked: true } });
 
-    // optionally revoke refresh token provided in body
+    // revoke refresh token provided in body , adds to performance overhead but add additional measures to ensure token is revoked 
     const { refreshToken } = req.body;
     if (refreshToken) {
       const token_hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
       await prisma.refreshToken.updateMany({ where: { token_hash }, data: { revoked: true } });
     }
-
     return res.json({ message: 'Logged out' });
   } catch (err) {
     return next(err);
