@@ -29,6 +29,7 @@ const config = {
   ACCESS_TOKEN_EXPIRES: env.ACCESS_TOKEN_EXPIRES || '15m',
   REFRESH_TOKEN_EXPIRES_DAYS: toNumber(env.REFRESH_TOKEN_EXPIRES_DAYS, 30),
   URL: required(env.DATABASE_URL, 'DATABASE_URL'),
+  CORS_ORIGIN: env.CORS_ORIGIN || '*',
 };
 
 export type AppConfig = typeof config;

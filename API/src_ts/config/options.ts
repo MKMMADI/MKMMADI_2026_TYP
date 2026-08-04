@@ -10,7 +10,8 @@ const env = {
   JWT_SECRET: process.env.JWT_SECRET,
   ACCESS_TOKEN_EXPIRES: process.env.ACCESS_TOKEN_EXPIRES,
   REFRESH_TOKEN_EXPIRES_DAYS: process.env.REFRESH_TOKEN_EXPIRES_DAYS,
-  DATABASE_URL: process.env.DATABASE_URL
+  DATABASE_URL: process.env.DATABASE_URL,
+  CORS_ORIGIN: process.env.CORS_ORIGIN,
 };
 
 export default env;
