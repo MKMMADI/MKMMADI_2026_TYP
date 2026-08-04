@@ -1,0 +1,68 @@
+datasource db {
+  provider = "mysql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+model User {
+  id            Int       @id @default(autoincrement())
+  name          String
+  email         String    @unique
+  password_hash String
+  role          Role
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  // Relations
+  worker Worker?
+  sessions Session[]
+  refreshTokens RefreshToken[]
+}
+
+model Worker {
+  user_id        Int       @id
+  employee_number String   @unique
+  department      String?
+  office_location String?
+
+  // Relation back to User
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Relation to Admin (optional, only if this worker is also an admin)
+  admin Admin?
+}
+
+model Admin {
+  worker_id Int @id
+
+  // Relation back to Worker
+  worker Worker @relation(fields: [worker_id], references: [user_id], onDelete: Cascade)
+}
+
+enum Role {
+  worker
+  admin
+}
+
+model Session {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id    Int
+  jwt_id     String   @unique
+  expires_at DateTime
+  revoked    Boolean  @default(false)
+  created_at DateTime @default(now())
+}
+
+model RefreshToken {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id    Int
+  token_hash String   @unique
+  revoked    Boolean  @default(false)
+  expires_at DateTime
+  created_at DateTime @default(now())
+}
