@@ -7,7 +7,9 @@
     "start": "node dist/server.js",
     "dev": "nodemon --watch src_ts --exec ts-node ./src_ts/server.ts",
     "build": "tsc",
-    "dev:ts": "ts-node-dev --respawn --transpile-only src_ts/server.ts"
+    "dev:ts": "ts-node-dev --respawn --transpile-only src_ts/server.ts",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.9.1",
@@ -25,9 +27,14 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.2",
     "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.2",
     "@types/morgan": "^1.9.10",
     "@types/node": "^20.19.43",
+    "@types/supertest": "^2.0.14",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "ts-jest": "^29.4.12",
     "ts-node": "^10.9.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.2"

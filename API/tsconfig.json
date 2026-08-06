@@ -3,14 +3,14 @@
     "target": "ES2020",                       // modern JS features
     "module": "CommonJS",                     // Node.js default
     "outDir": "dist",                         // compiled JS output
-    "rootDir": "src_ts",                      // source folder
+    "rootDir": "./",                          // project root so src_ts + tests are allowed
     "strict": true,                           // enable strict type checking
     "esModuleInterop": true,                  // allow default imports from CommonJS
     "forceConsistentCasingInFileNames": true, // case-sensitive paths
     "skipLibCheck": true,                     // skip type checks in node_modules
     "resolveJsonModule": true,                // allow importing JSON files
-    "types": ["node"]                         // include Node.js type definitions
+    "types": ["jest", "node"]                 // include Jest + Node type definitions
   },
-  "include": ["src_ts/**/*.ts"],
+  "include": ["src_ts", "tests"],
   "exclude": ["node_modules", "dist"]
 }
