@@ -232,7 +232,7 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
     const token = parts[1];
 
     //decode and handle jwt authentication
-    const decoded = jwt.verify(token, config.JWT_SECRET) as any;
+    const decoded = jwt.verify(`token`, config.JWT_SECRET) as any;
     const jti = decoded.jti || decoded?.jwtid || null;
     //check if jwt id is present in decoded payload
     if (!jti) {
