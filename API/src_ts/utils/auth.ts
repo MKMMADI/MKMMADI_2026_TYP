@@ -42,9 +42,9 @@ export function generateRefreshToken() {
 export async function storeSession(userId: number, jwtId: string, expiresAt: Date) {
   return prisma.session.create({
     data: {
-      user_id: userId,
-      jwt_id: jwtId,
-      expires_at: expiresAt,
+      userId,
+      jwtId,
+      expiresAt,
     },
   });
 }
@@ -52,9 +52,9 @@ export async function storeSession(userId: number, jwtId: string, expiresAt: Dat
 export async function storeRefreshToken(userId: number, token_hash: string, expiresAt: Date) {
   return prisma.refreshToken.create({
     data: {
-      user_id: userId,
-      token_hash,
-      expires_at: expiresAt,
+      userId,
+      tokenHash: token_hash,
+      expiresAt,
     },
   });
 }
@@ -67,7 +67,6 @@ export function refreshTokenExpiryDate() {
 
 export function accessTokenExpiryDateFromPayload(): Date {
   // jwt signs using expiresIn string; to compute expiry time, use current + configured expiry
-  // For simplicity assume 15 minutes if using default
   const d = new Date();
   d.setMinutes(d.getMinutes() + 15);
   return d;

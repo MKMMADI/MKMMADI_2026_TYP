@@ -5,12 +5,13 @@
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
-    "dev": "nodemon --watch src_ts --exec ts-node ./src_ts/server.ts",
+    "dev": "nodemon --watch src_ts --exec ts-node src_ts/server.ts",
     "build": "tsc",
     "dev:ts": "ts-node-dev --respawn --transpile-only src_ts/server.ts"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.9.1",
+    "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
