@@ -47,3 +47,8 @@ export async function updateProfile(req: AuthRequest, res: Response, next: NextF
     next(error);
   }
 }
+
+
+export async function deactivateAccount(req:AuthRequest , res:Response , next:NextFunction){
+  
+}

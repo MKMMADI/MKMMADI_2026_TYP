@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "@/components/AuthLayout";
 import PasswordInput from "@/components/PasswordInput";
+import {login , getCurrentUser} from "@/lib/auth"
 
 export default function Login() {
   const navigate = useNavigate();
@@ -20,13 +21,32 @@ export default function Login() {
       return;
     }
 
-    setSubmitting(true);
+   setSubmitting(true);
+
     try {
-      // TODO: replace with real auth call, e.g. await api.login(email, password, { remember })
-      await new Promise((resolve) => setTimeout(resolve, 900));
-      navigate("/dashboard");
-    } catch {
-      setFormError("We couldn't sign you in. Check your details and try again.");
+      const tokens = await login(email.trim().toLowerCase(), password);
+
+      // Development-only approach. Prefer an HttpOnly refresh-token cookie in production.
+      const storage = remember ? localStorage : sessionStorage;
+      storage.setItem("accessToken", tokens.accessToken);
+      storage.setItem("refreshToken", tokens.refreshToken);
+
+      const user = await getCurrentUser(tokens.accessToken);
+
+      const destination =
+        user.role === "MANAGER"
+          ? "/manager/dashboard"
+          : user.role === "CLERK"
+            ? "/operations"
+            : "/dashboard";
+
+      navigate(destination, { replace: true });
+    } catch (error) {
+      setFormError(
+        error instanceof Error
+          ? error.message
+          : "We couldn't sign you in. Check your details and try again.",
+      );
     } finally {
       setSubmitting(false);
     }

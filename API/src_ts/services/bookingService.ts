@@ -2,6 +2,7 @@ import prisma from '../prisma';
 import { createHttpError } from '../utils/httpError';
 import { Prisma, BookingStatus } from '@prisma/client';
 
+//used to validate input
 export interface CreateBookingInput {
   employeeId: number;
   purpose: string;

@@ -15,6 +15,8 @@ export async function createBookingHandler(req: AuthRequest, res: Response, next
       amenityIds: req.body.amenityIds,
       capacity: Number(req.body.capacity || 0),
     });
+
+
     res.status(201).json(booking);
   } catch (error) {
     next(error);

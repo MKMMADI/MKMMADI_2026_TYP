@@ -21,10 +21,12 @@ enum RoomStatus {
 enum BookingStatus {
   PENDING
   CONFIRMED
+  PREPARING   
   READY
   COMPLETED
   CANCELLED
 }
+
 
 model User {
   id            Int       @id @default(autoincrement())
@@ -36,12 +38,25 @@ model User {
   contactNumber String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-
+  Active        Boolean   @default(true)
+  
   sessions      Session[]
   refreshTokens RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
   bookings      Booking[]     @relation("EmployeeBookings")
   preparedBookings Booking[]   @relation("PreparedBookings")
   stockAdjustments StockAdjustment[]
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Session {
@@ -162,3 +177,5 @@ model StockAdjustment {
   item            ConsumableItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   adjustedBy      User           @relation(fields: [adjustedById], references: [id], onDelete: Cascade)
 }
+
+
