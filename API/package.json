@@ -7,7 +7,11 @@
     "start": "node dist/server.js",
     "dev": "nodemon --watch src_ts --exec ts-node src_ts/server.ts",
     "build": "tsc",
-    "dev:ts": "ts-node-dev --respawn --transpile-only src_ts/server.ts"
+    "dev:ts": "ts-node-dev --respawn --transpile-only src_ts/server.ts",
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
