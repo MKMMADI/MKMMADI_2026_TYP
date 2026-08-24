@@ -8,6 +8,9 @@ import ClerkDashboard from "@/pages/dashboards/ClerkDashboard";
 import ManagerDashboard from "@/pages/dashboards/ManagerDashboard";
 import ManagerBookings from "@/pages/manager/ManagerBookings";
 import ManagerQueue from "@/pages/manager/ManagerQueue";
+import ManagerSpaces from "@/pages/manager/ManagerSpaces";
+import ManagerSpaceCreate from "@/pages/manager/ManagerSpaceCreate";
+import ManagerAmenities from "@/pages/manager/ManagerAmenities";
 
 function App() {
   return (
@@ -24,6 +27,9 @@ function App() {
       <Route path="/manager/dashboard" element={<ManagerDashboard />} />
       <Route path="/manager/bookings" element={<ManagerBookings />} />
       <Route path="/manager/queue" element={<ManagerQueue />} />
+      <Route path="/manager/spaces" element={<ManagerSpaces />} />
+      <Route path="/manager/spaces/create" element={<ManagerSpaceCreate />} />
+      <Route path="/manager/amenities" element={<ManagerAmenities />} />
     </Routes>
   );
 }
