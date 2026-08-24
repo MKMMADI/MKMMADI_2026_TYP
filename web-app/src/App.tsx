@@ -7,6 +7,7 @@ import ResetSuccess from "@/pages/auth/ResetSuccess";
 import ClerkDashboard from "@/pages/dashboards/ClerkDashboard";
 import ManagerDashboard from "@/pages/dashboards/ManagerDashboard";
 import ManagerBookings from "@/pages/manager/ManagerBookings";
+import ManagerQueue from "@/pages/manager/ManagerQueue";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
       <Route path="/operations/dashboard" element={<ClerkDashboard />} />
       <Route path="/manager/dashboard" element={<ManagerDashboard />} />
       <Route path="/manager/bookings" element={<ManagerBookings />} />
+      <Route path="/manager/queue" element={<ManagerQueue />} />
     </Routes>
   );
 }
