@@ -8,8 +8,7 @@
     "esModuleInterop": true,                  // allow default imports from CommonJS
     "forceConsistentCasingInFileNames": true, // case-sensitive paths
     "skipLibCheck": true,                     // skip type checks in node_modules
-    "resolveJsonModule": true,                // allow importing JSON files
-    "types": ["node"]                         // include Node.js type definitions
+    "resolveJsonModule": true                // allow importing JSON files
   },
   "include": ["src_ts/**/*.ts"],
   "exclude": ["node_modules", "dist"]

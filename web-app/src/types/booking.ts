@@ -3,7 +3,7 @@
 export type BookingStatus =
   | "PENDING"
   | "CONFIRMED"
-  | "PREPARING"   // newly added for clerk workflow
+  | "PREPARING"   
   | "READY"
   | "COMPLETED"
   | "CANCELLED";

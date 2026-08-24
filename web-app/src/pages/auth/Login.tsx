@@ -1,16 +1,14 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import AuthLayout from "@/components/AuthLayout";
 import PasswordInput from "@/components/PasswordInput";
-import {login , getCurrentUser} from "@/lib/auth"
+import { useLogin } from "@/hooks/useLogin";
 
 export default function Login() {
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const { signIn, submitting, error: formError, setError: setFormError } = useLogin(remember);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -21,39 +19,15 @@ export default function Login() {
       return;
     }
 
-   setSubmitting(true);
-
     try {
-      const tokens = await login(email.trim().toLowerCase(), password);
-
-      // Development-only approach. Prefer an HttpOnly refresh-token cookie in production.
-      const storage = remember ? localStorage : sessionStorage;
-      storage.setItem("accessToken", tokens.accessToken);
-      storage.setItem("refreshToken", tokens.refreshToken);
-
-      const user = await getCurrentUser(tokens.accessToken);
-
-      const destination =
-        user.role === "MANAGER"
-          ? "/manager/dashboard"
-          : user.role === "CLERK"
-            ? "/operations"
-            : "/dashboard";
-
-      navigate(destination, { replace: true });
-    } catch (error) {
-      setFormError(
-        error instanceof Error
-          ? error.message
-          : "We couldn't sign you in. Check your details and try again.",
-      );
-    } finally {
-      setSubmitting(false);
+      await signIn(email, password);
+    } catch {
+      // The hook exposes the error for rendering.
     }
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout showHero>
       <h1 className="auth-title">Sign in</h1>
       <p className="auth-subtitle">Welcome back. Enter your details to continue.</p>
 
@@ -72,7 +46,7 @@ export default function Login() {
             id="email"
             type="email"
             className="auth-input"
-            placeholder="you@company.com"
+            placeholder="you@bookspace.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
@@ -116,7 +90,7 @@ export default function Login() {
       </form>
 
       <p className="auth-footer">
-        Don't have an account? <Link to="/signup" className="auth-inline-link">Create one</Link>
+        Need access? <a href="mailto:admin@bookspace.com" className="auth-inline-link">Contact your administrator</a>
       </p>
     </AuthLayout>
   );

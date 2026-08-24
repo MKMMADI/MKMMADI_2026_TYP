@@ -28,6 +28,20 @@ function normalizeRole(role: string | undefined) {
   return 'EMPLOYEE';
 }
 
+export async function signupManager(req: Request, res: Response, next: NextFunction) {
+  try {
+    const managerExists = await prisma.user.count({ where: { role: 'MANAGER' } });
+    if (managerExists > 0) {
+      return next(createHttpError('A manager account already exists', 403));
+    }
+
+    req.body.role = 'MANAGER';
+    return signup(req, res, next);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 export async function signup(req: Request, res: Response, next: NextFunction) {
   try {
 
@@ -131,7 +145,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     }
     
     //send response containing access and refresh token
-    return res.json({ accessToken, refreshToken });
+    return res.json({ message: "Login successful", accessToken, refreshToken });
   } catch (err) {
     return next(err);
   }
