@@ -21,12 +21,11 @@ enum RoomStatus {
 enum BookingStatus {
   PENDING
   CONFIRMED
-  PREPARING   
+  PREPARING
   READY
   COMPLETED
   CANCELLED
 }
-
 
 model User {
   id            Int       @id @default(autoincrement())
@@ -39,13 +38,14 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   Active        Boolean   @default(true)
-  
-  sessions      Session[]
-  refreshTokens RefreshToken[]
+
+  sessions            Session[]
+  refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
-  bookings      Booking[]     @relation("EmployeeBookings")
-  preparedBookings Booking[]   @relation("PreparedBookings")
-  stockAdjustments StockAdjustment[]
+  bookings            Booking[]            @relation("EmployeeBookings")
+  preparedBookings    Booking[]            @relation("PreparedBookings")
+  reviewedBookings    Booking[]            @relation("ReviewedBookings")
+  stockAdjustments    StockAdjustment[]
 }
 
 model PasswordResetToken {
@@ -60,23 +60,23 @@ model PasswordResetToken {
 }
 
 model Session {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  jwtId      String   @unique
-  expiresAt  DateTime
-  revoked    Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  jwtId     String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model RefreshToken {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  tokenHash  String   @unique
-  expiresAt  DateTime
-  revoked    Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tokenHash String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -103,79 +103,82 @@ model Amenity {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  rooms RoomAmenity[]
+  rooms    RoomAmenity[]
   bookings BookingAmenity[]
 }
 
 model RoomAmenity {
-  roomId     Int
-  amenityId  Int
+  roomId    Int
+  amenityId Int
 
-  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  amenity    Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  amenity Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
 
   @@id([roomId, amenityId])
 }
 
 model Booking {
-  id           Int           @id @default(autoincrement())
-  employeeId   Int
-  preparedById Int?
-  startAt      DateTime
-  endAt        DateTime
-  purpose      String
-  status       BookingStatus @default(PENDING)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id                  Int           @id @default(autoincrement())
+  employeeId          Int
+  preparedById        Int?
+  reviewedById        Int?
+  startAt             DateTime
+  endAt               DateTime
+  purpose             String
+  status              BookingStatus @default(PENDING)
+  rejectionReasonCode String?
+  rejectionNote       String?
+  reviewedAt          DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  employee     User          @relation("EmployeeBookings", fields: [employeeId], references: [id], onDelete: Cascade)
-  preparedBy   User?         @relation("PreparedBookings", fields: [preparedById], references: [id])
-  rooms        BookingRoom[]
-  amenities    BookingAmenity[]
+  employee   User             @relation("EmployeeBookings", fields: [employeeId], references: [id], onDelete: Cascade)
+  preparedBy User?            @relation("PreparedBookings", fields: [preparedById], references: [id])
+  reviewedBy User?            @relation("ReviewedBookings", fields: [reviewedById], references: [id])
+  rooms      BookingRoom[]
+  amenities  BookingAmenity[]
 }
 
 model BookingRoom {
-  id         Int      @id @default(autoincrement())
+  id         Int    @id @default(autoincrement())
   bookingId  Int
   roomId     Int
-  roomStatus String   @default("BOOKED")
+  roomStatus String @default("BOOKED")
 
-  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
 }
 
 model BookingAmenity {
-  bookingId  Int
-  amenityId  Int
+  bookingId Int
+  amenityId Int
 
-  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  amenity    Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amenity Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
 
   @@id([bookingId, amenityId])
 }
 
 model ConsumableItem {
-  id              Int      @id @default(autoincrement())
-  name            String
-  unit            String
-  quantityOnHand  Int
-  reorderLevel    Int
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  name           String
+  unit           String
+  quantityOnHand Int
+  reorderLevel   Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   adjustments StockAdjustment[]
 }
 
 model StockAdjustment {
-  id              Int      @id @default(autoincrement())
-  itemId          Int
-  adjustedById    Int
-  quantityChange  Int
-  reason          String
-  createdAt       DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  itemId         Int
+  adjustedById   Int
+  quantityChange Int
+  reason         String
+  createdAt      DateTime @default(now())
 
-  item            ConsumableItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  adjustedBy      User           @relation(fields: [adjustedById], references: [id], onDelete: Cascade)
+  item       ConsumableItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  adjustedBy User           @relation(fields: [adjustedById], references: [id], onDelete: Cascade)
 }
-
-

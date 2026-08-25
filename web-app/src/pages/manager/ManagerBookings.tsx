@@ -27,8 +27,7 @@ interface RejectionReason {
   label: string;
 }
 
-/** Fixed list used by the UI. Later swap for GET /bookings/rejection-reasons */
-const REJECTION_REASONS: RejectionReason[] = [
+const FALLBACK_REASONS: RejectionReason[] = [
   { code: "ROOM_UNAVAILABLE", label: "Room unavailable / double-booked" },
   { code: "INSUFFICIENT_CAPACITY", label: "Insufficient capacity" },
   { code: "AMENITIES_UNAVAILABLE", label: "Amenities not available" },
@@ -93,6 +92,7 @@ function statusClass(status: BookingStatus) {
 
 export default function ManagerBookings() {
   const [bookings, setBookings] = useState<ApiBooking[]>([]);
+  const [reasons, setReasons] = useState<RejectionReason[]>(FALLBACK_REASONS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"ALL" | BookingStatus>("PENDING");
@@ -100,7 +100,6 @@ export default function ManagerBookings() {
   const [actionId, setActionId] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Reject modal state
   const [rejectTarget, setRejectTarget] = useState<ApiBooking | null>(null);
   const [reasonCode, setReasonCode] = useState("");
   const [rejectNote, setRejectNote] = useState("");
@@ -121,6 +120,9 @@ export default function ManagerBookings() {
 
   useEffect(() => {
     loadBookings();
+    apiFetch<RejectionReason[]>("/bookings/rejection-reasons")
+      .then(setReasons)
+      .catch(() => setReasons(FALLBACK_REASONS));
   }, []);
 
   useEffect(() => {
@@ -157,12 +159,12 @@ export default function ManagerBookings() {
     if (actionId) return;
     setActionId(booking.id);
     try {
-      // Uses existing PATCH /bookings/:id/status
-      const updated = await apiFetch<ApiBooking>(`/bookings/${booking.id}/status`, {
+      const updated = await apiFetch<ApiBooking>(`/bookings/${booking.id}/approve`, {
         method: "PATCH",
-        body: JSON.stringify({ status: "CONFIRMED" }),
       });
-      setBookings((prev) => prev.map((b) => (b.id === booking.id ? { ...b, ...updated, status: "CONFIRMED" } : b)));
+      setBookings((prev) =>
+        prev.map((b) => (b.id === booking.id ? { ...b, ...updated, status: "CONFIRMED" } : b))
+      );
       setToast(`Booking approved. ${booking.employee.name} will be notified.`);
     } catch (err) {
       setToast(err instanceof Error ? err.message : "Could not approve booking");
@@ -200,26 +202,17 @@ export default function ManagerBookings() {
     setRejectError(null);
 
     try {
-      // Prefer dedicated reject endpoint when available; fall back to status update.
-      // Body shape ready for: PATCH /bookings/:id/reject { reasonCode, note? }
-      try {
-        await apiFetch(`/bookings/${rejectTarget.id}/reject`, {
-          method: "PATCH",
-          body: JSON.stringify({
-            reasonCode,
-            note: rejectNote.trim() || undefined,
-          }),
-        });
-      } catch {
-        // Endpoint may not exist yet — use existing status endpoint
-        await apiFetch(`/bookings/${rejectTarget.id}/status`, {
-          method: "PATCH",
-          body: JSON.stringify({ status: "CANCELLED" }),
-        });
-      }
-
+      const updated = await apiFetch<ApiBooking>(`/bookings/${rejectTarget.id}/reject`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          reasonCode,
+          note: rejectNote.trim() || undefined,
+        }),
+      });
       setBookings((prev) =>
-        prev.map((b) => (b.id === rejectTarget.id ? { ...b, status: "CANCELLED" as BookingStatus } : b))
+        prev.map((b) =>
+          b.id === rejectTarget.id ? { ...b, ...updated, status: "CANCELLED" as BookingStatus } : b
+        )
       );
       setToast(`Booking rejected. ${rejectTarget.employee.name} will be notified.`);
       closeReject();
@@ -241,7 +234,6 @@ export default function ManagerBookings() {
           </div>
         </div>
 
-        {/* Summary */}
         <div className="mb-summary">
           <div className="mb-summary-card">
             <span>Pending approval</span>
@@ -261,7 +253,6 @@ export default function ManagerBookings() {
           </div>
         </div>
 
-        {/* Toolbar */}
         <div className="mb-toolbar">
           <div className="mb-filters">
             {STATUS_FILTERS.map((f) => (
@@ -377,7 +368,6 @@ export default function ManagerBookings() {
         )}
       </div>
 
-      {/* Reject modal */}
       {rejectTarget && (
         <div className="mb-modal-overlay" role="presentation" onClick={closeReject}>
           <div
@@ -403,7 +393,7 @@ export default function ManagerBookings() {
                 aria-required="true"
               >
                 <option value="">Select a reason…</option>
-                {REJECTION_REASONS.map((r) => (
+                {reasons.map((r) => (
                   <option key={r.code} value={r.code}>
                     {r.label}
                   </option>
@@ -412,9 +402,7 @@ export default function ManagerBookings() {
             </label>
 
             <label className="mb-field">
-              <span>
-                Optional note{reasonCode === "OTHER" ? " *" : ""}
-              </span>
+              <span>Optional note{reasonCode === "OTHER" ? " *" : ""}</span>
               <textarea
                 rows={3}
                 placeholder="Add context for the employee…"
