@@ -11,6 +11,9 @@ import ManagerQueue from "@/pages/manager/ManagerQueue";
 import ManagerSpaces from "@/pages/manager/ManagerSpaces";
 import ManagerSpaceCreate from "@/pages/manager/ManagerSpaceCreate";
 import ManagerAmenities from "@/pages/manager/ManagerAmenities";
+import ManagerInventory from "@/pages/manager/ManagerInventory";
+import ManagerReports from "@/pages/manager/ManagerReports";
+import ManagerProfile from "@/pages/manager/ManagerProfile";
 
 function App() {
   return (
@@ -30,6 +33,9 @@ function App() {
       <Route path="/manager/spaces" element={<ManagerSpaces />} />
       <Route path="/manager/spaces/create" element={<ManagerSpaceCreate />} />
       <Route path="/manager/amenities" element={<ManagerAmenities />} />
+      <Route path="/manager/inventory" element={<ManagerInventory />} />
+      <Route path="/manager/reports" element={<ManagerReports />} />
+      <Route path="/manager/profile" element={<ManagerProfile />} />
     </Routes>
   );
 }
