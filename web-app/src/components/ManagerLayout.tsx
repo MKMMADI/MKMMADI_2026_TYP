@@ -1,26 +1,13 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import "@/styles/manager-dashboard.css";
 
+
 type IconName =
-  | "grid"
-  | "calendar"
-  | "room"
-  | "people"
-  | "chart"
-  | "bell"
-  | "plus"
-  | "more"
-  | "arrow"
-  | "clock"
-  | "wifi"
-  | "box"
-  | "user"
-  | "settings"
-  | "chevron-down"
-  | "chevron-right"
-  | "search"
-  | "filter";
+  | "grid" | "calendar" | "room" | "people" | "chart" | "bell"
+  | "plus" | "more" | "arrow" | "clock" | "wifi" | "box"
+  | "user" | "settings" | "chevron-down" | "chevron-right"
+  | "search" | "filter";
 
 function Icon({
   name,
@@ -103,10 +90,7 @@ function Icon({
     ),
     box: (
       <>
-        <path
-          d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"
-          {...common}
-        />
+        <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" {...common} />
         <path d="M3.27 6.96L12 12.01l8.73-5.05" {...common} />
         <path d="M12 22.08V12" {...common} />
       </>
@@ -119,10 +103,7 @@ function Icon({
     ),
     settings: (
       <>
-        <path
-          d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"
-          {...common}
-        />
+        <path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" {...common} />
         <circle cx="12" cy="12" r="3" {...common} />
       </>
     ),
@@ -197,8 +178,6 @@ const navConfig: Record<string, NavCategory> = {
 };
 
 export default function ManagerLayout({ children }: { children: ReactNode }) {
-  const location = useLocation();
-  const navigate = useNavigate();
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(["dashboard", "bookings", "facilities"])
@@ -236,16 +215,18 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="manager-dashboard">
+      {/* SIDEBAR */}
       <aside className="manager-sidebar">
         <Link className="manager-brand" to="/manager/dashboard" aria-label="BookSpace dashboard">
           <div className="manager-brand-row">
             <span className="manager-brand-mark">B</span>
             <span className="manager-brand-name">BookSpace</span>
           </div>
+          {/* Role tag now sits under the logo */}
           <span className="manager-role-badge">Manager</span>
         </Link>
 
-        {/* Side search bar removed */}
+        {/* Side search bar completely removed */}
 
         <nav className="manager-nav" aria-label="Manager navigation">
           {Object.entries(navConfig).map(([categoryId, category]) => (
@@ -303,6 +284,7 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
+      {/* MAIN */}
       <main className="manager-main">
         <header className="manager-topbar">
           <button className="manager-mobile-brand" type="button" aria-label="Open navigation">
@@ -335,13 +317,14 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
               </div>
             )}
 
-            <button type="button" className="manager-create" onClick={() => navigate("/manager/bookings")}>
+            <button type="button" className="manager-create">
               <Icon name="plus" size={18} />
               New booking
             </button>
           </div>
         </header>
 
+        {/* Dynamic page content goes here */}
         <section className="manager-content">{children}</section>
       </main>
     </div>

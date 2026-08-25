@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import rateLimit from './utils/rateLimiting';
 import authRoutes from './routes/authRoutes';
 import roomRoutes from './routes/roomRoutes';
 import amenityRoutes from './routes/amenityRoutes';
@@ -19,7 +18,6 @@ app.use(express.json());
 //logs each request to the console
 app.use(requestLogging);
 //apply rate limiting to all requests
-app.use(rateLimit);
 
 //routes
 app.use('/api/v1/auth', authRoutes);
