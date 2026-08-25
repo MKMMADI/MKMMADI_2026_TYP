@@ -1,0 +1,24 @@
+# Node
+node_modules/
+
+# Expo
+.expo/
+.expo-shared/
+
+# EAS
+.eas/
+
+# macOS
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build
+android/build/
+ios/build/
+
+# Local env
+.env
