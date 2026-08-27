@@ -1,0 +1,14 @@
+{
+  "build": {
+    "production": {
+      "env": {},
+      "distribution": "store",
+      "android": { "buildType": "app-bundle" },
+      "ios": { "workflow": "managed" }
+    },
+    "development": {
+      "distribution": "internal",
+      "android": { "gradleCommand": "assembleDebug" }
+    }
+  }
+}

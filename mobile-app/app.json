@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Conference Rooms",
+    "slug": "mkmmadi-mobile",
+    "version": "1.0.0",
+    "sdkVersion": "49.0.0",
+    "platforms": ["ios", "android", "web"],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FF385C"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "updates": { "fallbackToCacheTimeout": 0 },
+    "ios": { "supportsTablet": true },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FF385C"
+      }
+    },
+    "web": { "favicon": "./assets/favicon.png" }
+  }
+}
