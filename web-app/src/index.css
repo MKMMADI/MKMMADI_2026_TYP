@@ -1,22 +1,22 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
+  --text: #6A6A6A;
+  --text-h: #222222;
   --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
+  --border: #EBEBEB;
+  --code-bg: #F7F7F7;
+  --accent: #FF385C;
+  --accent-bg: rgba(255, 56, 92, 0.1);
+  --accent-border: rgba(255, 56, 92, 0.5);
+  --social-bg: rgba(247, 247, 247, 0.5);
   --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+    0 2px 8px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  font: 16px/145% var(--sans);
+  letter-spacing: 0;
   color-scheme: light;
   color: var(--text);
   background: var(--bg);
@@ -26,7 +26,7 @@
   -moz-osx-font-smoothing: grayscale;
 
   @media (max-width: 1024px) {
-    font-size: 16px;
+    font-size: 15px;
   }
 }
 
@@ -45,23 +45,23 @@ body {
 h1,
 h2 {
   font-family: var(--heading);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-h);
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
+  font-size: 32px;
+  letter-spacing: -0.04em;
+  margin: 24px 0;
   @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+    font-size: 28px;
+    margin: 16px 0;
   }
 }
 h2 {
-  font-size: 24px;
+  font-size: 22px;
   line-height: 118%;
-  letter-spacing: -0.24px;
+  letter-spacing: -0.02em;
   margin: 0 0 8px;
   @media (max-width: 1024px) {
     font-size: 20px;
@@ -80,7 +80,7 @@ code,
 }
 
 code {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
