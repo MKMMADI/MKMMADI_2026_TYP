@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Conference Rooms",
+    "slug": "mkmmadi-conference-rooms",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "conferencerooms",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#FF385C"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mkmmadi.conferencerooms"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FF385C"
+      },
+      "package": "com.mkmmadi.conferencerooms"
+    },
+    "plugins": ["expo-router"]
+  }
+}

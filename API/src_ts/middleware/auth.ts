@@ -21,24 +21,20 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     const token = parts[1];
     const decoded = jwt.verify(token, JWT_SECRET) as any;
 
-    // jti should be available
-    const jti = decoded.jti || decoded?.jti || decoded?.jwtid || null;
+    const jti = decoded.jti || decoded?.jwtid || null;
     if (!jti) return res.status(401).json({ message: 'Token missing jti' });
 
-    // check Session table
-    const session = await prisma.session.findUnique({ where: { jwt_id: jti } });
+    const session = await prisma.session.findUnique({ where: { jwtId: jti } });
     if (!session || session.revoked) return res.status(401).json({ message: 'Session revoked or not found' });
-    if (session.expires_at <= new Date()) return res.status(401).json({ message: 'Session expired' });
+    if (session.expiresAt <= new Date()) return res.status(401).json({ message: 'Session expired' });
 
-    // fetch user
-    const user = await prisma.user.findUnique({ where: { id: session.user_id } });
+    const user = await prisma.user.findUnique({ where: { id: session.userId } });
     if (!user) return res.status(401).json({ message: 'User not found' });
 
     req.user = { id: user.id, email: user.email, role: user.role };
     req.tokenJti = jti;
     next();
   } catch (err) {
-    console.error('auth error', err);
     return res.status(401).json({ message: 'Invalid token' });
   }
 }
@@ -47,6 +43,14 @@ export function requireRole(role: string) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
     if (req.user.role !== role) return res.status(403).json({ message: 'Insufficient role' });
+    next();
+  };
+}
+
+export function requireRoles(roles: string[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+    if (!roles.includes(req.user.role)) return res.status(403).json({ message: 'Insufficient role' });
     next();
   };
 }

@@ -1,68 +1,187 @@
+//TODO :Make improvements to the schema.prisma file by adding comments to explain the purpose of each model, enum, and field. This will help developers understand the structure and relationships of the database schema more easily.
+//TODO :Also make data retrieval faster using indexes on frequently queried fields, such as email in the User model and status in the Booking model. This will improve performance for common queries and reduce response times for API requests.
+
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 generator client {
   provider = "prisma-client-js"
 }
 
+enum Role {
+  EMPLOYEE
+  CLERK
+  MANAGER
+}
+
+enum RoomStatus {
+  AVAILABLE
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
 
 model User {
   id            Int       @id @default(autoincrement())
   name          String
   email         String    @unique
-  password_hash String
-  role          Role
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
+  passwordHash  String
+  role          Role      @default(EMPLOYEE)
+  department    String?
+  contactNumber String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  Active        Boolean   @default(true)
 
-  // Relations
-  worker Worker?
-  sessions Session[]
-  refreshTokens RefreshToken[]
+  sessions            Session[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  bookings            Booking[]            @relation("EmployeeBookings")
+  preparedBookings    Booking[]            @relation("PreparedBookings")
+  reviewedBookings    Booking[]            @relation("ReviewedBookings")
+  stockAdjustments    StockAdjustment[]
 }
 
-model Worker {
-  user_id        Int       @id
-  employee_number String   @unique
-  department      String?
-  office_location String?
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
-  // Relation back to User
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  // Relation to Admin (optional, only if this worker is also an admin)
-  admin Admin?
-}
-
-model Admin {
-  worker_id Int @id
-
-  // Relation back to Worker
-  worker Worker @relation(fields: [worker_id], references: [user_id], onDelete: Cascade)
-}
-
-enum Role {
-  worker
-  admin
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Session {
-  id         Int      @id @default(autoincrement())
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  user_id    Int
-  jwt_id     String   @unique
-  expires_at DateTime
-  revoked    Boolean  @default(false)
-  created_at DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  jwtId     String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model RefreshToken {
-  id         Int      @id @default(autoincrement())
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  user_id    Int
-  token_hash String   @unique
-  revoked    Boolean  @default(false)
-  expires_at DateTime
-  created_at DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tokenHash String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Room {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  capacity    Int
+  status      RoomStatus @default(AVAILABLE)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  amenities RoomAmenity[]
+  bookings  BookingRoom[]
+}
+
+model Amenity {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rooms    RoomAmenity[]
+  bookings BookingAmenity[]
+}
+
+model RoomAmenity {
+  roomId    Int
+  amenityId Int
+
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  amenity Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, amenityId])
+}
+
+model Booking {
+  id                  Int           @id @default(autoincrement())
+  employeeId          Int
+  preparedById        Int?
+  reviewedById        Int?
+  startAt             DateTime
+  endAt               DateTime
+  purpose             String
+  status              BookingStatus @default(PENDING)
+  rejectionReasonCode String?
+  rejectionNote       String?
+  reviewedAt          DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  employee   User             @relation("EmployeeBookings", fields: [employeeId], references: [id], onDelete: Cascade)
+  preparedBy User?            @relation("PreparedBookings", fields: [preparedById], references: [id])
+  reviewedBy User?            @relation("ReviewedBookings", fields: [reviewedById], references: [id])
+  rooms      BookingRoom[]
+  amenities  BookingAmenity[]
+}
+
+model BookingRoom {
+  id         Int    @id @default(autoincrement())
+  bookingId  Int
+  roomId     Int
+  roomStatus String @default("BOOKED")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
+
+model BookingAmenity {
+  bookingId Int
+  amenityId Int
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amenity Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([bookingId, amenityId])
+}
+
+model ConsumableItem {
+  id             Int      @id @default(autoincrement())
+  name           String
+  unit           String
+  quantityOnHand Int
+  reorderLevel   Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  adjustments StockAdjustment[]
+}
+
+model StockAdjustment {
+  id             Int      @id @default(autoincrement())
+  itemId         Int
+  adjustedById   Int
+  quantityChange Int
+  reason         String
+  createdAt      DateTime @default(now())
+
+  item       ConsumableItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  adjustedBy User           @relation(fields: [adjustedById], references: [id], onDelete: Cascade)
 }

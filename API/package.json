@@ -5,17 +5,23 @@
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
-    "dev": "nodemon --watch src_ts --exec ts-node ./src_ts/server.ts",
+    "dev": "nodemon --watch src_ts --exec ts-node src_ts/server.ts",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --runInBand",
     "build": "tsc",
-    "dev:ts": "ts-node-dev --respawn --transpile-only src_ts/server.ts"
+    "prebuild": "npm test",
+    "dev:ts": "ts-node-dev --respawn --transpile-only src_ts/server.ts",
+    "seed": "prisma db seed"
   },
   "dependencies": {
-    "@prisma/adapter-mariadb": "^7.9.1",
+    "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.6.2",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
     "nodemon": "^3.1.14",
@@ -24,6 +30,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.2",
+    "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.2",
     "@types/morgan": "^1.9.10",
