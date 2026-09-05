@@ -1,3 +1,6 @@
+//TODO :Make improvements to the schema.prisma file by adding comments to explain the purpose of each model, enum, and field. This will help developers understand the structure and relationships of the database schema more easily.
+//TODO :Also make data retrieval faster using indexes on frequently queried fields, such as email in the User model and status in the Booking model. This will improve performance for common queries and reduce response times for API requests.
+
 datasource db {
   provider = "postgresql"
 }

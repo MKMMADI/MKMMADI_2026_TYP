@@ -6,7 +6,11 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "nodemon --watch src_ts --exec ts-node src_ts/server.ts",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --runInBand",
     "build": "tsc",
+    "prebuild": "npm test",
     "dev:ts": "ts-node-dev --respawn --transpile-only src_ts/server.ts",
     "seed": "prisma db seed"
   },

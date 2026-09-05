@@ -16,14 +16,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(requestLogging);
-//apply rate limiting to all requests
+//add rate limiting middleware
+
 
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/rooms', roomRoutes);
 app.use('/api/v1/amenities', amenityRoutes);
 app.use('/api/v1/bookings', bookingRoutes);
-app.use('/api/v1/consumables', consumableRoutes);
+app.use('/api/v1/consumables', consumableRoutes);   
 app.use('/api/v1/reports', reportRoutes);
 
 app.get('/api/v1/me', authenticate, getProfile);

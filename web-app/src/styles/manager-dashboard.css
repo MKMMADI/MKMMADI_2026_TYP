@@ -1,15 +1,17 @@
-/* ===== BASE — Airbnb-inspired tokens (match mobile-app/src/theme/tokens.ts) ===== */
+/* ===== BASE — navy and steel tokens (match mobile-app/src/theme/tokens.ts) ===== */
 .manager-dashboard { 
-  --m-ink: #222222; 
-  --m-muted: #6A6A6A; 
-  --m-line: #EBEBEB; 
-  --m-teal: #FF385C; 
-  --m-teal-dark: #E00B41; 
-  --m-teal-light: #FFF0F3;
-  --m-shadow: 0 2px 8px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
-  --m-surface: #F7F7F7;
-  --m-surface-strong: #F2F2F2;
-  --m-hairline: #DDDDDD;
+  --m-ink: #1B2633; 
+  --m-muted: #5C6B78; 
+  --m-line: #D9E2EA; 
+  --m-teal: #16324F; 
+  --m-teal-dark: #102A43; 
+  --m-teal-light: #E8EEF3;
+  --m-steel: #2F6690;
+  --m-steel-light: #DCE8F1;
+  --m-shadow: 0 2px 8px rgba(16,42,67,.06), 0 4px 12px rgba(16,42,67,.04);
+  --m-surface: #F4F7FA;
+  --m-surface-strong: #EAF0F4;
+  --m-hairline: #C7D3DD;
   --m-success: #008A05;
   --m-warning: #E07912;
   --m-error: #C13515;
@@ -149,7 +151,7 @@
   border: 0; 
   border-radius: 8px; 
   background: transparent; 
-  color: #6A6A6A; 
+  color: var(--m-muted); 
   font: inherit; 
   font-size: 13px; 
   font-weight: 600; 
@@ -257,8 +259,8 @@
   width: 36px; 
   height: 36px; 
   border-radius: 50%; 
-  background: #FFD1DA; 
-  color: #C13515; 
+  background: #D9E5EE; 
+  color: #16324F; 
   font-size: 12px; 
   font-weight: 800; 
 }
@@ -419,7 +421,7 @@
   border: 1px solid var(--m-teal); 
   background: var(--m-teal); 
   color: #fff; 
-  box-shadow: 0 4px 12px rgba(255, 56, 92, .22); 
+  box-shadow: 0 4px 12px rgba(22, 50, 79, .22); 
 }
 
 .manager-create:hover { 
@@ -657,8 +659,8 @@
 }
 
 .manager-booking-status.blue {
-  background: #E8EEF9;
-  color: #4a7ba8;
+  background: var(--m-steel-light);
+  color: var(--m-steel);
 }
 
 .manager-booking-status.amber {
@@ -719,7 +721,7 @@
 }
 
 .summary-dot.preparing {
-  background: #6d9fd2;
+  background: var(--m-steel);
 }
 
 .summary-dot.ready {
@@ -796,7 +798,7 @@
   margin-top: 22px; 
   padding: 27px 28px; 
   overflow: hidden; 
-  background: linear-gradient(117deg, #FFF0F3, #FFFFFF); 
+  background: linear-gradient(117deg, #E8EEF3, #FFFFFF); 
 }
 
 .manager-insights > div:first-child { 
@@ -821,14 +823,14 @@
   width: 225px; 
   height: 122px; 
   padding: 0 10px; 
-  border-bottom: 1px solid #FFD1DA; 
+  border-bottom: 1px solid #C7D3DD; 
 }
 
 .manager-bars span { 
   display: block; 
   flex: 1; 
   border-radius: 5px 5px 0 0; 
-  background: #FFD1DA; 
+  background: #C7D3DD; 
 }
 
 .manager-bars span.current { 

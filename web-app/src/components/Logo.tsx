@@ -18,7 +18,7 @@ export default function Logo({ inverse = false }: { inverse?: boolean }) {
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
       >
-        <rect width="32" height="32" rx="8" fill="#2A9D8F" />
+        <rect width="32" height="32" rx="8" fill="#16324F" />
         <path
           d="M10 21V11L16 17L22 11V21"
           stroke="white"
