@@ -4,19 +4,19 @@
   "description": "API for Project 2026_TYP (Node + Express)",
   "main": "dist/server.js",
   "scripts": {
+    "preinstall": "npx npm-force-resolutions",
     "start": "node dist/server.js",
-    "dev": "nodemon --watch src_ts --exec ts-node src_ts/server.ts",
+    "dev": "tsx watch src_ts/server.ts",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --runInBand",
     "build": "tsc",
     "prebuild": "npm test",
-    "dev:ts": "ts-node-dev --respawn --transpile-only src_ts/server.ts",
     "seed": "prisma db seed"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
-    "@prisma/client": "^7.9.1",
+    "@prisma/client": "^7.10.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -36,7 +36,17 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^20.19.43",
     "ts-node": "^10.9.1",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.2"
+    "tsx": "^4.23.13",
+    "typescript": "^5.4.2",
+    "npm-force-resolutions": "^0.0.10"
+  },
+  "resolutions": {
+    "deepmerge-ts": "8.0.0",
+    "mysql2": "3.24.0"
+  },
+  "allowScripts": {
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true,
+    "esbuild@0.28.2": true
   }
 }
