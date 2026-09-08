@@ -77,6 +77,8 @@ export async function refreshAccessToken() {
   return accessToken;
 }
 
+
+// What does this function do ?
 async function request(path: string, options: RequestOptions = {}) {
   const { __retry = false } = options;
   const headers: Record<string, string> = {

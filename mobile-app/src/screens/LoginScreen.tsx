@@ -10,8 +10,8 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps) {
-  const [email, setEmail] = useState('alex.rivera@company.com');
-  const [password, setPassword] = useState('password');
+  const [email, setEmail] = useState('thandi.mokoena@bookspace.co.za');
+  const [password, setPassword] = useState('Password123!');
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
