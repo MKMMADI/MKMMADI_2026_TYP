@@ -5,7 +5,7 @@
 }
 
 .mf-page--narrow {
-  max-width: 640px;
+  max-width: 760px;
 }
 
 .mf-header {
@@ -14,6 +14,7 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  margin-bottom: 4px;
 }
 
 .mf-header h1 {
@@ -280,10 +281,10 @@
   margin-bottom: 1rem;
 }
 
-/* Form */
+/* Form – tighter spacing, better horizontal use */
 .mf-form {
-  margin-top: 28px;
-  padding: 24px;
+  margin-top: 20px;
+  padding: 28px;
   border: 1px solid var(--m-line, #e7edeb);
   border-radius: 13px;
   background: #fff;
@@ -293,7 +294,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .mf-field span {
@@ -326,8 +327,8 @@
 }
 
 .mf-fieldset {
-  margin: 0 0 16px;
-  padding: 14px;
+  margin: 0 0 14px;
+  padding: 14px 16px;
   border: 1px solid var(--m-line, #e7edeb);
   border-radius: 10px;
 }
@@ -341,7 +342,7 @@
 
 .mf-check-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
@@ -469,5 +470,11 @@
 
   .mf-search input {
     width: 100%;
+  }
+}
+
+@media (min-width: 741px) and (max-width: 900px) {
+  .mf-check-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
