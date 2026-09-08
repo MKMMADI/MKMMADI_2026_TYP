@@ -1,7 +1,7 @@
-import config from './config/index';
-import app from './app';
-import logger from './utils/logger';
-import prisma from './prisma';
+import config from './src_ts/config/index';
+import app from './src_ts/app';
+import logger from './src_ts/utils/logger';
+import prisma from './src_ts/prisma';
 
 const PORT = config.PORT;
 

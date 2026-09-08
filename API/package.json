@@ -4,19 +4,19 @@
   "description": "API for Project 2026_TYP (Node + Express)",
   "main": "dist/server.js",
   "scripts": {
+    "preinstall": "npx npm-force-resolutions",
     "start": "node dist/server.js",
-    "dev": "nodemon --watch src_ts --exec ts-node src_ts/server.ts",
+    "dev": "tsx watch server.ts",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --runInBand",
     "build": "tsc",
     "prebuild": "npm test",
-    "dev:ts": "ts-node-dev --respawn --transpile-only src_ts/server.ts",
     "seed": "prisma db seed"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
-    "@prisma/client": "^7.9.1",
+    "@prisma/client": "^7.10.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -25,18 +25,35 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
     "nodemon": "^3.1.14",
-    "prisma": "^7.9.1",
     "winston": "^3.19.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.2",
     "@types/morgan": "^1.9.10",
     "@types/node": "^20.19.43",
+    "jest": "^30.5.1",
+    "npm-force-resolutions": "^0.0.10",
+    "prisma": "^8.0.0-rc.13",
+    "ts-jest": "^29.4.12",
     "ts-node": "^10.9.1",
-    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.4.2"
+  },
+  "resolutions": {
+    "deepmerge-ts": "8.0.0",
+    "mysql2": "3.24.0"
+  },
+  "allowScripts": {
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true,
+    "esbuild@0.28.2": true,
+    "@parcel/watcher@2.6.0": true,
+    "msgpackr-extract@3.0.4": true,
+    "unrs-resolver@1.12.2": true,
+    "workerd@1.20260704.1": true
   }
 }

@@ -1,26 +1,25 @@
 /**
- * Airbnb-inspired design tokens for the Conference Room Booking mobile app.
- * Adapted from the Airbnb DESIGN.md (VoltAgent/awesome-design-md).
- * Primary brand voltage: Rausch #ff385c
+ * Shared design tokens for the Conference Room Booking mobile app.
+ * Kept aligned with the web app's navy and steel brand palette.
  */
 
 export const colors = {
-  primary: '#FF385C',
-  primaryActive: '#E00B41',
-  primaryDisabled: '#FFD1DA',
+  primary: '#16324F',
+  primaryActive: '#102A43',
+  primaryDisabled: '#B9D1E2',
   primaryError: '#C13515',
   canvas: '#FFFFFF',
-  surfaceSoft: '#F7F7F7',
-  surfaceStrong: '#F2F2F2',
+  surfaceSoft: '#F4F7FA',
+  surfaceStrong: '#EAF0F4',
   surfaceCard: '#FFFFFF',
-  ink: '#222222',
+  ink: '#1B2633',
   body: '#3F3F3F',
-  muted: '#6A6A6A',
+  muted: '#5C6B78',
   mutedSoft: '#929292',
   onPrimary: '#FFFFFF',
-  hairline: '#DDDDDD',
-  hairlineSoft: '#EBEBEB',
-  borderStrong: '#C1C1C1',
+  hairline: '#D9E2EA',
+  hairlineSoft: '#E8EEF3',
+  borderStrong: '#C7D3DD',
   success: '#008A05',
   warning: '#E07912',
   error: '#C13515',
