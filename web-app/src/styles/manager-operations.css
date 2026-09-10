@@ -1,4 +1,4 @@
-/* Operations + Profile */
+/* Operations + Profile + Inventory + Reports */
 
 .mo-page {
   width: 100%;
@@ -29,6 +29,8 @@
   margin: 0;
   color: var(--m-muted, #738184);
   font-size: 14px;
+  max-width: 56ch;
+  line-height: 1.5;
 }
 
 .mo-primary-btn {
@@ -86,6 +88,11 @@
   background: #fff8f5;
 }
 
+.mo-summary-card--danger {
+  border-color: #e8b4ad;
+  background: #fdf4f2;
+}
+
 .mo-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -93,6 +100,49 @@
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 18px;
+}
+
+.mo-level-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mo-level-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--m-line, #e7edeb);
+  border-radius: 8px;
+  background: #fff;
+  color: #536366;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.mo-level-filters button.active {
+  border-color: var(--m-teal, #2a9d8f);
+  background: #e7f5f2;
+  color: var(--m-teal-dark, #16786d);
+}
+
+.mo-filter-badge {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e07912;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.mo-filter-badge--dark {
+  background: #b84a3a;
 }
 
 .mo-check {
@@ -177,6 +227,11 @@
 }
 
 .mo-badge--low {
+  background: #fff2df;
+  color: #b87a2a;
+}
+
+.mo-badge--out {
   background: #fde8e5;
   color: #b84a3a;
 }
@@ -257,6 +312,118 @@
 
 .mo-trend {
   text-transform: capitalize;
+}
+
+/* Charts */
+.mo-chart {
+  margin: 0 0 28px;
+  padding: 20px 22px;
+  border: 1px solid var(--m-line, #e7edeb);
+  border-radius: 13px;
+  background: #fff;
+}
+
+.mo-chart .mo-section-title {
+  margin-top: 0;
+}
+
+.mo-chart-empty {
+  margin: 0;
+  color: var(--m-muted, #738184);
+  font-size: 13px;
+}
+
+.mo-bar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mo-bar-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 160px) 1fr 52px;
+  align-items: center;
+  gap: 12px;
+}
+
+.mo-bar-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--m-ink, #253539);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mo-bar-track {
+  height: 12px;
+  border-radius: 999px;
+  background: #eef2f4;
+  overflow: hidden;
+}
+
+.mo-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2a9d8f, #16786d);
+  min-width: 2px;
+  transition: width 0.25s ease;
+}
+
+.mo-bar-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #536366;
+  text-align: right;
+}
+
+.mo-columns {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  min-height: 160px;
+  padding-top: 8px;
+  overflow-x: auto;
+}
+
+.mo-column {
+  flex: 1 0 28px;
+  min-width: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.mo-column-bar-wrap {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mo-column-bar {
+  width: 70%;
+  max-width: 28px;
+  border-radius: 5px 5px 0 0;
+  background: #2a9d8f;
+  min-height: 4px;
+}
+
+.mo-column-label {
+  font-size: 9px;
+  color: var(--m-muted, #738184);
+  white-space: nowrap;
+}
+
+.mo-column-val {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--m-ink, #253539);
 }
 
 /* Form / modal shared */
@@ -364,7 +531,7 @@
   box-shadow: 0 12px 30px rgba(34, 59, 57, 0.25);
 }
 
-/* Profile – tighter, better use of horizontal space */
+/* Profile */
 .mo-profile {
   margin-top: 20px;
   display: grid;
@@ -444,5 +611,14 @@
     flex-direction: row;
     text-align: left;
     align-items: center;
+  }
+
+  .mo-bar-row {
+    grid-template-columns: 1fr 48px;
+    grid-template-rows: auto auto;
+  }
+
+  .mo-bar-label {
+    grid-column: 1 / -1;
   }
 }
