@@ -16,6 +16,36 @@
   margin: 0;
   color: var(--m-muted, #738184);
   font-size: 14px;
+  max-width: 56ch;
+  line-height: 1.5;
+}
+
+.mq-callout {
+  margin: 20px 0 8px;
+  padding: 14px 16px;
+  border: 1px solid #d5e0f0;
+  border-radius: 10px;
+  background: #f5f8fc;
+}
+
+.mq-callout strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--m-ink, #253539);
+}
+
+.mq-callout p {
+  margin: 0;
+  font-size: 13px;
+  color: #536366;
+  line-height: 1.5;
+}
+
+.mq-callout em {
+  font-style: normal;
+  font-weight: 700;
+  color: #2f6f9a;
 }
 
 .mq-summary {
@@ -244,46 +274,16 @@
   gap: 8px;
 }
 
-.mq-btn {
-  padding: 9px 14px;
+.mq-view-only {
+  display: inline-block;
+  padding: 6px 12px;
   border-radius: 8px;
-  font: inherit;
-  font-size: 12px;
+  background: #f0f3f5;
+  color: #738184;
+  font-size: 11px;
   font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-
-.mq-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.mq-btn--start {
-  border: 1px solid #5b8ec9;
-  background: #5b8ec9;
-  color: #fff;
-}
-
-.mq-btn--start:hover:not(:disabled) {
-  background: #4a7bb5;
-}
-
-.mq-btn--ready {
-  border: 1px solid var(--m-teal, #2a9d8f);
-  background: var(--m-teal, #2a9d8f);
-  color: #fff;
-}
-
-.mq-btn--ready:hover:not(:disabled) {
-  background: var(--m-teal-dark, #16786d);
-}
-
-.mq-done-label {
-  font-size: 12px;
-  font-weight: 650;
-  color: #1f7a55;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .mq-empty,
@@ -301,21 +301,6 @@
   margin-bottom: 1rem;
 }
 
-.mq-toast {
-  position: fixed;
-  bottom: 28px;
-  right: 28px;
-  z-index: 300;
-  max-width: 360px;
-  padding: 14px 18px;
-  border-radius: 10px;
-  background: #253539;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: 0 12px 30px rgba(34, 59, 57, 0.25);
-}
-
 @media (max-width: 900px) {
   .mq-summary {
     grid-template-columns: repeat(2, 1fr);
@@ -328,11 +313,7 @@
   }
 
   .mq-card-actions {
-    align-items: stretch;
-    width: 100%;
-  }
-
-  .mq-btn {
+    align-items: flex-start;
     width: 100%;
   }
 
