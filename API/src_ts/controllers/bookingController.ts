@@ -13,6 +13,9 @@ const bookingInclude = {
   reviewedBy: { select: { id: true, name: true, email: true } },
 } as const;
 
+/** Statuses clerks may set on the preparation queue (including moving backwards). */
+const PREP_STATUSES = new Set(['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED']);
+
 export async function createBookingHandler(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const booking = await createBooking({
@@ -164,10 +167,19 @@ export async function rejectBooking(req: AuthRequest, res: Response, next: NextF
 export async function updateBookingStatus(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = Number(req.params.id);
-    const { status } = req.body;
+    const { status } = req.body as { status?: string };
 
     if (!status) {
       return next(createHttpError('Status is required', 400));
+    }
+
+    if (!PREP_STATUSES.has(status)) {
+      return next(
+        createHttpError(
+          'Invalid preparation status. Allowed: CONFIRMED, PREPARING, READY, COMPLETED',
+          400
+        )
+      );
     }
 
     const existing = await prisma.booking.findUnique({ where: { id } });
@@ -175,11 +187,39 @@ export async function updateBookingStatus(req: AuthRequest, res: Response, next:
       return next(createHttpError('Booking not found', 404));
     }
 
+    // Queue work only on confirmed/prep pipeline (not PENDING / CANCELLED)
+    const fromAllowed = PREP_STATUSES.has(existing.status) || existing.status === 'CONFIRMED';
+    if (!fromAllowed && existing.status !== 'CONFIRMED') {
+      // CONFIRMED is in PREP_STATUSES; also allow if already in pipeline
+      if (!['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'].includes(existing.status)) {
+        return next(
+          createHttpError(
+            'Only confirmed or in-preparation bookings can have preparation status changed',
+            400
+          )
+        );
+      }
+    }
+
+    if (!['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'].includes(existing.status)) {
+      return next(
+        createHttpError(
+          'Only confirmed or in-preparation bookings can have preparation status changed',
+          400
+        )
+      );
+    }
+
     const data: Record<string, unknown> = { status };
 
-    // When starting prep, claim the booking
+    // When starting (or re-starting) prep, claim the booking
     if (status === 'PREPARING') {
       data.preparedById = req.user.id;
+    }
+
+    // Moving back from READY/PREPARING to CONFIRMED clears claim
+    if (status === 'CONFIRMED') {
+      data.preparedById = null;
     }
 
     const booking = await prisma.booking.update({
