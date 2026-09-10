@@ -4,7 +4,12 @@ import ForgotPassword from "@/pages/auth/ForgotPassword";
 import CheckEmail from "@/pages/auth/CheckEmail";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import ResetSuccess from "@/pages/auth/ResetSuccess";
-import ClerkDashboard from "@/pages/dashboards/ClerkDashboard";
+import ClerkQueue from "@/pages/clerk/ClerkQueue";
+import ClerkStock from "@/pages/clerk/ClerkStock";
+import ClerkProfile from "@/pages/clerk/ClerkProfile";
+import EmployeeHome from "@/pages/employee/EmployeeHome";
+import EmployeeBookings from "@/pages/employee/EmployeeBookings";
+import EmployeeProfile from "@/pages/employee/EmployeeProfile";
 import ManagerDashboard from "@/pages/dashboards/ManagerDashboard";
 import ManagerBookings from "@/pages/manager/ManagerBookings";
 import ManagerQueue from "@/pages/manager/ManagerQueue";
@@ -25,8 +30,19 @@ function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/reset-success" element={<ResetSuccess />} />
 
-      <Route path="/dashboard" element={<div>Employee dashboard</div>} />
-      <Route path="/operations/dashboard" element={<ClerkDashboard />} />
+      {/* Employee — same field-app shell as clerk */}
+      <Route path="/dashboard" element={<EmployeeHome />} />
+      <Route path="/dashboard/bookings" element={<EmployeeBookings />} />
+      <Route path="/dashboard/profile" element={<EmployeeProfile />} />
+
+      {/* Clerk / operations — mobile-first */}
+      <Route path="/operations" element={<ClerkQueue />} />
+      <Route path="/operations/queue" element={<Navigate to="/operations" replace />} />
+      <Route path="/operations/dashboard" element={<Navigate to="/operations" replace />} />
+      <Route path="/operations/stock" element={<ClerkStock />} />
+      <Route path="/operations/profile" element={<ClerkProfile />} />
+
+      {/* Manager — desktop web */}
       <Route path="/manager/dashboard" element={<ManagerDashboard />} />
       <Route path="/manager/bookings" element={<ManagerBookings />} />
       <Route path="/manager/queue" element={<ManagerQueue />} />
