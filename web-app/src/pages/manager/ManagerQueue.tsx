@@ -42,12 +42,11 @@ function formatTimeRange(startAt: string, endAt: string) {
   return `${start.toLocaleDateString("en-ZA", dateOpts)} · ${start.toLocaleTimeString("en-ZA", timeOpts)} – ${end.toLocaleTimeString("en-ZA", timeOpts)}`;
 }
 
-function isUpcomingOrToday(startAt: string) {
-  const start = new Date(startAt);
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 1);
-  cutoff.setHours(0, 0, 0, 0);
-  return start >= cutoff;
+/** Start of local calendar day (for “hide past” filter). */
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 function statusLabel(status: string) {
@@ -70,13 +69,18 @@ export default function ManagerQueue() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | QueueStatus>("ALL");
   const [search, setSearch] = useState("");
+  /** When true, only meetings starting today or later are listed. */
+  const [hidePast, setHidePast] = useState(false);
 
   async function loadQueue() {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiFetch<ApiBooking[]>("/bookings");
-      setBookings(data);
+      // Prefer server-side status filter when supported; still works if ignored
+      const data = await apiFetch<ApiBooking[]>(
+        "/bookings?status=CONFIRMED,PREPARING,READY"
+      );
+      setBookings(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load preparation queue");
     } finally {
@@ -88,13 +92,24 @@ export default function ManagerQueue() {
     loadQueue();
   }, []);
 
+  // All confirmed / preparing / ready — includes past meetings unless hidePast is on
   const queueItems = useMemo(() => {
+    const today = startOfToday();
     return bookings
-      .filter(
-        (b) =>
-          QUEUE_STATUSES.includes(b.status as QueueStatus) && isUpcomingOrToday(b.startAt)
-      )
+      .filter((b) => {
+        if (!QUEUE_STATUSES.includes(b.status as QueueStatus)) return false;
+        if (hidePast && new Date(b.startAt) < today) return false;
+        return true;
+      })
       .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+  }, [bookings, hidePast]);
+
+  const pastInQueueCount = useMemo(() => {
+    const today = startOfToday();
+    return bookings.filter(
+      (b) =>
+        QUEUE_STATUSES.includes(b.status as QueueStatus) && new Date(b.startAt) < today
+    ).length;
   }, [bookings]);
 
   const filtered = useMemo(() => {
@@ -124,7 +139,6 @@ export default function ManagerQueue() {
     }),
     [queueItems]
   );
-
   return (
     <ManagerLayout>
       <div className="mq-page">
@@ -186,14 +200,24 @@ export default function ManagerQueue() {
               </button>
             ))}
           </div>
-          <div className="mq-search">
-            <input
-              type="search"
-              placeholder="Search purpose, employee, room, amenity…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search queue"
-            />
+          <div className="mq-toolbar-right">
+            <label className="mq-hide-past">
+              <input
+                type="checkbox"
+                checked={hidePast}
+                onChange={(e) => setHidePast(e.target.checked)}
+              />
+              <span>Hide past meetings</span>
+            </label>
+            <div className="mq-search">
+              <input
+                type="search"
+                placeholder="Search purpose, employee, room, amenity…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search queue"
+              />
+            </div>
           </div>
         </div>
 
@@ -217,21 +241,38 @@ export default function ManagerQueue() {
             {filtered.length === 0 && (
               <div className="mq-empty">
                 <p>No bookings in this part of the queue.</p>
+                {hidePast && pastInQueueCount > 0 && (
+                  <p className="mq-empty-hint">
+                    {pastInQueueCount} past meeting{pastInQueueCount === 1 ? "" : "s"} are hidden.
+                    Uncheck “Hide past meetings” to show them.
+                  </p>
+                )}
+                {!hidePast && bookings.filter((b) => b.status === "PENDING").length > 0 && (
+                  <p className="mq-empty-hint">
+                    Pending requests appear under All Bookings until you approve them — only
+                    Confirmed / Preparing / Ready show here.
+                  </p>
+                )}
               </div>
             )}
 
             {filtered.map((booking) => {
               const amenityNames = (booking.amenities || []).map((a) => a.amenity.name);
               const roomNames = booking.rooms.map((r) => r.room.name).join(", ") || "—";
+              const isPast = new Date(booking.startAt) < startOfToday();
 
               return (
-                <article key={booking.id} className="mq-card">
+                <article
+                  key={booking.id}
+                  className={`mq-card${isPast ? " mq-card--past" : ""}`}
+                >
                   <div className="mq-card-main">
                     <div className="mq-card-time">
                       <strong>{formatTimeRange(booking.startAt, booking.endAt)}</strong>
                       <span className={`mq-status mq-status--${statusClass(booking.status)}`}>
                         {statusLabel(booking.status)}
                       </span>
+                      {isPast && <span className="mq-past-tag">Past</span>}
                     </div>
 
                     <div className="mq-card-body">
