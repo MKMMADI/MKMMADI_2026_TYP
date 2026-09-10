@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import ManagerLayout from "@/components/ManagerLayout";
 import { apiFetch } from "@/lib/api";
 import "@/styles/manager-facilities.css";
@@ -18,7 +19,9 @@ export default function ManagerAmenities() {
   const [actionId, setActionId] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const [modalOpen, setModalOpen] = useState(false);
+  // create | edit
+  const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
+  const [editTarget, setEditTarget] = useState<ApiAmenity | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -58,13 +61,29 @@ export default function ManagerAmenities() {
   }, [amenities, search]);
 
   function openCreate() {
+    setModalMode("create");
+    setEditTarget(null);
     setName("");
     setDescription("");
     setFormError(null);
-    setModalOpen(true);
   }
 
-  async function handleCreate(e: FormEvent) {
+  function openEdit(amenity: ApiAmenity) {
+    setModalMode("edit");
+    setEditTarget(amenity);
+    setName(amenity.name);
+    setDescription(amenity.description || "");
+    setFormError(null);
+  }
+
+  function closeModal() {
+    setModalMode(null);
+    setEditTarget(null);
+    setFormError(null);
+    setSubmitting(false);
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
       setFormError("Name is required.");
@@ -73,19 +92,33 @@ export default function ManagerAmenities() {
     setSubmitting(true);
     setFormError(null);
     try {
-      const created = await apiFetch<ApiAmenity>("/amenities", {
-        method: "POST",
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim() || undefined,
-          isActive: true,
-        }),
-      });
-      setAmenities((prev) => [created, ...prev]);
-      setModalOpen(false);
-      setToast(`Amenity "${created.name}" added.`);
+      if (modalMode === "create") {
+        const created = await apiFetch<ApiAmenity>("/amenities", {
+          method: "POST",
+          body: JSON.stringify({
+            name: name.trim(),
+            description: description.trim() || undefined,
+            isActive: true,
+          }),
+        });
+        setAmenities((prev) => [created, ...prev]);
+        setToast(`Amenity "${created.name}" added.`);
+      } else if (modalMode === "edit" && editTarget) {
+        const updated = await apiFetch<ApiAmenity>(`/amenities/${editTarget.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: name.trim(),
+            description: description.trim() || null,
+          }),
+        });
+        setAmenities((prev) =>
+          prev.map((a) => (a.id === editTarget.id ? { ...a, ...updated } : a))
+        );
+        setToast(`Amenity "${updated.name}" updated.`);
+      }
+      closeModal();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Could not create amenity");
+      setFormError(err instanceof Error ? err.message : "Could not save amenity");
     } finally {
       setSubmitting(false);
     }
@@ -115,11 +148,27 @@ export default function ManagerAmenities() {
           <div>
             <p className="manager-kicker">Facilities</p>
             <h1>Amenities</h1>
-            <p className="mf-subtitle">Equipment and features that can be attached to spaces.</p>
+            <p className="mf-subtitle">
+              Catalog of room features (Wi‑Fi, projector, whiteboard, etc.) that you attach to
+              spaces. This is not stock levels — for consumables and inventory levels, use{" "}
+              <Link to="/manager/inventory" className="mf-inline-link">
+                Inventory
+              </Link>
+              .
+            </p>
           </div>
           <button type="button" className="mf-primary-link" onClick={openCreate}>
             + Add amenity
           </button>
+        </div>
+
+        <div className="mf-callout">
+          <strong>Amenities vs Inventory</strong>
+          <p>
+            <em>Amenities</em> are fixed features of a space (what the room offers when booked).
+            <em> Inventory</em> tracks consumable stock (paper, markers, water) and levels that can
+            run low.
+          </p>
         </div>
 
         <div className="mf-toolbar">
@@ -176,14 +225,24 @@ export default function ManagerAmenities() {
                     </td>
                     <td className="mf-muted">{a.description || "—"}</td>
                     <td>
-                      <button
-                        type="button"
-                        className="mf-btn mf-btn--danger"
-                        disabled={actionId === a.id}
-                        onClick={() => archiveAmenity(a)}
-                      >
-                        Archive
-                      </button>
+                      <div className="mf-row-actions">
+                        <button
+                          type="button"
+                          className="mf-btn mf-btn--ghost"
+                          disabled={actionId === a.id}
+                          onClick={() => openEdit(a)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="mf-btn mf-btn--danger"
+                          disabled={actionId === a.id}
+                          onClick={() => archiveAmenity(a)}
+                        >
+                          Archive
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -193,8 +252,8 @@ export default function ManagerAmenities() {
         )}
       </div>
 
-      {modalOpen && (
-        <div className="mf-modal-overlay" role="presentation" onClick={() => setModalOpen(false)}>
+      {modalMode && (
+        <div className="mf-modal-overlay" role="presentation" onClick={closeModal}>
           <div
             className="mf-modal"
             role="dialog"
@@ -202,8 +261,8 @@ export default function ManagerAmenities() {
             aria-labelledby="amenity-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="amenity-title">Add amenity</h2>
-            <form onSubmit={handleCreate}>
+            <h2 id="amenity-title">{modalMode === "create" ? "Add amenity" : "Edit amenity"}</h2>
+            <form onSubmit={handleSubmit}>
               <label className="mf-field">
                 <span>Name *</span>
                 <input
@@ -220,20 +279,20 @@ export default function ManagerAmenities() {
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Optional details"
+                  placeholder="Optional details shown when assigning to spaces"
                 />
               </label>
               {formError && <p className="mf-form-error">{formError}</p>}
               <div className="mf-form-actions">
-                <button
-                  type="button"
-                  className="manager-outline-button"
-                  onClick={() => setModalOpen(false)}
-                >
+                <button type="button" className="manager-outline-button" onClick={closeModal}>
                   Cancel
                 </button>
                 <button type="submit" className="mf-btn mf-btn--primary" disabled={submitting}>
-                  {submitting ? "Saving…" : "Save amenity"}
+                  {submitting
+                    ? "Saving…"
+                    : modalMode === "create"
+                      ? "Save amenity"
+                      : "Save changes"}
                 </button>
               </div>
             </form>
