@@ -29,6 +29,15 @@
   margin: 0;
   color: var(--m-muted, #738184);
   font-size: 14px;
+  max-width: 52ch;
+  line-height: 1.5;
+}
+
+.mf-inline-link {
+  color: var(--m-teal-dark, #16786d);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .mf-primary-link {
@@ -55,6 +64,34 @@
   font-weight: 650;
   color: var(--m-teal-dark, #16786d);
   text-decoration: none;
+}
+
+.mf-callout {
+  margin: 20px 0 8px;
+  padding: 14px 16px;
+  border: 1px solid #d5e8e4;
+  border-radius: 10px;
+  background: #f3faf8;
+}
+
+.mf-callout strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--m-ink, #253539);
+}
+
+.mf-callout p {
+  margin: 0;
+  font-size: 13px;
+  color: #536366;
+  line-height: 1.5;
+}
+
+.mf-callout em {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--m-teal-dark, #16786d);
 }
 
 .mf-summary {
@@ -182,6 +219,11 @@
   line-height: 1.45;
 }
 
+.mf-desc--muted {
+  font-style: italic;
+  opacity: 0.85;
+}
+
 .mf-badge {
   padding: 3px 10px;
   border-radius: 12px;
@@ -222,11 +264,54 @@
   font-weight: 600;
 }
 
+.mf-status-row {
+  margin-top: 4px;
+}
+
+.mf-status-select-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #536366;
+}
+
+.mf-status-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--m-line, #e7edeb);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--m-ink, #253539);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: 0;
+}
+
+.mf-status-select:focus {
+  border-color: var(--m-teal, #2a9d8f);
+}
+
+.mf-status-select:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .mf-card-actions {
   display: flex;
   gap: 8px;
   margin-top: auto;
   padding-top: 8px;
+  flex-wrap: wrap;
+}
+
+.mf-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .mf-btn {
@@ -281,7 +366,7 @@
   margin-bottom: 1rem;
 }
 
-/* Form – tighter spacing, better horizontal use */
+/* Form */
 .mf-form {
   margin-top: 20px;
   padding: 28px;
@@ -358,6 +443,7 @@
   margin: 0 0 8px;
   font-size: 12px;
   color: var(--m-muted, #738184);
+  line-height: 1.45;
 }
 
 .mf-form-error {
@@ -435,6 +521,10 @@
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 20px 50px rgba(34, 59, 57, 0.18);
+}
+
+.mf-modal--wide {
+  width: min(560px, 100%);
 }
 
 .mf-modal h2 {
