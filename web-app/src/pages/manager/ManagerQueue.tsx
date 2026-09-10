@@ -70,8 +70,6 @@ export default function ManagerQueue() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | QueueStatus>("ALL");
   const [search, setSearch] = useState("");
-  const [actionId, setActionId] = useState<number | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
 
   async function loadQueue() {
     try {
@@ -89,12 +87,6 @@ export default function ManagerQueue() {
   useEffect(() => {
     loadQueue();
   }, []);
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3500);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   const queueItems = useMemo(() => {
     return bookings
@@ -133,25 +125,6 @@ export default function ManagerQueue() {
     [queueItems]
   );
 
-  async function setStatus(booking: ApiBooking, status: QueueStatus, successMsg: string) {
-    if (actionId) return;
-    setActionId(booking.id);
-    try {
-      await apiFetch(`/bookings/${booking.id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
-      setBookings((prev) =>
-        prev.map((b) => (b.id === booking.id ? { ...b, status } : b))
-      );
-      setToast(successMsg);
-    } catch (err) {
-      setToast(err instanceof Error ? err.message : "Could not update status");
-    } finally {
-      setActionId(null);
-    }
-  }
-
   return (
     <ManagerLayout>
       <div className="mq-page">
@@ -160,9 +133,19 @@ export default function ManagerQueue() {
             <p className="manager-kicker">Operations</p>
             <h1>Preparation queue</h1>
             <p className="mq-subtitle">
-              Get confirmed bookings room-ready before the meeting starts.
+              Live view of room preparation for confirmed meetings. Status changes are made by
+              clerks only — managers can monitor progress here.
             </p>
           </div>
+        </div>
+
+        <div className="mq-callout">
+          <strong>Clerk workflow</strong>
+          <p>
+            Clerks move bookings through <em>Awaiting prep → Preparing → Ready</em> (and can move
+            back if needed). This page is read-only for managers so you can track readiness without
+            changing operational status.
+          </p>
         </div>
 
         <div className="mq-summary">
@@ -276,35 +259,9 @@ export default function ManagerQueue() {
                   </div>
 
                   <div className="mq-card-actions">
-                    {booking.status === "CONFIRMED" && (
-                      <button
-                        type="button"
-                        className="mq-btn mq-btn--start"
-                        disabled={actionId === booking.id}
-                        onClick={() =>
-                          setStatus(booking, "PREPARING", "Prep started — marked as Preparing.")
-                        }
-                      >
-                        {actionId === booking.id ? "…" : "Start prep"}
-                      </button>
-                    )}
-
-                    {booking.status === "PREPARING" && (
-                      <button
-                        type="button"
-                        className="mq-btn mq-btn--ready"
-                        disabled={actionId === booking.id}
-                        onClick={() =>
-                          setStatus(booking, "READY", "Room marked Ready for the meeting.")
-                        }
-                      >
-                        {actionId === booking.id ? "…" : "Mark ready"}
-                      </button>
-                    )}
-
-                    {booking.status === "READY" && (
-                      <span className="mq-done-label">Set for meeting</span>
-                    )}
+                    <span className="mq-view-only" title="Only clerks can change preparation status">
+                      View only
+                    </span>
                   </div>
                 </article>
               );
@@ -312,12 +269,6 @@ export default function ManagerQueue() {
           </div>
         )}
       </div>
-
-      {toast && (
-        <div className="mq-toast" role="status">
-          {toast}
-        </div>
-      )}
     </ManagerLayout>
   );
 }
