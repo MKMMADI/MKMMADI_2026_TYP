@@ -3,6 +3,7 @@ export type Role = 'EMPLOYEE' | 'CLERK' | 'MANAGER';
 export type RoomStatus = 'AVAILABLE' | 'OUT_OF_SERVICE' | 'MAINTENANCE';
 
 export type BookingStatus =
+  | 'PENDING'
   | 'CONFIRMED'
   | 'PREPARING'
   | 'READY'
