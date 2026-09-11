@@ -19,7 +19,6 @@
         "backgroundColor": "#FF385C"
       },
       "package": "com.mkmmadi.conferencerooms"
-    },
-    "plugins": ["expo-router"]
+    }
   }
 }
