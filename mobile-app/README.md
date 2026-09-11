@@ -1,53 +1,52 @@
-# mobile-app — Employee Conference Room Booking (Airbnb-inspired)
+# mobile-app — Employee conference room booking (Expo)
 
-React Native + Expo mobile client for employees. Visual language follows the Airbnb DESIGN.md (warm white canvas, Rausch `#FF385C` primary, soft rounded cards, photo-first room listings, pill search bar).
+Expo Router client for **employees**. Visual language uses `src/theme/tokens.ts` (navy primary `#16324F`, soft surfaces — same brand as auth/web field UI).
 
-## Features (employee role)
+## Source of truth
 
-- Sign in / register
-- Profile + booking history
-- Airbnb-style search bar (date, time, capacity, amenities)
-- Photo-first room cards with amenities, capacity, rating
-- Multi-room booking flow with availability checks
-- Booking confirmation and status
+Styling and screen structure originate on branch **`agents/mobile-structure-employee-interfaces`**. This branch wires those screens to the live **API**.
+
+## Features (API-backed)
+
+- Sign in / register → `POST /api/v1/auth/login|register`, `GET /api/v1/me`
+- Home room list → `GET /api/v1/rooms` (mapped to card UI)
+- Create booking → `POST /api/v1/bookings` (numeric room/amenity ids)
+- Booking history → `GET /api/v1/bookings` (employee-scoped on server)
+- Token refresh via `POST /api/v1/auth/refresh` + SecureStore
 
 ## Quick start
 
 ```bash
+# Terminal 1 — API
+cd API && npm run dev   # typically :4000
+
+# Terminal 2 — mobile
 cd mobile-app
+cp .env.example .env    # set EXPO_PUBLIC_API_URL to your machine IP
 npm install
-npx expo start
+npx expo start -c
 ```
 
-Scan the QR with Expo Go, or press `a` / `i` for emulator.
+Demo employee (after seed): `thandi.mokoena@bookspace.co.za` / `Password123!`
+
+### API URL tips
+
+| Environment | Example |
+|-------------|---------|
+| Phone on Wi‑Fi | `http://192.168.x.x:4000` |
+| Android emulator | `http://10.0.2.2:4000` |
+| iOS simulator | `http://localhost:4000` |
+
+Ensure the API allows CORS from the Expo origin if you use web.
 
 ## Structure
 
 ```
 mobile-app/
-  app/                 # Expo Router screens (if using file-based routing)
+  app/                 # Expo Router (auth) + (app)
   src/
-    components/        # Button, RoomCard, SearchBar, ...
-    theme/             # Airbnb design tokens
-    constants/         # Mock data (swap for API later)
-    types/
-  package.json
-  app.json
+    api.ts             # HTTP client + refresh
+    lib/mapApi.ts      # API JSON → UI models
+    screens/           # Presentational screens (tokens)
+    theme/tokens.ts    # Design tokens
 ```
-
-## Connecting to the API
-
-Point the API base URL at the Express server from the `API/` folder (see web-app for the existing auth + fetch pattern). Replace mock data in `constants/mockData.ts` with real endpoints:
-
-- `POST /auth/login`, `POST /auth/register`
-- `GET /rooms/availability`
-- `POST /bookings`
-- `GET /me`, `GET /me/bookings`
-
-## Design notes
-
-- Primary: `#FF385C` (Rausch)
-- Canvas: `#FFFFFF`
-- Ink: `#222222`
-- Soft radii (8–14px cards, full pill search)
-- Typography inspired by Airbnb Cereal (system sans fallback)
