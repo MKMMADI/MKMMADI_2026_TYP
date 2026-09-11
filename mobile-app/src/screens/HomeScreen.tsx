@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,13 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
 import { SearchBar } from '../components/SearchBar';
 import { RoomCard } from '../components/RoomCard';
 import { Room, SearchFilters } from '../types';
-import { colors, spacing, typography } from '../theme/tokens';
+import { colors, spacing, typography, radii } from '../theme/tokens';
 import api from '../api';
 
 const initialFilters: SearchFilters = {
@@ -29,27 +31,38 @@ interface HomeScreenProps {
 export function HomeScreen({ onOpenRoom, onOpenProfile, onOpenHistory }: HomeScreenProps) {
   const [filters, setFilters] = useState<SearchFilters>(initialFilters);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadRooms = useCallback(async () => {
+    setError(null);
+    try {
+      const r = await api.getRooms();
+      setRooms(r);
+    } catch (err: any) {
+      console.warn('Failed to load rooms', err);
+      setError(err?.message || 'Could not load rooms. Check API URL and that you are signed in.');
+      setRooms([]);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
-    async function loadRooms() {
+    (async () => {
       setLoading(true);
-      try {
-        const r = await api.getRooms();
-        if (mounted && Array.isArray(r)) setRooms(r as Room[]);
-      } catch (err) {
-        console.warn('Failed to load rooms', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadRooms();
-    return () => { mounted = false; };
-  }, []);
+      await loadRooms();
+      if (mounted) setLoading(false);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [loadRooms]);
 
-  const handleSearchPress = () => {
-    console.log('Open search filters');
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadRooms();
+    setRefreshing(false);
   };
 
   const handleRoomPress = (room: Room) => {
@@ -58,11 +71,11 @@ export function HomeScreen({ onOpenRoom, onOpenProfile, onOpenHistory }: HomeScr
 
   const handleToggleFavorite = (room: Room) => {
     setRooms((prev) =>
-      prev.map((r) =>
-        r.id === room.id ? { ...r, isFavorite: !r.isFavorite } : r
-      )
+      prev.map((r) => (r.id === room.id ? { ...r, isFavorite: !r.isFavorite } : r))
     );
   };
+
+  const visible = rooms.filter((r) => r.capacity >= (filters.capacity || 1));
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -73,30 +86,49 @@ export function HomeScreen({ onOpenRoom, onOpenProfile, onOpenHistory }: HomeScr
           <Text style={styles.subGreeting}>Book a conference room in your building</Text>
         </View>
         <View style={styles.quickActions}>
-          <Text onPress={onOpenProfile} style={styles.quickAction}>Profile</Text>
-          <Text onPress={onOpenHistory} style={styles.quickAction}>History</Text>
+          <Text onPress={onOpenProfile} style={styles.quickAction}>
+            Profile
+          </Text>
+          <Text onPress={onOpenHistory} style={styles.quickAction}>
+            History
+          </Text>
         </View>
       </View>
 
-      <SearchBar filters={filters} onPress={handleSearchPress} />
+      <SearchBar filters={filters} onPress={() => { /* filter sheet in next pass */ }} />
 
       <ScrollView
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         <Text style={styles.sectionTitle}>Available rooms</Text>
-        {loading ? (
-          <Text style={{ color: colors.muted }}>Loading...</Text>
-        ) : (
-          rooms.map((room) => (
+
+        {loading && <Text style={styles.hint}>Loading rooms…</Text>}
+
+        {!loading && error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={loadRooms} style={styles.retryBtn}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!loading && !error && visible.length === 0 && (
+          <Text style={styles.hint}>No active rooms returned from the API.</Text>
+        )}
+
+        {!loading &&
+          !error &&
+          visible.map((room) => (
             <RoomCard
               key={room.id}
               room={room}
               onPress={handleRoomPress}
               onToggleFavorite={handleToggleFavorite}
             />
-          ))
-        )}
+          ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -150,5 +182,32 @@ const styles = StyleSheet.create({
     ...typography.titleMd,
     color: colors.ink,
     marginBottom: spacing.md,
+  },
+  hint: {
+    ...typography.bodySm,
+    color: colors.muted,
+    marginBottom: spacing.md,
+  },
+  errorBox: {
+    backgroundColor: '#FFF0F0',
+    borderRadius: radii.md,
+    padding: spacing.base,
+    marginBottom: spacing.md,
+  },
+  errorText: {
+    ...typography.bodySm,
+    color: colors.error,
+  },
+  retryBtn: {
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: colors.primary,
+    borderRadius: radii.sm,
+  },
+  retryText: {
+    ...typography.buttonSm,
+    color: colors.onPrimary,
   },
 });
