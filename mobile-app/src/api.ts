@@ -1,5 +1,7 @@
-﻿import { API_BASE_URL } from './config';
+import { API_BASE_URL } from './config';
 import { clearTokens, getRefreshToken, getToken, saveTokens } from './lib/storage';
+import { mapBooking, mapRoom, mapUser, toCreateBookingBody } from './lib/mapApi';
+import type { Booking, Room, User } from './types';
 
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
@@ -36,16 +38,20 @@ export async function signOut() {
 }
 
 function isAuthRoute(path: string) {
-  return path.includes('/auth/login') || path.includes('/auth/register') || path.includes('/auth/refresh') || path.includes('/auth/register-manager');
+  return (
+    path.includes('/auth/login') ||
+    path.includes('/auth/register') ||
+    path.includes('/auth/refresh') ||
+    path.includes('/auth/register-manager')
+  );
 }
 
 async function parseJsonResponse(response: Response) {
   const text = await response.text();
   if (!text) return undefined;
-
   try {
     return JSON.parse(text);
-  } catch (error) {
+  } catch {
     return text;
   }
 }
@@ -57,9 +63,7 @@ export async function refreshAccessToken() {
 
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
   });
 
@@ -77,8 +81,6 @@ export async function refreshAccessToken() {
   return accessToken;
 }
 
-
-// What does this function do ?
 async function request(path: string, options: RequestOptions = {}) {
   const { __retry = false } = options;
   const headers: Record<string, string> = {
@@ -87,7 +89,7 @@ async function request(path: string, options: RequestOptions = {}) {
   };
 
   if (accessToken && !isAuthRoute(path)) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
+    headers.Authorization = `Bearer ${accessToken}`;
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -96,12 +98,12 @@ async function request(path: string, options: RequestOptions = {}) {
   });
 
   if (response.status === 401 && !__retry && !isAuthRoute(path)) {
-    try {
-      await refreshAccessToken();
-      return request(path, { ...options, __retry: true, headers: { ...headers, Authorization: `Bearer ${accessToken}` } });
-    } catch (error) {
-      throw error;
-    }
+    await refreshAccessToken();
+    return request(path, {
+      ...options,
+      __retry: true,
+      headers: { ...headers, Authorization: `Bearer ${accessToken}` },
+    });
   }
 
   const body = await parseJsonResponse(response);
@@ -149,23 +151,65 @@ export async function register(payload: {
   return body;
 }
 
-export async function getMe() {
-  return request('/api/v1/me');
+export async function getMe(): Promise<User> {
+  const raw = await request('/api/v1/me');
+  return mapUser(raw);
 }
 
-export async function getRooms() {
-  return request('/api/v1/rooms');
+export async function getRooms(): Promise<Room[]> {
+  const raw = await request('/api/v1/rooms');
+  const list = Array.isArray(raw) ? raw : [];
+  return list.map(mapRoom).filter((r) => r.isActive);
 }
 
-export async function getBookings() {
-  return request('/api/v1/bookings');
+export async function searchAvailability(params: {
+  startAt: string;
+  endAt: string;
+  capacity?: number;
+  amenityIds?: (string | number)[];
+}): Promise<Room[]> {
+  const q = new URLSearchParams();
+  q.set('startAt', params.startAt);
+  q.set('endAt', params.endAt);
+  if (params.capacity) q.set('capacity', String(params.capacity));
+  if (params.amenityIds?.length) {
+    q.set('amenityIds', params.amenityIds.map(String).join(','));
+  }
+  const raw = await request(`/api/v1/rooms/availability?${q.toString()}`);
+  const list = Array.isArray(raw) ? raw : [];
+  return list.map(mapRoom);
 }
 
-export async function createBooking(payload: any) {
-  return request('/api/v1/bookings', {
+export async function getAmenities() {
+  const raw = await request('/api/v1/amenities');
+  return Array.isArray(raw) ? raw : [];
+}
+
+export async function getBookings(): Promise<Booking[]> {
+  const raw = await request('/api/v1/bookings');
+  const list = Array.isArray(raw) ? raw : [];
+  return list.map(mapBooking);
+}
+
+export async function createBooking(payload: {
+  purpose: string;
+  startAt: string;
+  endAt: string;
+  roomIds: string[] | number[];
+  amenityIds: string[] | number[];
+  capacity: number;
+}): Promise<Booking> {
+  const body = toCreateBookingBody(payload);
+  const raw = await request('/api/v1/bookings', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
+  return mapBooking(raw);
+}
+
+export async function cancelBooking(id: string | number): Promise<Booking> {
+  const raw = await request(`/api/v1/bookings/${id}/cancel`, { method: 'PATCH' });
+  return mapBooking(raw);
 }
 
 export default {
@@ -179,6 +223,9 @@ export default {
   register,
   getMe,
   getRooms,
+  searchAvailability,
+  getAmenities,
   getBookings,
   createBooking,
+  cancelBooking,
 };
