@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,8 @@ interface EmployeeProfileScreenProps {
 }
 
 export function EmployeeProfileScreen({ user, onBack, onOpenHistory, onLogout }: EmployeeProfileScreenProps) {
+  const isClerk = user.role === 'CLERK';
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -24,7 +26,11 @@ export function EmployeeProfileScreen({ user, onBack, onOpenHistory, onLogout }:
         </View>
 
         <View style={styles.profileCard}>
-          <Image source={{ uri: user.avatarUrl || 'https://i.pravatar.cc/150?u=employee' }} style={styles.avatar} contentFit="cover" />
+          <Image
+            source={{ uri: user.avatarUrl || 'https://i.pravatar.cc/150?u=employee' }}
+            style={styles.avatar}
+            contentFit="cover"
+          />
           <Text style={styles.name}>{user.name}</Text>
           <Text style={styles.role}>{user.role}</Text>
         </View>
@@ -37,21 +43,33 @@ export function EmployeeProfileScreen({ user, onBack, onOpenHistory, onLogout }:
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="call-outline" size={18} color={colors.muted} />
-            <Text style={styles.infoText}>{user.contactNumber}</Text>
+            <Text style={styles.infoText}>{user.contactNumber || '—'}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="briefcase-outline" size={18} color={colors.muted} />
-            <Text style={styles.infoText}>{user.department}</Text>
+            <Text style={styles.infoText}>{user.department || '—'}</Text>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Bookings</Text>
-          <TouchableOpacity style={styles.historyButton} onPress={onOpenHistory}>
-            <Text style={styles.historyButtonText}>View booking history</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.ink} />
-          </TouchableOpacity>
-        </View>
+        {!isClerk && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Bookings</Text>
+            <TouchableOpacity style={styles.historyButton} onPress={onOpenHistory}>
+              <Text style={styles.historyButtonText}>View booking history</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.ink} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {isClerk && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Operations</Text>
+            <View style={styles.infoRow}>
+              <Ionicons name="time-outline" size={18} color={colors.muted} />
+              <Text style={styles.infoText}>Preparation queue is your home screen</Text>
+            </View>
+          </View>
+        )}
 
         <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
           <Text style={styles.logoutText}>Log out</Text>
