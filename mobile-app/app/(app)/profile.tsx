@@ -8,11 +8,16 @@ export default function ProfileRoute() {
 
   if (!user) return null;
 
+  const isClerk = user.role === 'CLERK';
+
   return (
     <EmployeeProfileScreen
       user={user}
       onBack={() => router.back()}
-      onOpenHistory={() => router.push('/history')}
+      onOpenHistory={() => {
+        if (isClerk) router.push('/');
+        else router.push('/history');
+      }}
       onLogout={async () => {
         await signOut();
         router.replace('/login');
