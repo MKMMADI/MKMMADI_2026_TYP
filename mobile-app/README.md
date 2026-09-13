@@ -1,52 +1,46 @@
-# mobile-app — Employee conference room booking (Expo)
+# mobile-app — BookSpace (Expo)
 
-Expo Router client for **employees**. Visual language uses `src/theme/tokens.ts` (navy primary `#16324F`, soft surfaces — same brand as auth/web field UI).
+Full **mobile app** for **employees** and **clerks** (managers use the web app). Styling: `src/theme/tokens.ts` (navy `#16324F`).
 
-## Source of truth
+## Roles in one app
 
-Styling and screen structure originate on branch **`agents/mobile-structure-employee-interfaces`**. This branch wires those screens to the live **API**.
+| Role | Home after login | Main flows |
+|------|------------------|------------|
+| **EMPLOYEE** | Browse rooms | Search/list rooms, book, history, profile |
+| **CLERK** | Preparation queue | Update prep status (incl. reverse), stock (placeholder), profile |
 
-## Features (API-backed)
+Login uses the same screen; routing is based on `user.role` from `GET /api/v1/me`.
 
-- Sign in / register → `POST /api/v1/auth/login|register`, `GET /api/v1/me`
-- Home room list → `GET /api/v1/rooms` (mapped to card UI)
-- Create booking → `POST /api/v1/bookings` (numeric room/amenity ids)
-- Booking history → `GET /api/v1/bookings` (employee-scoped on server)
-- Token refresh via `POST /api/v1/auth/refresh` + SecureStore
+## API
 
-## Quick start
+- Auth: login, refresh, me
+- Employee: rooms, create booking, my bookings
+- Clerk: queue bookings, `PATCH /bookings/:id/status`
+
+## Run
 
 ```bash
-# Terminal 1 — API
-cd API && npm run dev   # typically :4000
+cd API && npm run dev
 
-# Terminal 2 — mobile
 cd mobile-app
-cp .env.example .env    # set EXPO_PUBLIC_API_URL to your machine IP
+cp .env.example .env   # EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:4000
 npm install
 npx expo start -c
 ```
 
-Demo employee (after seed): `thandi.mokoena@bookspace.co.za` / `Password123!`
+| Account (seed) | Role |
+|----------------|------|
+| `thandi.mokoena@bookspace.co.za` | Employee |
+| `sipho.dlamini@bookspace.co.za` (or your seed clerk) | Clerk |
+| Password | `Password123!` |
 
-### API URL tips
-
-| Environment | Example |
-|-------------|---------|
-| Phone on Wi‑Fi | `http://192.168.x.x:4000` |
-| Android emulator | `http://10.0.2.2:4000` |
-| iOS simulator | `http://localhost:4000` |
-
-Ensure the API allows CORS from the Expo origin if you use web.
-
-## Structure
+## Layout
 
 ```
 mobile-app/
-  app/                 # Expo Router (auth) + (app)
+  app/                 # Expo Router — role home in (app)/index
   src/
-    api.ts             # HTTP client + refresh
-    lib/mapApi.ts      # API JSON → UI models
-    screens/           # Presentational screens (tokens)
-    theme/tokens.ts    # Design tokens
+    screens/           # Home, Booking*, ClerkQueue, ClerkStock, Profile
+    api.ts             # HTTP + status updates
+    theme/tokens.ts    # Shared design tokens
 ```
