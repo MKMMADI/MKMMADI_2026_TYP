@@ -1,7 +1,7 @@
 import { API_BASE_URL } from './config';
 import { clearTokens, getRefreshToken, getToken, saveTokens } from './lib/storage';
 import { mapBooking, mapRoom, mapUser, toCreateBookingBody } from './lib/mapApi';
-import type { Booking, Room, User } from './types';
+import type { Booking, BookingStatus, Room, User } from './types';
 
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
@@ -191,6 +191,21 @@ export async function getBookings(): Promise<Booking[]> {
   return list.map(mapBooking);
 }
 
+/** Prep queue: confirmed + in-progress statuses (clerk) */
+export async function getQueueBookings(): Promise<Booking[]> {
+  try {
+    const raw = await request('/api/v1/bookings?status=CONFIRMED,PREPARING,READY');
+    const list = Array.isArray(raw) ? raw : [];
+    return list.map(mapBooking);
+  } catch {
+    // Fallback if multi-status query is unsupported
+    const all = await getBookings();
+    return all.filter((b) =>
+      ['CONFIRMED', 'PREPARING', 'READY'].includes(b.status)
+    );
+  }
+}
+
 export async function createBooking(payload: {
   purpose: string;
   startAt: string;
@@ -212,6 +227,18 @@ export async function cancelBooking(id: string | number): Promise<Booking> {
   return mapBooking(raw);
 }
 
+/** Clerk-only on the server: set prep status (including reverse from READY) */
+export async function updateBookingStatus(
+  id: string | number,
+  status: BookingStatus
+): Promise<Booking> {
+  const raw = await request(`/api/v1/bookings/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+  return mapBooking(raw);
+}
+
 export default {
   setAccessToken,
   setRefreshToken,
@@ -226,6 +253,8 @@ export default {
   searchAvailability,
   getAmenities,
   getBookings,
+  getQueueBookings,
   createBooking,
   cancelBooking,
+  updateBookingStatus,
 };
