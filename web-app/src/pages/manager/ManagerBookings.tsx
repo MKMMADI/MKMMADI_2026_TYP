@@ -90,6 +90,18 @@ function statusClass(status: BookingStatus) {
   return map[status] || "pending";
 }
 
+/** Inclusive start-of-day for a YYYY-MM-DD string */
+function startOfDay(dateStr: string): Date {
+  const d = new Date(dateStr + "T00:00:00");
+  return d;
+}
+
+/** Inclusive end-of-day for a YYYY-MM-DD string */
+function endOfDay(dateStr: string): Date {
+  const d = new Date(dateStr + "T23:59:59.999");
+  return d;
+}
+
 export default function ManagerBookings() {
   const [bookings, setBookings] = useState<ApiBooking[]>([]);
   const [reasons, setReasons] = useState<RejectionReason[]>(FALLBACK_REASONS);
@@ -97,6 +109,8 @@ export default function ManagerBookings() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"ALL" | BookingStatus>("PENDING");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [actionId, setActionId] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -133,8 +147,20 @@ export default function ManagerBookings() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const fromBound = dateFrom ? startOfDay(dateFrom) : null;
+    const toBound = dateTo ? endOfDay(dateTo) : null;
+
     return bookings.filter((b) => {
       if (statusFilter !== "ALL" && b.status !== statusFilter) return false;
+
+      // Date range: booking overlaps the selected window if it starts within [from, to]
+      // (or any part of the booking falls in range — using startAt for simplicity)
+      if (fromBound || toBound) {
+        const start = new Date(b.startAt);
+        if (fromBound && start < fromBound) return false;
+        if (toBound && start > toBound) return false;
+      }
+
       if (!q) return true;
       const rooms = b.rooms.map((r) => r.room.name).join(" ").toLowerCase();
       return (
@@ -144,7 +170,7 @@ export default function ManagerBookings() {
         rooms.includes(q)
       );
     });
-  }, [bookings, statusFilter, search]);
+  }, [bookings, statusFilter, search, dateFrom, dateTo]);
 
   const counts = useMemo(() => {
     return {
@@ -154,6 +180,13 @@ export default function ManagerBookings() {
       total: bookings.length,
     };
   }, [bookings]);
+
+  const hasDateFilter = Boolean(dateFrom || dateTo);
+
+  function clearDates() {
+    setDateFrom("");
+    setDateTo("");
+  }
 
   async function handleApprove(booking: ApiBooking) {
     if (actionId) return;
@@ -278,6 +311,44 @@ export default function ManagerBookings() {
               aria-label="Search bookings"
             />
           </div>
+        </div>
+
+        <div className="mb-date-bar">
+          <div className="mb-date-fields">
+            <label className="mb-date-field">
+              <span>From</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                aria-label="Filter from date"
+              />
+            </label>
+            <label className="mb-date-field">
+              <span>To</span>
+              <input
+                type="date"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+                aria-label="Filter to date"
+              />
+            </label>
+            {hasDateFilter && (
+              <button type="button" className="mb-date-clear" onClick={clearDates}>
+                Clear dates
+              </button>
+            )}
+          </div>
+          {hasDateFilter && (
+            <p className="mb-date-hint">
+              Showing bookings starting
+              {dateFrom ? ` from ${dateFrom}` : ""}
+              {dateTo ? ` until ${dateTo}` : ""}
+              {" · "}
+              {filtered.length} result{filtered.length === 1 ? "" : "s"}
+            </p>
+          )}
         </div>
 
         {loading && (
