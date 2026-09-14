@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import ManagerLayout from "@/components/ManagerLayout";
 import { apiFetch } from "@/lib/api";
@@ -9,6 +9,7 @@ type RoomStatus = "AVAILABLE" | "MAINTENANCE" | "OUT_OF_SERVICE";
 interface Amenity {
   id: number;
   name: string;
+  description?: string | null;
 }
 
 interface ApiRoom {
@@ -21,17 +22,19 @@ interface ApiRoom {
   amenities: Amenity[];
 }
 
-const STATUS_FILTERS: { value: "ALL" | RoomStatus; label: string }[] = [
-  { value: "ALL", label: "All" },
+const ROOM_STATUSES: { value: RoomStatus; label: string }[] = [
   { value: "AVAILABLE", label: "Available" },
   { value: "MAINTENANCE", label: "Maintenance" },
   { value: "OUT_OF_SERVICE", label: "Out of service" },
 ];
 
+const STATUS_FILTERS: { value: "ALL" | RoomStatus; label: string }[] = [
+  { value: "ALL", label: "All" },
+  ...ROOM_STATUSES,
+];
+
 function statusLabel(status: RoomStatus) {
-  if (status === "AVAILABLE") return "Available";
-  if (status === "MAINTENANCE") return "Maintenance";
-  return "Out of service";
+  return ROOM_STATUSES.find((s) => s.value === status)?.label || status;
 }
 
 function statusClass(status: RoomStatus) {
@@ -42,6 +45,7 @@ function statusClass(status: RoomStatus) {
 
 export default function ManagerSpaces() {
   const [rooms, setRooms] = useState<ApiRoom[]>([]);
+  const [catalog, setCatalog] = useState<Amenity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"ALL" | RoomStatus>("ALL");
@@ -49,12 +53,23 @@ export default function ManagerSpaces() {
   const [actionId, setActionId] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Edit room modal (status + amenities)
+  const [editRoom, setEditRoom] = useState<ApiRoom | null>(null);
+  const [editStatus, setEditStatus] = useState<RoomStatus>("AVAILABLE");
+  const [editAmenityIds, setEditAmenityIds] = useState<number[]>([]);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   async function loadRooms() {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiFetch<ApiRoom[]>("/rooms");
-      setRooms(data);
+      const [roomsData, amenitiesData] = await Promise.all([
+        apiFetch<ApiRoom[]>("/rooms"),
+        apiFetch<Amenity[]>("/amenities").catch(() => [] as Amenity[]),
+      ]);
+      setRooms(roomsData);
+      setCatalog(amenitiesData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load spaces");
     } finally {
@@ -112,27 +127,76 @@ export default function ManagerSpaces() {
     }
   }
 
-  async function cycleStatus(room: ApiRoom) {
-    if (actionId) return;
-    const next: RoomStatus =
-      room.status === "AVAILABLE"
-        ? "MAINTENANCE"
-        : room.status === "MAINTENANCE"
-          ? "OUT_OF_SERVICE"
-          : "AVAILABLE";
-
+  /** Inline status change via select — any state, not cycle */
+  async function setRoomStatus(room: ApiRoom, next: RoomStatus) {
+    if (actionId || next === room.status) return;
     setActionId(room.id);
     try {
       const updated = await apiFetch<ApiRoom>(`/rooms/${room.id}`, {
         method: "PATCH",
         body: JSON.stringify({ status: next }),
       });
-      setRooms((prev) => prev.map((r) => (r.id === room.id ? { ...r, ...updated, status: next } : r)));
+      setRooms((prev) =>
+        prev.map((r) => (r.id === room.id ? { ...r, ...updated, status: next } : r))
+      );
       setToast(`"${room.name}" → ${statusLabel(next)}`);
     } catch (err) {
       setToast(err instanceof Error ? err.message : "Could not update status");
     } finally {
       setActionId(null);
+    }
+  }
+
+  function openEdit(room: ApiRoom) {
+    setEditRoom(room);
+    setEditStatus(room.status);
+    setEditAmenityIds(room.amenities.map((a) => a.id));
+    setEditError(null);
+  }
+
+  function closeEdit() {
+    setEditRoom(null);
+    setEditError(null);
+    setSavingEdit(false);
+  }
+
+  function toggleEditAmenity(id: number) {
+    setEditAmenityIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  async function saveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editRoom) return;
+    setSavingEdit(true);
+    setEditError(null);
+    try {
+      const updated = await apiFetch<ApiRoom>(`/rooms/${editRoom.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: editStatus,
+          amenityIds: editAmenityIds,
+        }),
+      });
+      setRooms((prev) =>
+        prev.map((r) =>
+          r.id === editRoom.id
+            ? {
+                ...r,
+                ...updated,
+                status: editStatus,
+                amenities: updated.amenities ?? catalog.filter((a) => editAmenityIds.includes(a.id)),
+              }
+            : r
+        )
+      );
+      setToast(`"${editRoom.name}" updated.`);
+      closeEdit();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Could not update space");
+    } finally {
+      setSavingEdit(false);
     }
   }
 
@@ -143,7 +207,9 @@ export default function ManagerSpaces() {
           <div>
             <p className="manager-kicker">Facilities</p>
             <h1>Spaces</h1>
-            <p className="mf-subtitle">Manage rooms, capacity, and availability.</p>
+            <p className="mf-subtitle">
+              Manage rooms, capacity, status, and which amenities each space offers.
+            </p>
           </div>
           <Link to="/manager/spaces/create" className="mf-primary-link">
             + Add space
@@ -226,7 +292,7 @@ export default function ManagerSpaces() {
 
                 {room.description && <p className="mf-desc">{room.description}</p>}
 
-                {room.amenities.length > 0 && (
+                {room.amenities.length > 0 ? (
                   <div className="mf-chips">
                     {room.amenities.map((a) => (
                       <span key={a.id} className="mf-chip">
@@ -234,16 +300,37 @@ export default function ManagerSpaces() {
                       </span>
                     ))}
                   </div>
+                ) : (
+                  <p className="mf-desc mf-desc--muted">No amenities assigned</p>
                 )}
+
+                <div className="mf-status-row">
+                  <label className="mf-status-select-label">
+                    <span>Status</span>
+                    <select
+                      className="mf-status-select"
+                      value={room.status}
+                      disabled={actionId === room.id}
+                      onChange={(e) => setRoomStatus(room, e.target.value as RoomStatus)}
+                      aria-label={`Status for ${room.name}`}
+                    >
+                      {ROOM_STATUSES.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
                 <div className="mf-card-actions">
                   <button
                     type="button"
                     className="mf-btn mf-btn--ghost"
                     disabled={actionId === room.id}
-                    onClick={() => cycleStatus(room)}
+                    onClick={() => openEdit(room)}
                   >
-                    Change status
+                    Edit amenities
                   </button>
                   <button
                     type="button"
@@ -259,6 +346,71 @@ export default function ManagerSpaces() {
           </div>
         )}
       </div>
+
+      {editRoom && (
+        <div className="mf-modal-overlay" role="presentation" onClick={closeEdit}>
+          <div
+            className="mf-modal mf-modal--wide"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-space-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="edit-space-title">Edit {editRoom.name}</h2>
+            <p className="mf-hint" style={{ marginBottom: 16 }}>
+              Change status or which catalog amenities this space offers. To create new amenity
+              types, use the Amenities page.
+            </p>
+            <form onSubmit={saveEdit}>
+              <label className="mf-field">
+                <span>Status</span>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as RoomStatus)}
+                >
+                  {ROOM_STATUSES.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <fieldset className="mf-fieldset">
+                <legend>Amenities on this space</legend>
+                {catalog.length === 0 && (
+                  <p className="mf-hint">
+                    No amenities in the catalog yet. Add them under Amenities first.
+                  </p>
+                )}
+                <div className="mf-check-grid">
+                  {catalog.map((a) => (
+                    <label key={a.id} className="mf-check">
+                      <input
+                        type="checkbox"
+                        checked={editAmenityIds.includes(a.id)}
+                        onChange={() => toggleEditAmenity(a.id)}
+                      />
+                      <span>{a.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              {editError && <p className="mf-form-error">{editError}</p>}
+
+              <div className="mf-form-actions">
+                <button type="button" className="manager-outline-button" onClick={closeEdit}>
+                  Cancel
+                </button>
+                <button type="submit" className="mf-btn mf-btn--primary" disabled={savingEdit}>
+                  {savingEdit ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="mf-toast" role="status">
