@@ -42,12 +42,11 @@ function formatTimeRange(startAt: string, endAt: string) {
   return `${start.toLocaleDateString("en-ZA", dateOpts)} · ${start.toLocaleTimeString("en-ZA", timeOpts)} – ${end.toLocaleTimeString("en-ZA", timeOpts)}`;
 }
 
-function isUpcomingOrToday(startAt: string) {
-  const start = new Date(startAt);
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 1);
-  cutoff.setHours(0, 0, 0, 0);
-  return start >= cutoff;
+/** Start of local calendar day (for “hide past” filter). */
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 function statusLabel(status: string) {
@@ -70,15 +69,18 @@ export default function ManagerQueue() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | QueueStatus>("ALL");
   const [search, setSearch] = useState("");
-  const [actionId, setActionId] = useState<number | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  /** When true, only meetings starting today or later are listed. */
+  const [hidePast, setHidePast] = useState(false);
 
   async function loadQueue() {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiFetch<ApiBooking[]>("/bookings");
-      setBookings(data);
+      // Prefer server-side status filter when supported; still works if ignored
+      const data = await apiFetch<ApiBooking[]>(
+        "/bookings?status=CONFIRMED,PREPARING,READY"
+      );
+      setBookings(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load preparation queue");
     } finally {
@@ -90,19 +92,24 @@ export default function ManagerQueue() {
     loadQueue();
   }, []);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3500);
-    return () => clearTimeout(t);
-  }, [toast]);
-
+  // All confirmed / preparing / ready — includes past meetings unless hidePast is on
   const queueItems = useMemo(() => {
+    const today = startOfToday();
     return bookings
-      .filter(
-        (b) =>
-          QUEUE_STATUSES.includes(b.status as QueueStatus) && isUpcomingOrToday(b.startAt)
-      )
+      .filter((b) => {
+        if (!QUEUE_STATUSES.includes(b.status as QueueStatus)) return false;
+        if (hidePast && new Date(b.startAt) < today) return false;
+        return true;
+      })
       .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+  }, [bookings, hidePast]);
+
+  const pastInQueueCount = useMemo(() => {
+    const today = startOfToday();
+    return bookings.filter(
+      (b) =>
+        QUEUE_STATUSES.includes(b.status as QueueStatus) && new Date(b.startAt) < today
+    ).length;
   }, [bookings]);
 
   const filtered = useMemo(() => {
@@ -132,26 +139,6 @@ export default function ManagerQueue() {
     }),
     [queueItems]
   );
-
-  async function setStatus(booking: ApiBooking, status: QueueStatus, successMsg: string) {
-    if (actionId) return;
-    setActionId(booking.id);
-    try {
-      await apiFetch(`/bookings/${booking.id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
-      setBookings((prev) =>
-        prev.map((b) => (b.id === booking.id ? { ...b, status } : b))
-      );
-      setToast(successMsg);
-    } catch (err) {
-      setToast(err instanceof Error ? err.message : "Could not update status");
-    } finally {
-      setActionId(null);
-    }
-  }
-
   return (
     <ManagerLayout>
       <div className="mq-page">
@@ -160,9 +147,19 @@ export default function ManagerQueue() {
             <p className="manager-kicker">Operations</p>
             <h1>Preparation queue</h1>
             <p className="mq-subtitle">
-              Get confirmed bookings room-ready before the meeting starts.
+              Live view of room preparation for confirmed meetings. Status changes are made by
+              clerks only — managers can monitor progress here.
             </p>
           </div>
+        </div>
+
+        <div className="mq-callout">
+          <strong>Clerk workflow</strong>
+          <p>
+            Clerks move bookings through <em>Awaiting prep → Preparing → Ready</em> (and can move
+            back if needed). This page is read-only for managers so you can track readiness without
+            changing operational status.
+          </p>
         </div>
 
         <div className="mq-summary">
@@ -203,14 +200,24 @@ export default function ManagerQueue() {
               </button>
             ))}
           </div>
-          <div className="mq-search">
-            <input
-              type="search"
-              placeholder="Search purpose, employee, room, amenity…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search queue"
-            />
+          <div className="mq-toolbar-right">
+            <label className="mq-hide-past">
+              <input
+                type="checkbox"
+                checked={hidePast}
+                onChange={(e) => setHidePast(e.target.checked)}
+              />
+              <span>Hide past meetings</span>
+            </label>
+            <div className="mq-search">
+              <input
+                type="search"
+                placeholder="Search purpose, employee, room, amenity…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search queue"
+              />
+            </div>
           </div>
         </div>
 
@@ -234,21 +241,38 @@ export default function ManagerQueue() {
             {filtered.length === 0 && (
               <div className="mq-empty">
                 <p>No bookings in this part of the queue.</p>
+                {hidePast && pastInQueueCount > 0 && (
+                  <p className="mq-empty-hint">
+                    {pastInQueueCount} past meeting{pastInQueueCount === 1 ? "" : "s"} are hidden.
+                    Uncheck “Hide past meetings” to show them.
+                  </p>
+                )}
+                {!hidePast && bookings.filter((b) => b.status === "PENDING").length > 0 && (
+                  <p className="mq-empty-hint">
+                    Pending requests appear under All Bookings until you approve them — only
+                    Confirmed / Preparing / Ready show here.
+                  </p>
+                )}
               </div>
             )}
 
             {filtered.map((booking) => {
               const amenityNames = (booking.amenities || []).map((a) => a.amenity.name);
               const roomNames = booking.rooms.map((r) => r.room.name).join(", ") || "—";
+              const isPast = new Date(booking.startAt) < startOfToday();
 
               return (
-                <article key={booking.id} className="mq-card">
+                <article
+                  key={booking.id}
+                  className={`mq-card${isPast ? " mq-card--past" : ""}`}
+                >
                   <div className="mq-card-main">
                     <div className="mq-card-time">
                       <strong>{formatTimeRange(booking.startAt, booking.endAt)}</strong>
                       <span className={`mq-status mq-status--${statusClass(booking.status)}`}>
                         {statusLabel(booking.status)}
                       </span>
+                      {isPast && <span className="mq-past-tag">Past</span>}
                     </div>
 
                     <div className="mq-card-body">
@@ -276,35 +300,9 @@ export default function ManagerQueue() {
                   </div>
 
                   <div className="mq-card-actions">
-                    {booking.status === "CONFIRMED" && (
-                      <button
-                        type="button"
-                        className="mq-btn mq-btn--start"
-                        disabled={actionId === booking.id}
-                        onClick={() =>
-                          setStatus(booking, "PREPARING", "Prep started — marked as Preparing.")
-                        }
-                      >
-                        {actionId === booking.id ? "…" : "Start prep"}
-                      </button>
-                    )}
-
-                    {booking.status === "PREPARING" && (
-                      <button
-                        type="button"
-                        className="mq-btn mq-btn--ready"
-                        disabled={actionId === booking.id}
-                        onClick={() =>
-                          setStatus(booking, "READY", "Room marked Ready for the meeting.")
-                        }
-                      >
-                        {actionId === booking.id ? "…" : "Mark ready"}
-                      </button>
-                    )}
-
-                    {booking.status === "READY" && (
-                      <span className="mq-done-label">Set for meeting</span>
-                    )}
+                    <span className="mq-view-only" title="Only clerks can change preparation status">
+                      View only
+                    </span>
                   </div>
                 </article>
               );
@@ -312,12 +310,6 @@ export default function ManagerQueue() {
           </div>
         )}
       </div>
-
-      {toast && (
-        <div className="mq-toast" role="status">
-          {toast}
-        </div>
-      )}
     </ManagerLayout>
   );
 }

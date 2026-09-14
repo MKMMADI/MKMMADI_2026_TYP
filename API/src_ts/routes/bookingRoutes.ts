@@ -20,7 +20,8 @@ router.get('/rejection-reasons', authenticate, requireRoles(['MANAGER', 'CLERK']
 router.get('/:id', authenticate, getBooking);
 router.patch('/:id/approve', authenticate, requireRoles(['MANAGER']), approveBooking);
 router.patch('/:id/reject', authenticate, requireRoles(['MANAGER']), rejectBooking);
-router.patch('/:id/status', authenticate, requireRoles(['CLERK', 'MANAGER']), updateBookingStatus);
+// Preparation status (CONFIRMED / PREPARING / READY / COMPLETED) — clerk operational workflow only
+router.patch('/:id/status', authenticate, requireRoles(['CLERK']), updateBookingStatus);
 router.patch('/:id/cancel', authenticate, cancelBooking);
 
 export default router;
