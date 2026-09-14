@@ -5,7 +5,7 @@
 }
 
 .mo-page--narrow {
-  max-width: 560px;
+  max-width: 720px;
 }
 
 .mo-header {
@@ -14,6 +14,7 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 
 .mo-header h1 {
@@ -363,17 +364,22 @@
   box-shadow: 0 12px 30px rgba(34, 59, 57, 0.25);
 }
 
-/* Profile */
+/* Profile – tighter, better use of horizontal space */
 .mo-profile {
-  margin-top: 28px;
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(200px, 240px) 1fr;
+  gap: 20px;
+  align-items: start;
 }
 
 .mo-profile-hero {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-  padding: 20px;
+  text-align: center;
+  gap: 12px;
+  padding: 24px 20px;
   border: 1px solid var(--m-line, #e7edeb);
   border-radius: 13px;
   background: #fff;
@@ -382,12 +388,12 @@
 .mo-avatar {
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   background: #efc8ad;
   color: #804c34;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
 }
 
@@ -428,5 +434,15 @@
 
   .mo-search input {
     width: 100%;
+  }
+
+  .mo-profile {
+    grid-template-columns: 1fr;
+  }
+
+  .mo-profile-hero {
+    flex-direction: row;
+    text-align: left;
+    align-items: center;
   }
 }

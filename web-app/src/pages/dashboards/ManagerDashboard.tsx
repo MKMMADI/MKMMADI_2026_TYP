@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import ManagerLayout from "@/components/ManagerLayout";
 import { apiFetch } from "@/lib/api";
 
@@ -101,7 +102,7 @@ function Icon({
     box: (
       <>
         <path
-          d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"
+          d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l-7-4A2 2 0 0021 16z"
           {...common}
         />
         <path d="M3.27 6.96L12 12.01l8.73-5.05" {...common} />
@@ -198,6 +199,7 @@ function roomStateLabel(status: ApiRoom["status"]): string {
 }
 
 export default function ManagerDashboard() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<ApiBooking[]>([]);
   const [rooms, setRooms] = useState<ApiRoom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -291,11 +293,19 @@ export default function ManagerDashboard() {
               <p>Here's what's happening across your spaces today.</p>
             </div>
             <div className="manager-welcome-actions">
-              <button type="button" className="manager-outline-button">
+              <button
+                type="button"
+                className="manager-outline-button"
+                onClick={() => navigate("/manager/bookings")}
+              >
                 <Icon name="filter" size={16} />
                 Filter
               </button>
-              <button type="button" className="manager-outline-button">
+              <button
+                type="button"
+                className="manager-outline-button"
+                onClick={() => navigate("/manager/bookings")}
+              >
                 View calendar <Icon name="arrow" size={17} />
               </button>
             </div>
@@ -361,7 +371,7 @@ export default function ManagerDashboard() {
                   <h2>Recent Bookings</h2>
                   <p>Upcoming and ongoing meetings</p>
                 </div>
-                <button type="button">
+                <button type="button" onClick={() => navigate("/manager/bookings")}>
                   View all <Icon name="arrow" size={16} />
                 </button>
               </div>
@@ -426,7 +436,9 @@ export default function ManagerDashboard() {
                   <h2>Spaces at a glance</h2>
                   <p>Live availability</p>
                 </div>
-                <button type="button">Manage spaces</button>
+                <button type="button" onClick={() => navigate("/manager/spaces")}>
+                  Manage spaces
+                </button>
               </div>
 
               {rooms.slice(0, 5).map((room) => (
@@ -450,7 +462,11 @@ export default function ManagerDashboard() {
                 </p>
               )}
 
-              <button type="button" className="manager-room-footer">
+              <button
+                type="button"
+                className="manager-room-footer"
+                onClick={() => navigate("/manager/spaces")}
+              >
                 See all spaces <Icon name="arrow" size={16} />
               </button>
             </section>
@@ -465,7 +481,7 @@ export default function ManagerDashboard() {
                 You currently have {rooms.length} active spaces and {todaysBookings.length} bookings
                 scheduled for today.
               </p>
-              <button type="button">
+              <button type="button" onClick={() => navigate("/manager/reports")}>
                 View insights <Icon name="arrow" size={16} />
               </button>
             </div>
@@ -478,29 +494,6 @@ export default function ManagerDashboard() {
               <span className="current" style={{ height: `${Math.max(utilisation, 20)}%` }} />
             </div>
           </section>
-
-          {/* Quick Actions */}
-          <div className="manager-quick-actions">
-            <h3>Quick Actions</h3>
-            <div className="manager-quick-action-grid">
-              <button className="quick-action-card">
-                <Icon name="plus" size={24} />
-                <span>New Room</span>
-              </button>
-              <button className="quick-action-card">
-                <Icon name="wifi" size={24} />
-                <span>Add Amenity</span>
-              </button>
-              <button className="quick-action-card">
-                <Icon name="box" size={24} />
-                <span>Update Stock</span>
-              </button>
-              <button className="quick-action-card">
-                <Icon name="chart" size={24} />
-                <span>Generate Report</span>
-              </button>
-            </div>
-          </div>
         </>
       )}
     </ManagerLayout>
