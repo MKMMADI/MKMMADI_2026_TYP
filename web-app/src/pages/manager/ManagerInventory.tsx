@@ -11,12 +11,40 @@ interface Consumable {
   reorderLevel: number;
 }
 
+/** Stock level derived from on-hand vs reorder threshold. */
+type StockLevel = "OK" | "LOW" | "OUT";
+
+function stockLevel(item: Consumable): StockLevel {
+  if (item.quantityOnHand <= 0) return "OUT";
+  if (item.quantityOnHand <= item.reorderLevel) return "LOW";
+  return "OK";
+}
+
+function stockLabel(level: StockLevel) {
+  if (level === "OUT") return "Out of stock";
+  if (level === "LOW") return "Low stock";
+  return "In stock";
+}
+
+function stockBadgeClass(level: StockLevel) {
+  if (level === "OUT") return "mo-badge--out";
+  if (level === "LOW") return "mo-badge--low";
+  return "mo-badge--ok";
+}
+
+const LEVEL_FILTERS: { value: "ALL" | StockLevel; label: string }[] = [
+  { value: "ALL", label: "All levels" },
+  { value: "OK", label: "In stock" },
+  { value: "LOW", label: "Low stock" },
+  { value: "OUT", label: "Out of stock" },
+];
+
 export default function ManagerInventory() {
   const [items, setItems] = useState<Consumable[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [lowOnly, setLowOnly] = useState(false);
+  const [levelFilter, setLevelFilter] = useState<"ALL" | StockLevel>("ALL");
   const [toast, setToast] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -58,13 +86,25 @@ export default function ManagerInventory() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((i) => {
-      if (lowOnly && i.quantityOnHand > i.reorderLevel) return false;
+      const level = stockLevel(i);
+      if (levelFilter !== "ALL" && level !== levelFilter) return false;
       if (!q) return true;
       return i.name.toLowerCase().includes(q) || i.unit.toLowerCase().includes(q);
     });
-  }, [items, search, lowOnly]);
+  }, [items, search, levelFilter]);
 
-  const lowCount = items.filter((i) => i.quantityOnHand <= i.reorderLevel).length;
+  const counts = useMemo(() => {
+    let ok = 0;
+    let low = 0;
+    let out = 0;
+    for (const i of items) {
+      const l = stockLevel(i);
+      if (l === "OUT") out += 1;
+      else if (l === "LOW") low += 1;
+      else ok += 1;
+    }
+    return { ok, low, out, total: items.length };
+  }, [items]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -136,7 +176,10 @@ export default function ManagerInventory() {
           <div>
             <p className="manager-kicker">Operations</p>
             <h1>Inventory</h1>
-            <p className="mo-subtitle">Track consumables and stock levels for meeting prep.</p>
+            <p className="mo-subtitle">
+              Track consumables and stock levels. Status is In stock, Low stock (at or below
+              reorder level), or Out of stock (zero on hand).
+            </p>
           </div>
           <button type="button" className="mo-primary-btn" onClick={() => setCreateOpen(true)}>
             + Add item
@@ -146,19 +189,41 @@ export default function ManagerInventory() {
         <div className="mo-summary">
           <div className="mo-summary-card">
             <span>Total items</span>
-            <strong>{items.length}</strong>
+            <strong>{counts.total}</strong>
           </div>
-          <div className={`mo-summary-card ${lowCount > 0 ? "mo-summary-card--warn" : ""}`}>
+          <div className="mo-summary-card">
+            <span>In stock</span>
+            <strong>{counts.ok}</strong>
+          </div>
+          <div className={`mo-summary-card ${counts.low > 0 ? "mo-summary-card--warn" : ""}`}>
             <span>Low stock</span>
-            <strong>{lowCount}</strong>
+            <strong>{counts.low}</strong>
+          </div>
+          <div className={`mo-summary-card ${counts.out > 0 ? "mo-summary-card--danger" : ""}`}>
+            <span>Out of stock</span>
+            <strong>{counts.out}</strong>
           </div>
         </div>
 
         <div className="mo-toolbar">
-          <label className="mo-check">
-            <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />
-            Low stock only
-          </label>
+          <div className="mo-level-filters">
+            {LEVEL_FILTERS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                className={levelFilter === f.value ? "active" : ""}
+                onClick={() => setLevelFilter(f.value)}
+              >
+                {f.label}
+                {f.value === "LOW" && counts.low > 0 && (
+                  <span className="mo-filter-badge">{counts.low}</span>
+                )}
+                {f.value === "OUT" && counts.out > 0 && (
+                  <span className="mo-filter-badge mo-filter-badge--dark">{counts.out}</span>
+                )}
+              </button>
+            ))}
+          </div>
           <div className="mo-search">
             <input
               type="search"
@@ -192,7 +257,7 @@ export default function ManagerInventory() {
                   <th>Item</th>
                   <th>On hand</th>
                   <th>Reorder at</th>
-                  <th>Status</th>
+                  <th>Stock level</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -205,7 +270,7 @@ export default function ManagerInventory() {
                   </tr>
                 )}
                 {filtered.map((item) => {
-                  const low = item.quantityOnHand <= item.reorderLevel;
+                  const level = stockLevel(item);
                   return (
                     <tr key={item.id}>
                       <td>
@@ -217,8 +282,8 @@ export default function ManagerInventory() {
                       </td>
                       <td>{item.reorderLevel}</td>
                       <td>
-                        <span className={`mo-badge ${low ? "mo-badge--low" : "mo-badge--ok"}`}>
-                          {low ? "Low stock" : "OK"}
+                        <span className={`mo-badge ${stockBadgeClass(level)}`}>
+                          {stockLabel(level)}
                         </span>
                       </td>
                       <td>
@@ -286,7 +351,8 @@ export default function ManagerInventory() {
           <div className="mo-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <h2>Adjust stock</h2>
             <p className="mo-modal-meta">
-              {adjustTarget.name} · currently {adjustTarget.quantityOnHand} {adjustTarget.unit}
+              {adjustTarget.name} · currently {adjustTarget.quantityOnHand} {adjustTarget.unit} ·{" "}
+              {stockLabel(stockLevel(adjustTarget))}
             </p>
             <form onSubmit={handleAdjust}>
               <label className="mo-field">
