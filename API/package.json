@@ -4,7 +4,6 @@
   "description": "API for Project 2026_TYP (Node + Express)",
   "main": "dist/server.js",
   "scripts": {
-    "preinstall": "npx npm-force-resolutions",
     "start": "node dist/server.js",
     "dev": "tsx watch server.ts",
     "test": "jest --runInBand",
@@ -15,45 +14,61 @@
     "seed": "prisma db seed"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.9.1",
+    "@parcel/watcher": "^2.6.0",
+    "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "expo-image": "~57.0.5",
+    "expo-router": "~57.0.21",
+    "expo-secure-store": "~57.0.4",
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.2",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
     "nodemon": "^3.1.14",
-    "winston": "^3.19.0"
+    "prisma": "^7.10.0",
+    "scripts": "^0.1.0",
+    "unrs-resolver": "^1.12.2",
+    "winston": "^3.19.0",
+    "workerd": "^1.20260911.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.2",
+    "@types/body-parser": "^1.19.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
+    "@types/geojson": "^7946.0.16",
+    "@types/http-errors": "^2.0.5",
     "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.2",
     "@types/morgan": "^1.9.10",
+    "@types/ms": "^2.1.0",
     "@types/node": "^20.19.43",
+    "@types/qs": "^6.15.1",
+    "@types/range-parser": "^1.2.7",
+    "@types/send": "^1.2.1",
+    "@types/supertest": "^6.0.3",
     "jest": "^30.5.1",
-    "npm-force-resolutions": "^0.0.10",
-    "prisma": "^8.0.0-rc.13",
+    "supertest": "^7.1.4",
     "ts-jest": "^29.4.12",
-    "ts-node": "^10.9.1",
     "tsx": "^4.23.13",
     "typescript": "^5.4.2"
   },
-  "resolutions": {
+  "overrides": {
     "deepmerge-ts": "8.0.0",
-    "mysql2": "3.24.0"
+    "mysql2": "3.24.0",
+    "glob": "^13.0.0",
+    "effect": "4.0.0-rc.115"
   },
   "allowScripts": {
     "prisma@7.10.0": true,
     "@prisma/engines@7.10.0": true,
-    "esbuild@0.28.2": true,
-    "@parcel/watcher@2.6.0": true,
-    "msgpackr-extract@3.0.4": true,
     "unrs-resolver@1.12.2": true,
-    "workerd@1.20260704.1": true
+    "@parcel/watcher@2.6.0": true,
+    "workerd@1.20260704.1": true,
+    "workerd@1.20260911.1": true,
+    "esbuild@0.28.2": true
   }
 }
