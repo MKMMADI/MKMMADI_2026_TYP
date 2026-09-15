@@ -6,7 +6,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import api from './api';
 import { CURRENT_USER, MOCK_BOOKINGS } from './constants/mockData';
-import { HomeScreen } from './screens/HomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import { RoomDetailScreen } from './screens/RoomDetailScreen';
@@ -15,6 +14,7 @@ import { BookingConfirmationScreen } from './screens/BookingConfirmationScreen';
 import { EmployeeProfileScreen } from './screens/EmployeeProfileScreen';
 import { BookingHistoryScreen } from './screens/BookingHistoryScreen';
 import { ClerkDashboardScreen } from './screens/ClerkDashboardScreen';
+import { EmployeeTabNavigator } from './navigation/EmployeeTabNavigator';
 import { Booking, Room, User } from './types';
 import { colors, typography } from './theme/tokens';
 
@@ -52,10 +52,18 @@ function AuthNavigator({ onAuthenticated }: { onAuthenticated: (user: User) => v
 
 function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const bookings = useMemo<Booking[]>(() => MOCK_BOOKINGS, []);
-  const initialRouteName = user.role === 'CLERK' ? 'ClerkDashboard' : 'Home';
+
+  const handleOpenRoom = (room: Room) => {
+    // This will be handled by navigation prop in tab navigator
+    console.log('Opening room:', room.name);
+  };
+
+  const handleOpenBookingDetail = (booking: Booking) => {
+    console.log('Opening booking detail:', booking.id);
+  };
 
   return (
-    <AppStack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
+    <AppStack.Navigator screenOptions={{ headerShown: false }} initialRouteName={user.role === 'CLERK' ? 'ClerkDashboard' : 'EmployeeTabs'}>
       {user.role === 'CLERK' ? (
         <AppStack.Screen name="ClerkDashboard">
           {({ navigation }) => (
@@ -66,12 +74,12 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void }
           )}
         </AppStack.Screen>
       ) : (
-        <AppStack.Screen name="Home">
+        <AppStack.Screen name="EmployeeTabs">
           {({ navigation }) => (
-            <HomeScreen
+            <EmployeeTabNavigator
+              user={user}
               onOpenRoom={(room: Room) => navigation.navigate('RoomDetail', { room })}
-              onOpenProfile={() => navigation.navigate('Profile')}
-              onOpenHistory={() => navigation.navigate('History')}
+              onOpenBookingDetail={(booking: Booking) => navigation.navigate('History')}
             />
           )}
         </AppStack.Screen>
@@ -104,7 +112,7 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void }
         {({ navigation, route }: any) => (
           <BookingConfirmationScreen
             booking={route.params?.booking}
-            onBackHome={() => navigation.navigate('Home')}
+            onBackHome={() => navigation.navigate('EmployeeTabs')}
           />
         )}
       </AppStack.Screen>
@@ -117,7 +125,7 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void }
             onOpenHistory={() => navigation.navigate('History')}
             onLogout={async () => {
               await onSignOut();
-              navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+              navigation.reset({ index: 0, routes: [{ name: 'EmployeeTabs' }] });
             }}
           />
         )}
