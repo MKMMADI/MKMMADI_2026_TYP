@@ -55,6 +55,32 @@ function formatTimeRange(start: string, end: string) {
   return `${format(startDate)} – ${format(endDate)}`;
 }
 
+function formatBookingDate(start: string, end?: string) {
+  const startDate = new Date(start);
+  const endDate = end ? new Date(end) : startDate;
+  const sameDay =
+    startDate.getFullYear() === endDate.getFullYear() &&
+    startDate.getMonth() === endDate.getMonth() &&
+    startDate.getDate() === endDate.getDate();
+
+  const dayOpts: Intl.DateTimeFormatOptions = {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  };
+
+  if (sameDay) {
+    return startDate.toLocaleDateString([], dayOpts);
+  }
+
+  return `${startDate.toLocaleDateString([], dayOpts)} – ${endDate.toLocaleDateString([], dayOpts)}`;
+}
+
+function formatBookingDateTime(start: string, end: string) {
+  return `${formatBookingDate(start, end)} · ${formatTimeRange(start, end)}`;
+}
+
 function mapBookingFromApi(payload: any): Booking {
   const room = payload.rooms?.[0]?.room ?? {
     id: String(payload.roomId ?? 'unknown-room'),
@@ -189,7 +215,7 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
 
     Alert.alert(
       'Confirm status change',
-      `Update ${selectedBooking.rooms[0]?.room?.name ?? 'this room'} from ${statusMeta[selectedBooking.status].label} to ${statusMeta[pendingStatus].label}?`,
+      `Update ${selectedBooking.rooms[0]?.room?.name ?? 'this room'} (${formatBookingDateTime(selectedBooking.startAt, selectedBooking.endAt)}) from ${statusMeta[selectedBooking.status].label} to ${statusMeta[pendingStatus].label}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -329,7 +355,7 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
                   <View style={styles.cardHeader}>
                     <View style={styles.roomNameWrap}>
                       <Text style={styles.roomName}>{roomName}</Text>
-                      <Text style={styles.timeText}>{formatTimeRange(booking.startAt, booking.endAt)}</Text>
+                      <Text style={styles.timeText}>{formatBookingDateTime(booking.startAt, booking.endAt)}</Text>
                     </View>
 
                     <View style={[styles.statusPill, { backgroundColor: meta.tone }]}>
@@ -362,6 +388,11 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Event</Text>
                   <Text style={styles.value}>{selectedBooking.purpose}</Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Date</Text>
+                  <Text style={styles.value}>{formatBookingDate(selectedBooking.startAt, selectedBooking.endAt)}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
