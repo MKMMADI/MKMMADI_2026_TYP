@@ -173,6 +173,12 @@ export async function createBooking(payload: any) {
   });
 }
 
+export async function toggleFavorite(roomId: string) {
+  return request(`/api/v1/rooms/${roomId}/favorite`, {
+    method: 'POST',
+  });
+}
+
 export default {
   setAccessToken,
   setRefreshToken,
@@ -187,4 +193,5 @@ export default {
   getBookings,
   updateBookingStatus,
   createBooking,
+  toggleFavorite,
 };

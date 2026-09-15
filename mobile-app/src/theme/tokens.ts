@@ -21,11 +21,13 @@ export const colors = {
   hairline: '#DDDDDD',
   hairlineSoft: '#EBEBEB',
   borderStrong: '#C1C1C1',
+  border: '#E5E5EA',
   success: '#008A05',
   warning: '#E07912',
   error: '#C13515',
   star: '#222222',
   scrim: 'rgba(0,0,0,0.4)',
+  white: '#FFFFFF',
 } as const;
 
 export const spacing = {
@@ -55,6 +57,7 @@ export const typography = {
   displayLg: { fontSize: 22, fontWeight: '500' as const, lineHeight: 26, letterSpacing: -0.44 },
   displayMd: { fontSize: 21, fontWeight: '700' as const, lineHeight: 30, letterSpacing: 0 },
   displaySm: { fontSize: 20, fontWeight: '600' as const, lineHeight: 24, letterSpacing: -0.18 },
+  titleLg: { fontSize: 20, fontWeight: '700' as const, lineHeight: 28, letterSpacing: 0 },
   titleMd: { fontSize: 16, fontWeight: '600' as const, lineHeight: 20, letterSpacing: 0 },
   titleSm: { fontSize: 16, fontWeight: '500' as const, lineHeight: 20, letterSpacing: 0 },
   bodyMd: { fontSize: 16, fontWeight: '400' as const, lineHeight: 24, letterSpacing: 0 },
