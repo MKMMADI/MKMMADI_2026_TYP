@@ -1,32 +1,34 @@
 /**
- * Airbnb-inspired design tokens for the Conference Room Booking mobile app.
- * Adapted from the Airbnb DESIGN.md (VoltAgent/awesome-design-md).
- * Primary brand voltage: Rausch #ff385c
+ * Design tokens for the Conference Room Booking mobile app.
+ * Aligned with web-app navy/steel palette (manager-dashboard.css / auth.css).
+ * Primary: navy #16324F · Steel accent #2F6690
  */
 
 export const colors = {
-  primary: '#FF385C',
-  primaryActive: '#E00B41',
-  primaryDisabled: '#FFD1DA',
+  primary: '#16324F',
+  primaryActive: '#102A43',
+  primaryDisabled: '#B8C9D6',
   primaryError: '#C13515',
+  steel: '#2F6690',
+  steelLight: '#DCE8F1',
   canvas: '#FFFFFF',
-  surfaceSoft: '#F7F7F7',
-  surfaceStrong: '#F2F2F2',
+  surfaceSoft: '#F4F7FA',
+  surfaceStrong: '#EAF0F4',
   surfaceCard: '#FFFFFF',
-  ink: '#222222',
+  ink: '#1B2633',
   body: '#3F3F3F',
-  muted: '#6A6A6A',
-  mutedSoft: '#929292',
+  muted: '#5C6B78',
+  mutedSoft: '#8A9AAB',
   onPrimary: '#FFFFFF',
-  hairline: '#DDDDDD',
-  hairlineSoft: '#EBEBEB',
-  borderStrong: '#C1C1C1',
-  border: '#E5E5EA',
+  hairline: '#C7D3DD',
+  hairlineSoft: '#D9E2EA',
+  borderStrong: '#A8B8C8',
+  border: '#D9E2EA',
   success: '#008A05',
   warning: '#E07912',
   error: '#C13515',
-  star: '#222222',
-  scrim: 'rgba(0,0,0,0.4)',
+  star: '#1B2633',
+  scrim: 'rgba(16,42,67,0.4)',
   white: '#FFFFFF',
 } as const;
 
@@ -72,21 +74,21 @@ export const typography = {
 
 export const shadows = {
   card: {
-    shadowColor: '#000',
+    shadowColor: '#102A43',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
   },
   search: {
-    shadowColor: '#000',
+    shadowColor: '#102A43',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
     elevation: 6,
   },
   soft: {
-    shadowColor: '#000',
+    shadowColor: '#102A43',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
