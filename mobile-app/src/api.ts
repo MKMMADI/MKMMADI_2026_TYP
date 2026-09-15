@@ -159,6 +159,13 @@ export async function getBookings() {
   return request('/api/v1/bookings');
 }
 
+export async function updateBookingStatus(id: number | string, status: string) {
+  return request(`/api/v1/bookings/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
 export async function createBooking(payload: any) {
   return request('/api/v1/bookings', {
     method: 'POST',
@@ -178,5 +185,6 @@ export default {
   getMe,
   getRooms,
   getBookings,
+  updateBookingStatus,
   createBooking,
 };
