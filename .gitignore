@@ -3,17 +3,17 @@
 node_modules/
 
 # Build artifacts
-dist/
 build/
+dist/
 *.js.map
 *.ts.map
 
 # Environment variables
 .env
 .env.local
-.env.*
+*.env.*
 
-# IDE files
+# Editors
 .vscode/
 .idea/
 *.swp
@@ -22,7 +22,7 @@ build/
 # Logs
 *.log
 
-# Temp files
+# Temporary files
 *.tmp
 
 # Coverage
@@ -30,69 +30,47 @@ coverage/
 htmlcov/
 .coverage
 
-# Python cache
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# MyPy cache
-.mypy_cache/
-
-# Pytest cache
-.pytest_cache/
-
-# Distribution / packaging
 .Python
-env/
 venv/
 .venv/
 pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.gitattributes
-.project
-.pydevproject
-.vscode/settings.json
+pip-selfcheck.json
+.pytest_cache/
+.mypy_cache/
 
 # Mobile app specific
 *.apk
 *.ipa
 *.aab
-*.plist
-*.xcconfig
-Podfile.lock
-Pods/
-ios/Pods/
-android/.gradle/
-android/build/
-*.xcodeproj/
-*.xcworkspace/
+*.mov
+*.mp4
 
-# React Native specific
-node_modules/
-react-native/
-metro.config.js
-babel.config.js
-*.bundle
-*.app
-*.ipa
-*.apk
-*.aab
-*.plist
-*.xcconfig
-Podfile.lock
-Pods/
-ios/Pods/
-android/.gradle/
-android/build/
-*.xcodeproj/
-*.xcworkspace/
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
 ```

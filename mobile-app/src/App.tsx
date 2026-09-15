@@ -14,6 +14,7 @@ import { BookingConfirmationScreen } from './screens/BookingConfirmationScreen';
 import { EmployeeProfileScreen } from './screens/EmployeeProfileScreen';
 import { BookingHistoryScreen } from './screens/BookingHistoryScreen';
 import { ClerkDashboardScreen } from './screens/ClerkDashboardScreen';
+import { ClerkTabNavigator } from './navigation/ClerkTabNavigator';
 import { EmployeeTabNavigator } from './navigation/EmployeeTabNavigator';
 import { Booking, Room, User } from './types';
 import { colors, typography } from './theme/tokens';
@@ -63,15 +64,10 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void }
   };
 
   return (
-    <AppStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Main">
-      {user.role === 'CLERK' ? (
-        <AppStack.Screen name="ClerkDashboard">
-          {({ navigation }) => (
-            <ClerkDashboardScreen
-              onOpenProfile={() => navigation.navigate('Profile')}
-              onOpenHistory={() => navigation.navigate('History')}
-            />
-          )}
+    <AppStack.Navigator screenOptions={{ headerShown: false }} initialRouteName={user.role === 'CLERK' ? 'ClerkDashboard' : 'EmployeeTabs'}>
+     {user.role === 'CLERK' ? (
+        <AppStack.Screen name="ClerkTabs">
+          {() => <ClerkTabNavigator user={user} />}
         </AppStack.Screen>
       ) : (
         <AppStack.Screen name="EmployeeTabs">
@@ -136,6 +132,8 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void }
           <BookingHistoryScreen bookings={bookings} onBack={() => navigation.goBack()} />
         )}
       </AppStack.Screen>
+
+      
     </AppStack.Navigator>
   );
 }
