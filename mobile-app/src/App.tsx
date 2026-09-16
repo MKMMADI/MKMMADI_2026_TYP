@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import api from './api';
 import { CURRENT_USER, MOCK_BOOKINGS } from './constants/mockData';
@@ -291,14 +292,16 @@ export default function App() {
 
   if (authState === 'loading') {
     return (
-      <View style={styles.loader}>
-        <Text style={styles.loaderText}>Loading your workspace…</Text>
-      </View>
+      <SafeAreaProvider>
+        <View style={styles.loader}>
+          <Text style={styles.loaderText}>Loading your workspace…</Text>
+        </View>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <NavigationContainer>
         {authState === 'app' && user ? (
           <AppNavigator user={user} onSignOut={handleSignOut} />
@@ -307,7 +310,7 @@ export default function App() {
         )}
       </NavigationContainer>
       <StatusBar style="dark" />
-    </>
+    </SafeAreaProvider>
   );
 }
 

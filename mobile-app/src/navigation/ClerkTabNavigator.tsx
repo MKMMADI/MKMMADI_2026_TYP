@@ -1,12 +1,17 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DashboardTabScreen } from '../tabs/DashboardTabScreen';
 import { QueueTabScreen } from '../tabs/QueueTabScreen';
 import { RoomsTabScreen } from '../tabs/RoomsTabScreen';
 import { ClerkProfileTabScreen } from '../tabs/ClerkProfileTabScreen';
 import { BookingStatus, User } from '../types';
 import { colors } from '../theme/tokens';
+import {
+  floatingTabBarLabelStyle,
+  getFloatingTabBarStyle,
+} from './floatingTabBar';
 
 export type ClerkTabParamList = {
   DashboardTab: undefined;
@@ -30,6 +35,8 @@ interface ClerkTabNavigatorProps {
 }
 
 export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -59,17 +66,10 @@ export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
         tabBarLabel: TAB_LABELS[route.name],
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedSoft,
-        tabBarStyle: {
-          backgroundColor: colors.canvas,
-          borderTopWidth: 1,
-          borderTopColor: colors.hairlineSoft,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 60,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+        tabBarStyle: getFloatingTabBarStyle(insets.bottom),
+        tabBarLabelStyle: floatingTabBarLabelStyle,
+        tabBarItemStyle: {
+          paddingVertical: 2,
         },
       })}
     >
