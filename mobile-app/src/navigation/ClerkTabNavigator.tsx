@@ -5,18 +5,19 @@ import { DashboardTabScreen } from '../tabs/DashboardTabScreen';
 import { QueueTabScreen } from '../tabs/QueueTabScreen';
 import { RoomsTabScreen } from '../tabs/RoomsTabScreen';
 import { ClerkProfileTabScreen } from '../tabs/ClerkProfileTabScreen';
-import { BookingStatus, User } from '../types';
+import { User } from '../types';
 import { colors } from '../theme/tokens';
 
 export type ClerkTabParamList = {
   DashboardTab: undefined;
-  QueueTab: { statusFilter?: BookingStatus | 'ALL' } | undefined;
+  QueueTab: undefined;
   RoomsTab: undefined;
   ProfileTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<ClerkTabParamList>();
 
+/** Friendly labels — avoids exhaustive-check `never` on route.name in a trailing else. */
 const TAB_LABELS: Record<keyof ClerkTabParamList, string> = {
   DashboardTab: 'Dashboard',
   QueueTab: 'Queue',
@@ -56,7 +57,7 @@ export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarLabel: TAB_LABELS[route.name] ?? 'Tab',
+        tabBarLabel: TAB_LABELS[route.name],
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedSoft,
         tabBarStyle: {
@@ -73,27 +74,9 @@ export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
         },
       })}
     >
-      <Tab.Screen name="DashboardTab">
-        {({ navigation }) => (
-          <DashboardTabScreen
-            user={user}
-            onOpenQueue={(status) =>
-              navigation.navigate('QueueTab', {
-                statusFilter: status ?? 'ALL',
-              })
-            }
-            onOpenRooms={() => navigation.navigate('RoomsTab')}
-          />
-        )}
-      </Tab.Screen>
-      <Tab.Screen name="QueueTab">
-        {({ route }) => (
-          <QueueTabScreen initialStatus={route.params?.statusFilter ?? 'ALL'} />
-        )}
-      </Tab.Screen>
-      <Tab.Screen name="RoomsTab">
-        {() => <RoomsTabScreen />}
-      </Tab.Screen>
+      <Tab.Screen name="DashboardTab" component={DashboardTabScreen} />
+      <Tab.Screen name="QueueTab" component={QueueTabScreen} />
+      <Tab.Screen name="RoomsTab" component={RoomsTabScreen} />
       <Tab.Screen name="ProfileTab">
         {() => <ClerkProfileTabScreen user={user} onSignOut={onSignOut} />}
       </Tab.Screen>
