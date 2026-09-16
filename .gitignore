@@ -1,52 +1,25 @@
 ```
 # Dependencies
 node_modules/
+.julia/
+zig-cache/
 
-# Build artifacts
+# Build outputs
 dist/
 build/
-*.js.map
-*.ts.map
+target/
+out/
 
-# Environment variables
-.env
-.env.local
-.env.*
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Logs
-*.log
-
-# Temp files
-*.tmp
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Python cache
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# MyPy cache
-.mypy_cache/
-
-# Pytest cache
-.pytest_cache/
-
-# Distribution / packaging
 .Python
 env/
 venv/
 .venv/
+.ENV
 pip-log.txt
 pip-delete-this-directory.txt
 .tox/
@@ -57,42 +30,104 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
-.gitattributes
-.project
-.pydevproject
-.vscode/settings.json
-
-# Mobile app specific
-*.apk
-*.ipa
-*.aab
-*.plist
-*.xcconfig
-Podfile.lock
-Pods/
-ios/Pods/
-android/.gradle/
-android/build/
-*.xcodeproj/
-*.xcworkspace/
-
-# React Native specific
-node_modules/
-react-native/
-metro.config.js
-babel.config.js
-*.bundle
+.git/modules/
+*.tmproj
+*.laccdb
+*.accdb
+*.sqlite
+*.db
+*.db-journal
+*.jar
+*.war
+*.ear
+*.class
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.out
 *.app
-*.ipa
-*.apk
-*.aab
-*.plist
-*.xcconfig
-Podfile.lock
-Pods/
-ios/Pods/
-android/.gradle/
-android/build/
-*.xcodeproj/
-*.xcworkspace/
+*.bin
+*.obj
+*.lib
+*.dylib
+*.sys
+*.sysc
+*.so.*
+*.dll.*
+*.exe.*
+*.out.*
+*.app.*
+*.bin.*
+*.obj.*
+*.lib.*
+*.dylib.*
+*.sys.*
+*.sysc.*
+*.so.*.*
+*.dll.*.*
+*.exe.*.*
+*.out.*.*
+*.app.*.*
+*.bin.*.*
+*.obj.*.*
+*.lib.*.*
+*.dylib.*.*
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage
+coverage/
+htmlcov/
+.coverage*
+
+# Gradle
+.gradle/
+
+# MyPy
+.mypy_cache/
+
+# PyTest
+.pytest_cache/
+
+# System files
+.DS_Store
+Thumbs.db
 ```

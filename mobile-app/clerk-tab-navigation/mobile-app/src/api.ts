@@ -1,4 +1,4 @@
-﻿import { API_BASE_URL } from './config';
+import { API_BASE_URL } from './config';
 import { clearTokens, getRefreshToken, getToken, saveTokens } from './lib/storage';
 
 let accessToken: string | null = null;
@@ -179,6 +179,9 @@ export async function toggleFavorite(roomId: string) {
   });
 }
 
+// Added to support RoomsTabScreen (Clerk tab) room status updates.
+// Confirm this matches your backend's actual route before relying on it —
+// the analysis flagged PATCH /api/v1/rooms/{roomId}/status as unconfirmed.
 export async function updateRoomStatus(roomId: string, status: string) {
   return request(`/api/v1/rooms/${roomId}/status`, {
     method: 'PATCH',
@@ -201,5 +204,5 @@ export default {
   updateBookingStatus,
   createBooking,
   toggleFavorite,
-  updateRoomStatus
+  updateRoomStatus,
 };
