@@ -19,6 +19,7 @@ import { ClerkTabNavigator } from './navigation/ClerkTabNavigator';
 import { EmployeeTabNavigator } from './navigation/EmployeeTabNavigator';
 import { Booking, Room, User } from './types';
 import { colors, typography } from './theme/tokens';
+import { pushRecentRoomId } from './lib/preferences';
 
 const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator();
@@ -171,8 +172,17 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void }
           {({ navigation }) => (
             <EmployeeTabNavigator
               user={user}
-              onOpenRoom={(room: Room) => navigation.navigate('RoomDetail', { room })}
+              onOpenRoom={(room: Room) => {
+                void pushRecentRoomId(room.id);
+                navigation.navigate('RoomDetail', { room });
+              }}
               onOpenBookingDetail={(booking: Booking) => navigation.navigate('BookingDetail', { booking })}
+              onBookRoom={(room: Room) => {
+                void pushRecentRoomId(room.id);
+                navigation.navigate('Booking', { room });
+              }}
+              onOpenHistory={() => navigation.navigate('History')}
+              onSignOut={onSignOut}
             />
           )}
         </AppStack.Screen>

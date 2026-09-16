@@ -18,6 +18,7 @@ import { SearchBar } from '../components/SearchBar';
 import { Button } from '../components/Button';
 import { colors, spacing, typography, radii } from '../theme/tokens';
 import api from '../api';
+import { applyFavoriteFlags, getFavoriteRoomIds } from '../lib/preferences';
 
 interface OccupancySlot {
   bookingId: number | string;
@@ -96,11 +97,14 @@ export function HomeTabScreen({ onOpenRoom }: HomeTabScreenProps) {
     try {
       const from = new Date().toISOString();
       const to = new Date(Date.now() + 14 * 24 * HOUR_MS).toISOString();
-      const [roomsRes, occRes] = await Promise.all([
+      const [roomsRes, occRes, favIds] = await Promise.all([
         api.getRooms(),
         api.getOccupancy(from, to).catch(() => []),
+        getFavoriteRoomIds().catch(() => [] as string[]),
       ]);
-      if (Array.isArray(roomsRes)) setRooms(roomsRes.map(mapRoom));
+      if (Array.isArray(roomsRes)) {
+        setRooms(applyFavoriteFlags(roomsRes.map(mapRoom), favIds));
+      }
       if (Array.isArray(occRes)) setOccupancy(occRes as OccupancySlot[]);
     } catch (err) {
       console.warn('Failed to load home data', err);
@@ -245,10 +249,16 @@ export function HomeTabScreen({ onOpenRoom }: HomeTabScreenProps) {
                 <RoomCard
                   room={displayRoom}
                   onPress={() => onOpenRoom(room)}
-                  onToggleFavorite={(r) => {
-                    setRooms((prev) =>
-                      prev.map((x) => (x.id === r.id ? { ...x, isFavorite: !x.isFavorite } : x)),
-                    );
+                  onToggleFavorite={async (r) => {
+                    try {
+                      const result = await api.toggleFavorite(r.id);
+                      const isFavorite = Boolean(result?.isFavorite);
+                      setRooms((prev) =>
+                        prev.map((x) => (x.id === r.id ? { ...x, isFavorite } : x)),
+                      );
+                    } catch (err) {
+                      console.warn('Failed to toggle favorite', err);
+                    }
                   }}
                 />
                 {room._busy && room.status === 'AVAILABLE' ? (

@@ -134,3 +134,48 @@ export async function searchAvailability(req: Request, res: Response, next: Next
     next(error);
   }
 }
+
+
+/** Occupancy windows across rooms (no employee PII). */
+export async function listRoomOccupancy(req: Request, res: Response, next: NextFunction) {
+  try {
+    const from = req.query.from ? new Date(String(req.query.from)) : new Date();
+    const to = req.query.to
+      ? new Date(String(req.query.to))
+      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) {
+      return next(createHttpError('Invalid from/to range', 400));
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        status: { notIn: ['CANCELLED', 'COMPLETED'] },
+        startAt: { lt: to },
+        endAt: { gt: from },
+      },
+      select: {
+        id: true,
+        startAt: true,
+        endAt: true,
+        status: true,
+        rooms: { select: { roomId: true } },
+      },
+      orderBy: { startAt: 'asc' },
+    });
+
+    const slots = bookings.flatMap((b) =>
+      b.rooms.map((r) => ({
+        bookingId: b.id,
+        roomId: r.roomId,
+        startAt: b.startAt,
+        endAt: b.endAt,
+        status: b.status,
+      })),
+    );
+
+    res.json(slots);
+  } catch (error) {
+    next(error);
+  }
+}

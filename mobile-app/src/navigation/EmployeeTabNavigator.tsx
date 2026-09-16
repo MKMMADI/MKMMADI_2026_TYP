@@ -21,9 +21,19 @@ interface EmployeeTabNavigatorProps {
   user: User;
   onOpenRoom: (room: Room) => void;
   onOpenBookingDetail: (booking: Booking) => void;
+  onBookRoom?: (room: Room) => void;
+  onSignOut: () => void | Promise<void>;
+  onOpenHistory: () => void;
 }
 
-export function EmployeeTabNavigator({ user, onOpenRoom, onOpenBookingDetail }: EmployeeTabNavigatorProps) {
+export function EmployeeTabNavigator({
+  user,
+  onOpenRoom,
+  onOpenBookingDetail,
+  onBookRoom,
+  onSignOut,
+  onOpenHistory,
+}: EmployeeTabNavigatorProps) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -71,7 +81,14 @@ export function EmployeeTabNavigator({ user, onOpenRoom, onOpenBookingDetail }: 
         {() => <FavoritesTabScreen onOpenRoom={onOpenRoom} />}
       </Tab.Screen>
       <Tab.Screen name="ProfileTab">
-        {() => <ProfileTabScreen user={user} />}
+        {({ navigation }) => (
+          <ProfileTabScreen
+            user={user}
+            onSignOut={onSignOut}
+            onOpenHistory={onOpenHistory}
+            onOpenMyBookings={() => navigation.navigate('MyBookingsTab')}
+          />
+        )}
       </Tab.Screen>
     </Tab.Navigator>
   );

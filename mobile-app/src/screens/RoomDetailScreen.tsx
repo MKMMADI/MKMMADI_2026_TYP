@@ -40,6 +40,7 @@ function formatSlot(start: string, end: string) {
 export function RoomDetailScreen({ room, onBack, onBook }: RoomDetailScreenProps) {
   const [upcoming, setUpcoming] = useState<UpcomingSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(Boolean(room?.isFavorite));
 
   useEffect(() => {
     let mounted = true;
@@ -94,6 +95,25 @@ export function RoomDetailScreen({ room, onBack, onBook }: RoomDetailScreenProps
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Room details</Text>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity
+            style={styles.heartBtn}
+            onPress={async () => {
+              try {
+                const result = await api.toggleFavorite(room.id);
+                setIsFavorite(Boolean(result?.isFavorite));
+              } catch (err) {
+                console.warn('Favorite toggle failed', err);
+              }
+            }}
+            hitSlop={12}
+          >
+            <Ionicons
+              name={isFavorite ? 'heart' : 'heart-outline'}
+              size={22}
+              color={isFavorite ? '#E11D48' : colors.ink}
+            />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.imageWrap}>
@@ -211,6 +231,14 @@ const styles = StyleSheet.create({
     ...typography.titleMd,
     color: colors.ink,
     marginLeft: spacing.sm,
+  },
+  heartBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   imageWrap: {
     marginHorizontal: spacing.base,

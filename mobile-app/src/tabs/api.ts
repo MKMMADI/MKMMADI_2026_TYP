@@ -174,7 +174,7 @@ export async function createBooking(payload: any) {
 }
 
 export async function toggleFavorite(roomId: string) {
-  // No backend favorite model yet — persist on-device and return the new state.
+  // No UserFavorite table in Prisma yet — persist on-device.
   const { toggleFavoriteRoomId } = await import('./lib/preferences');
   const isFavorite = await toggleFavoriteRoomId(String(roomId));
   return { roomId: String(roomId), isFavorite };
@@ -187,15 +187,7 @@ export async function getOccupancy(from?: string, to?: string) {
   if (from) params.set('from', from);
   if (to) params.set('to', to);
   const q = params.toString();
-  // Prefer /rooms/occupancy so a stale bookings router cannot treat "occupancy" as :id.
-  try {
-    return await request(`/api/v1/rooms/occupancy${q ? `?${q}` : ''}`);
-  } catch (err: any) {
-    if (err?.status === 404 || err?.status === 400) {
-      return request(`/api/v1/bookings/occupancy${q ? `?${q}` : ''}`);
-    }
-    throw err;
-  }
+  return request(`/api/v1/bookings/occupancy${q ? `?${q}` : ''}`);
 }
 
 export async function searchAvailability(params: {

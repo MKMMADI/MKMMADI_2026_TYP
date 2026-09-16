@@ -16,6 +16,15 @@ const bookingInclude = {
 /** Statuses clerks may set on the preparation queue (including moving backwards). */
 const PREP_STATUSES = new Set(['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED']);
 
+
+function parseBookingId(raw: string | string[] | undefined): number | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (value == null || value === '') return null;
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return id;
+}
+
 export async function createBookingHandler(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const booking = await createBooking({
@@ -62,7 +71,10 @@ export async function listBookings(req: AuthRequest, res: Response, next: NextFu
 
 export async function getBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
+    const id = parseBookingId(req.params.id);
+    if (id == null) {
+      return next(createHttpError('Invalid booking id', 400));
+    }
     const booking = await prisma.booking.findUnique({
       where: { id },
       include: bookingInclude,
@@ -96,7 +108,10 @@ export async function listRejectionReasons(_req: AuthRequest, res: Response, nex
 
 export async function approveBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
+    const id = parseBookingId(req.params.id);
+    if (id == null) {
+      return next(createHttpError('Invalid booking id', 400));
+    }
     const existing = await prisma.booking.findUnique({ where: { id } });
 
     if (!existing) {
@@ -127,7 +142,10 @@ export async function approveBooking(req: AuthRequest, res: Response, next: Next
 
 export async function rejectBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
+    const id = parseBookingId(req.params.id);
+    if (id == null) {
+      return next(createHttpError('Invalid booking id', 400));
+    }
     const { reasonCode, note } = req.body as { reasonCode?: string; note?: string };
 
     if (!reasonCode || !isValidRejectionCode(reasonCode)) {
@@ -166,7 +184,10 @@ export async function rejectBooking(req: AuthRequest, res: Response, next: NextF
 
 export async function updateBookingStatus(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
+    const id = parseBookingId(req.params.id);
+    if (id == null) {
+      return next(createHttpError('Invalid booking id', 400));
+    }
     const { status } = req.body as { status?: string };
 
     if (!status) {
@@ -236,7 +257,10 @@ export async function updateBookingStatus(req: AuthRequest, res: Response, next:
 
 export async function cancelBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
+    const id = parseBookingId(req.params.id);
+    if (id == null) {
+      return next(createHttpError('Invalid booking id', 400));
+    }
     const booking = await prisma.booking.findUnique({ where: { id } });
     if (!booking) {
       return next(createHttpError('Booking not found', 404));
