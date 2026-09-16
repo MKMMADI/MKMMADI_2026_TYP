@@ -79,10 +79,6 @@ export function RoomDetailScreen({ room, onBack, onBook }: RoomDetailScreenProps
       </ScrollView>
 
       <View style={styles.footer}>
-        <View>
-          <Text style={styles.footerLabel}>From</Text>
-          <Text style={styles.footerPrice}>R 550 / hour</Text>
-        </View>
         <Button title={isAvailable ? 'Book room' : 'Unavailable'} onPress={onBook} disabled={!isAvailable} style={styles.cta} />
       </View>
     </SafeAreaView>
@@ -222,15 +218,7 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     backgroundColor: colors.canvas,
   },
-  footerLabel: {
-    ...typography.captionSm,
-    color: colors.muted,
-  },
-  footerPrice: {
-    ...typography.titleMd,
-    color: colors.ink,
-  },
-  cta: { minWidth: 150 },
+  cta: { flex: 1 },
 });
 
 export default RoomDetailScreen;

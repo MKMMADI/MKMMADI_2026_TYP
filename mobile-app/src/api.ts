@@ -179,6 +179,13 @@ export async function toggleFavorite(roomId: string) {
   });
 }
 
+
+export async function cancelBooking(id: number | string) {
+  return request(`/api/v1/bookings/${id}/cancel`, {
+    method: 'PATCH',
+  });
+}
+
 export async function updateRoomStatus(roomId: string, status: string) {
   return request(`/api/v1/rooms/${roomId}/status`, {
     method: 'PATCH',
@@ -201,5 +208,6 @@ export default {
   updateBookingStatus,
   createBooking,
   toggleFavorite,
-  updateRoomStatus
+  updateRoomStatus,
+  cancelBooking,
 };

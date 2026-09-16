@@ -26,6 +26,7 @@ const statusMeta: Record<
   BookingStatus,
   { label: string; tone: string; tint: string; icon: keyof typeof Ionicons.glyphMap }
 > = {
+  PENDING: { label: 'Pending Approval', tone: '#FFF3D6', tint: '#9A6B00', icon: 'hourglass-outline' },
   CONFIRMED: { label: 'Awaiting prep', tone: '#F8E7C7', tint: '#B76A00', icon: 'time-outline' },
   PREPARING: { label: 'Preparing', tone: '#D9EBFF', tint: '#0056A8', icon: 'sparkles-outline' },
   READY: { label: 'Ready', tone: '#DDF5E5', tint: '#0A7A3F', icon: 'checkmark-circle-outline' },
@@ -36,6 +37,7 @@ const statusMeta: Record<
 const statusOrder: StatusFilter[] = ['ALL', 'CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'];
 const tabLabels: Record<StatusFilter, string> = {
   ALL: 'All',
+  PENDING: 'Pending',
   CONFIRMED: 'Queued',
   PREPARING: 'Prep',
   READY: 'Ready',

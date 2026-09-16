@@ -149,10 +149,6 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <View>
-          <Text style={styles.footerLabel}>Estimated cost</Text>
-          <Text style={styles.footerPrice}>R 550</Text>
-        </View>
         <Button title="Confirm booking" onPress={handleSubmit} loading={loading} style={styles.cta} />
       </View>
     </SafeAreaView>
@@ -255,15 +251,7 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     backgroundColor: colors.canvas,
   },
-  footerLabel: {
-    ...typography.captionSm,
-    color: colors.muted,
-  },
-  footerPrice: {
-    ...typography.titleMd,
-    color: colors.ink,
-  },
-  cta: { minWidth: 170 },
+  cta: { flex: 1 },
 });
 
 export default BookingScreen;
