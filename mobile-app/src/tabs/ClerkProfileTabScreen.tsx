@@ -1,21 +1,48 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { User } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import api from '../api';
 
 export interface ClerkProfileTabScreenProps {
   user: User;
   onSignOut: () => void | Promise<void>;
 }
 
-export function ClerkProfileTabScreen({ user }: ClerkProfileTabScreenProps) {
+export function ClerkProfileTabScreen({ user, onSignOut }: ClerkProfileTabScreenProps) {
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleLogout = () => {
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: async () => {
+          setSigningOut(true);
+          try {
+            await api.signOut();
+            await onSignOut();
+          } catch (err) {
+            console.warn('Sign out error', err);
+            await onSignOut();
+          } finally {
+            setSigningOut(false);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -55,9 +82,20 @@ export function ClerkProfileTabScreen({ user }: ClerkProfileTabScreenProps) {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.logoutButton}>
-        <Ionicons name="log-out-outline" size={20} color={colors.error} />
-        <Text style={styles.logoutText}>Sign Out</Text>
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={handleLogout}
+        disabled={signingOut}
+        activeOpacity={0.85}
+      >
+        {signingOut ? (
+          <ActivityIndicator color={colors.error} />
+        ) : (
+          <>
+            <Ionicons name="log-out-outline" size={20} color={colors.error} />
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );
