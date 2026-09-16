@@ -25,6 +25,7 @@ interface EmployeeTabNavigatorProps {
 export function EmployeeTabNavigator({ user, onOpenRoom, onOpenBookingDetail }: EmployeeTabNavigatorProps) {
   return (
     <Tab.Navigator
+      initialRouteName="HomeTab"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarIcon: ({ focused, color, size }) => {
