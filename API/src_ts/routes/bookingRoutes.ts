@@ -6,6 +6,7 @@ import {
   createBookingHandler,
   getBooking,
   listBookings,
+  listOccupancy,
   listRejectionReasons,
   rejectBooking,
   updateBookingStatus,
@@ -15,6 +16,7 @@ const router = Router();
 
 router.post('/', authenticate, requireRoles(['EMPLOYEE']), createBookingHandler);
 router.get('/', authenticate, listBookings);
+router.get('/occupancy', authenticate, listOccupancy);
 router.get('/rejection-reasons', authenticate, requireRoles(['MANAGER', 'CLERK']), listRejectionReasons);
 
 router.get('/:id', authenticate, getBooking);

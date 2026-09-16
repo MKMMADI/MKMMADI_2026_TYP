@@ -180,6 +180,30 @@ export async function toggleFavorite(roomId: string) {
 }
 
 
+
+export async function getOccupancy(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const q = params.toString();
+  return request(`/api/v1/bookings/occupancy${q ? `?${q}` : ''}`);
+}
+
+export async function searchAvailability(params: {
+  startAt?: string;
+  endAt?: string;
+  capacity?: number;
+  amenityIds?: string[];
+}) {
+  const qs = new URLSearchParams();
+  if (params.startAt) qs.set('startAt', params.startAt);
+  if (params.endAt) qs.set('endAt', params.endAt);
+  if (params.capacity) qs.set('capacity', String(params.capacity));
+  if (params.amenityIds?.length) qs.set('amenityIds', params.amenityIds.join(','));
+  const q = qs.toString();
+  return request(`/api/v1/rooms/availability${q ? `?${q}` : ''}`);
+}
+
 export async function cancelBooking(id: number | string) {
   return request(`/api/v1/bookings/${id}/cancel`, {
     method: 'PATCH',
@@ -210,4 +234,6 @@ export default {
   toggleFavorite,
   updateRoomStatus,
   cancelBooking,
+  getOccupancy,
+  searchAvailability,
 };

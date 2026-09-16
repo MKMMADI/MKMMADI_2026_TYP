@@ -13,6 +13,7 @@ import { BookingScreen } from './screens/BookingScreen';
 import { BookingConfirmationScreen } from './screens/BookingConfirmationScreen';
 import { EmployeeProfileScreen } from './screens/EmployeeProfileScreen';
 import { BookingHistoryScreen } from './screens/BookingHistoryScreen';
+import { BookingDetailScreen } from './screens/BookingDetailScreen';
 import { ClerkDashboardScreen } from './screens/ClerkDashboardScreen';
 import { ClerkTabNavigator } from './navigation/ClerkTabNavigator';
 import { EmployeeTabNavigator } from './navigation/EmployeeTabNavigator';
@@ -51,6 +52,102 @@ function AuthNavigator({ onAuthenticated }: { onAuthenticated: (user: User) => v
   );
 }
 
+
+function mapHistoryBooking(item: any): Booking {
+  return {
+    id: String(item.id),
+    employeeId: String(item.employee?.id ?? item.employeeId ?? 'unknown-user'),
+    startAt: item.startAt,
+    endAt: item.endAt,
+    purpose: item.purpose ?? '',
+    status: item.status,
+    createdAt: item.createdAt ?? new Date().toISOString(),
+    rooms:
+      item.rooms?.map((r: any) => ({
+        id: String(r.id ?? `${item.id}-room`),
+        roomId: String(r.roomId ?? r.room?.id ?? 'unknown-room'),
+        room: r.room
+          ? {
+              id: String(r.room.id),
+              name: r.room.name ?? 'Room',
+              description: r.room.description ?? '',
+              capacity: r.room.capacity ?? 0,
+              status: r.room.status ?? 'AVAILABLE',
+              isActive: r.room.isActive ?? true,
+              imageUrl: r.room.imageUrl ?? '',
+              amenities: (r.room.amenities || []).map((a: any) =>
+                a?.amenity
+                  ? {
+                      id: String(a.amenity.id),
+                      name: a.amenity.name,
+                      icon: a.amenity.icon ?? 'checkmark-circle-outline',
+                      description: a.amenity.description,
+                    }
+                  : {
+                      id: String(a.id),
+                      name: a.name,
+                      icon: a.icon ?? 'checkmark-circle-outline',
+                      description: a.description,
+                    },
+              ),
+              floor: r.room.floor,
+              location: r.room.location,
+            }
+          : {
+              id: 'unknown-room',
+              name: 'Room',
+              description: '',
+              capacity: 0,
+              status: 'AVAILABLE' as const,
+              isActive: true,
+              imageUrl: '',
+              amenities: [],
+            },
+      })) ?? [],
+    requestedAmenities:
+      item.amenities?.map((a: any) => ({
+        id: String(a.amenity?.id ?? a.id),
+        name: a.amenity?.name ?? a.name ?? 'Amenity',
+        icon: a.amenity?.icon ?? 'checkmark-circle-outline',
+        description: a.amenity?.description ?? '',
+      })) ?? [],
+  };
+}
+
+function HistoryLoader({
+  onBack,
+  onOpenBooking,
+  onBookAgain,
+}: {
+  onBack: () => void;
+  onOpenBooking: (b: Booking) => void;
+  onBookAgain: (r: Room) => void;
+}) {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await api.getBookings();
+        if (mounted && Array.isArray(res)) setBookings(res.map(mapHistoryBooking));
+      } catch (e) {
+        console.warn('Failed to load history', e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  return (
+    <BookingHistoryScreen
+      bookings={bookings}
+      onBack={onBack}
+      onOpenBooking={onOpenBooking}
+      onBookAgain={onBookAgain}
+    />
+  );
+}
+
 function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const bookings = useMemo<Booking[]>(() => MOCK_BOOKINGS, []);
 
@@ -75,7 +172,7 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void }
             <EmployeeTabNavigator
               user={user}
               onOpenRoom={(room: Room) => navigation.navigate('RoomDetail', { room })}
-              onOpenBookingDetail={(booking: Booking) => navigation.navigate('History')}
+              onOpenBookingDetail={(booking: Booking) => navigation.navigate('BookingDetail', { booking })}
             />
           )}
         </AppStack.Screen>
@@ -127,9 +224,26 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void }
         )}
       </AppStack.Screen>
 
+      <AppStack.Screen name="BookingDetail">
+        {({ navigation, route }: any) => (
+          <BookingDetailScreen
+            booking={route.params?.booking as Booking}
+            onBack={() => navigation.goBack()}
+            onBookAgain={(room) => navigation.navigate('Booking', { room })}
+            onCancelled={() => {
+              /* list will refresh when user returns to My Bookings */
+            }}
+          />
+        )}
+      </AppStack.Screen>
+
       <AppStack.Screen name="History">
         {({ navigation }) => (
-          <BookingHistoryScreen bookings={bookings} onBack={() => navigation.goBack()} />
+          <HistoryLoader
+            onBack={() => navigation.goBack()}
+            onOpenBooking={(booking) => navigation.navigate('BookingDetail', { booking })}
+            onBookAgain={(room) => navigation.navigate('Booking', { room })}
+          />
         )}
       </AppStack.Screen>
 

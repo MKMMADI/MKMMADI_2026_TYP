@@ -249,6 +249,26 @@ export async function cancelBooking(req: AuthRequest, res: Response, next: NextF
       return next(createHttpError('Forbidden', 403));
     }
 
+    // Employees may always cancel PENDING. For approved pipeline statuses they need ≥6 hours before start.
+    const staffOverride = req.user.role === 'MANAGER' || req.user.role === 'CLERK';
+    if (!staffOverride) {
+      if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
+        return next(createHttpError('This booking can no longer be cancelled', 400));
+      }
+      if (booking.status !== 'PENDING') {
+        const msUntilStart = new Date(booking.startAt).getTime() - Date.now();
+        const sixHoursMs = 6 * 60 * 60 * 1000;
+        if (msUntilStart < sixHoursMs) {
+          return next(
+            createHttpError(
+              'Approved bookings can only be cancelled at least 6 hours before the start time',
+              400,
+            ),
+          );
+        }
+      }
+    }
+
     const updatedBooking = await prisma.booking.update({
       where: { id },
       data: { status: 'CANCELLED' },
@@ -256,6 +276,50 @@ export async function cancelBooking(req: AuthRequest, res: Response, next: NextF
     });
 
     res.json(updatedBooking);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** Occupancy windows for all rooms (no PII) — used by employee home availability. */
+export async function listOccupancy(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const from = req.query.from ? new Date(String(req.query.from)) : new Date();
+    const to = req.query.to
+      ? new Date(String(req.query.to))
+      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) {
+      return next(createHttpError('Invalid from/to range', 400));
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        status: { notIn: ['CANCELLED', 'COMPLETED'] },
+        startAt: { lt: to },
+        endAt: { gt: from },
+      },
+      select: {
+        id: true,
+        startAt: true,
+        endAt: true,
+        status: true,
+        rooms: { select: { roomId: true } },
+      },
+      orderBy: { startAt: 'asc' },
+    });
+
+    const slots = bookings.flatMap((b) =>
+      b.rooms.map((r) => ({
+        bookingId: b.id,
+        roomId: r.roomId,
+        startAt: b.startAt,
+        endAt: b.endAt,
+        status: b.status,
+      })),
+    );
+
+    res.json(slots);
   } catch (error) {
     next(error);
   }

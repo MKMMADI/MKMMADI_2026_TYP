@@ -36,6 +36,16 @@ const fallbackMeta = {
   icon: 'help-circle-outline' as keyof typeof Ionicons.glyphMap,
 };
 
+
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+
+function canCancelBooking(booking: Booking): boolean {
+  if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') return false;
+  if (booking.status === 'PENDING') return true;
+  // Approved pipeline: only ≥6 hours before start
+  return new Date(booking.startAt).getTime() - Date.now() >= SIX_HOURS_MS;
+}
+
 interface MyBookingsTabScreenProps {
   onOpenBookingDetail: (booking: Booking) => void;
 }
@@ -62,7 +72,11 @@ function mapBooking(item: any): Booking {
               status: r.room.status ?? 'AVAILABLE',
               isActive: r.room.isActive ?? true,
               imageUrl: r.room.imageUrl ?? '',
-              amenities: r.room.amenities ?? [],
+              amenities: (r.room.amenities || []).map((a: any) =>
+                a?.amenity
+                  ? { id: String(a.amenity.id), name: a.amenity.name, icon: a.amenity.icon ?? 'checkmark-circle-outline', description: a.amenity.description }
+                  : { id: String(a.id), name: a.name, icon: a.icon ?? 'checkmark-circle-outline', description: a.description }
+              ),
             }
           : {
               id: 'unknown-room',
@@ -149,7 +163,7 @@ export function MyBookingsTabScreen({ onOpenBookingDetail }: MyBookingsTabScreen
   const handleCancel = (booking: Booking) => {
     Alert.alert(
       'Cancel booking',
-      'Are you sure you want to cancel this pending booking?',
+      'Are you sure you want to cancel this booking?',
       [
         { text: 'Keep', style: 'cancel' },
         {
@@ -216,7 +230,7 @@ export function MyBookingsTabScreen({ onOpenBookingDetail }: MyBookingsTabScreen
           filteredBookings.map((booking) => {
             const roomName = booking.rooms[0]?.room?.name ?? 'Room';
             const meta = statusMeta[booking.status] ?? fallbackMeta;
-            const canCancel = booking.status === 'PENDING';
+            const canCancel = canCancelBooking(booking);
             const isCancelling = cancellingId === booking.id;
 
             return (
