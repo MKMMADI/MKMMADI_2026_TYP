@@ -17,6 +17,13 @@ export type ClerkTabParamList = {
 
 const Tab = createBottomTabNavigator<ClerkTabParamList>();
 
+const TAB_LABELS: Record<keyof ClerkTabParamList, string> = {
+  DashboardTab: 'Dashboard',
+  QueueTab: 'Queue',
+  RoomsTab: 'Rooms',
+  ProfileTab: 'Profile',
+};
+
 interface ClerkTabNavigatorProps {
   user: User;
   onSignOut: () => void | Promise<void>;
@@ -30,30 +37,26 @@ export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
-          if (route.name === 'DashboardTab') {
-            iconName = focused ? 'stats-chart' : 'stats-chart-outline';
-          } else if (route.name === 'QueueTab') {
-            iconName = focused ? 'list' : 'list-outline';
-          } else if (route.name === 'RoomsTab') {
-            iconName = focused ? 'business' : 'business-outline';
-          } else if (route.name === 'ProfileTab') {
-            iconName = focused ? 'person-circle' : 'person-circle-outline';
-          } else {
-            iconName = 'ellipse-outline';
+          switch (route.name) {
+            case 'DashboardTab':
+              iconName = focused ? 'stats-chart' : 'stats-chart-outline';
+              break;
+            case 'QueueTab':
+              iconName = focused ? 'list' : 'list-outline';
+              break;
+            case 'RoomsTab':
+              iconName = focused ? 'business' : 'business-outline';
+              break;
+            case 'ProfileTab':
+              iconName = focused ? 'person-circle' : 'person-circle-outline';
+              break;
+            default:
+              iconName = 'ellipse-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarLabel:
-          route.name === 'DashboardTab'
-            ? 'Dashboard'
-            : route.name === 'QueueTab'
-              ? 'Queue'
-              : route.name === 'RoomsTab'
-                ? 'Rooms'
-                : route.name === 'ProfileTab'
-                  ? 'Profile'
-                  : route.name.replace(/Tab$/, ''),
+        tabBarLabel: TAB_LABELS[route.name],
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedSoft,
         tabBarStyle: {

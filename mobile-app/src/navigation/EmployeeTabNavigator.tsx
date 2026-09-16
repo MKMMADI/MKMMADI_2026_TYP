@@ -17,6 +17,13 @@ export type EmployeeTabParamList = {
 
 const Tab = createBottomTabNavigator<EmployeeTabParamList>();
 
+const TAB_LABELS: Record<keyof EmployeeTabParamList, string> = {
+  HomeTab: 'Home',
+  MyBookingsTab: 'My Bookings',
+  FavoritesTab: 'Favorites',
+  ProfileTab: 'Profile',
+};
+
 interface EmployeeTabNavigatorProps {
   user: User;
   onOpenRoom: (room: Room) => void;
@@ -41,30 +48,26 @@ export function EmployeeTabNavigator({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
-          if (route.name === 'HomeTab') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'MyBookingsTab') {
-            iconName = focused ? 'calendar' : 'calendar-outline';
-          } else if (route.name === 'FavoritesTab') {
-            iconName = focused ? 'heart' : 'heart-outline';
-          } else if (route.name === 'ProfileTab') {
-            iconName = focused ? 'person-circle' : 'person-circle-outline';
-          } else {
-            iconName = 'ellipse-outline';
+          switch (route.name) {
+            case 'HomeTab':
+              iconName = focused ? 'home' : 'home-outline';
+              break;
+            case 'MyBookingsTab':
+              iconName = focused ? 'calendar' : 'calendar-outline';
+              break;
+            case 'FavoritesTab':
+              iconName = focused ? 'heart' : 'heart-outline';
+              break;
+            case 'ProfileTab':
+              iconName = focused ? 'person-circle' : 'person-circle-outline';
+              break;
+            default:
+              iconName = 'ellipse-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarLabel:
-          route.name === 'HomeTab'
-            ? 'Home'
-            : route.name === 'MyBookingsTab'
-              ? 'My Bookings'
-              : route.name === 'FavoritesTab'
-                ? 'Favorites'
-                : route.name === 'ProfileTab'
-                  ? 'Profile'
-                  : route.name.replace(/Tab$/, ''),
+        tabBarLabel: TAB_LABELS[route.name],
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedSoft,
         tabBarStyle: {
@@ -88,7 +91,9 @@ export function EmployeeTabNavigator({
         {() => <MyBookingsTabScreen onOpenBookingDetail={onOpenBookingDetail} />}
       </Tab.Screen>
       <Tab.Screen name="FavoritesTab">
-        {() => <FavoritesTabScreen onOpenRoom={onOpenRoom} />}
+        {() => (
+          <FavoritesTabScreen onOpenRoom={onOpenRoom} onBookRoom={onBookRoom} />
+        )}
       </Tab.Screen>
       <Tab.Screen name="ProfileTab">
         {({ navigation }) => (
