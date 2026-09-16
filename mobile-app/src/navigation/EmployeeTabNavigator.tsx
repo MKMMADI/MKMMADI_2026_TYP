@@ -6,6 +6,7 @@ import { MyBookingsTabScreen } from '../tabs/MyBookingsTabScreen';
 import { FavoritesTabScreen } from '../tabs/FavoritesTabScreen';
 import { ProfileTabScreen } from '../tabs/ProfileTabScreen';
 import { Room, Booking, User } from '../types';
+import { colors } from '../theme/tokens';
 
 export type EmployeeTabParamList = {
   HomeTab: undefined;
@@ -45,12 +46,12 @@ export function EmployeeTabNavigator({ user, onOpenRoom, onOpenBookingDetail }: 
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#3E49A6',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.mutedSoft,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.canvas,
           borderTopWidth: 1,
-          borderTopColor: '#E5E5EA',
+          borderTopColor: colors.hairlineSoft,
           paddingBottom: 8,
           paddingTop: 8,
           height: 60,
