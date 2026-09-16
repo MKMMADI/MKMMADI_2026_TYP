@@ -89,7 +89,8 @@ export function RoomDetailScreen({ room, onBack, onBook }: RoomDetailScreenProps
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.body}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
@@ -203,8 +204,9 @@ export function RoomDetailScreen({ room, onBack, onBook }: RoomDetailScreenProps
           title={opsUnavailable ? 'Unavailable' : 'Book room'}
           onPress={onBook}
           disabled={opsUnavailable}
-          style={styles.cta}
+          fullWidth
         />
+      </View>
       </View>
     </SafeAreaView>
   );
@@ -212,7 +214,9 @@ export function RoomDetailScreen({ room, onBack, onBook }: RoomDetailScreenProps
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { paddingBottom: spacing.section },
+  body: { flex: 1 },
+  scroll: { flex: 1 },
+  content: { paddingBottom: spacing.lg },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -246,11 +250,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     height: 200,
     backgroundColor: colors.surfaceSoft,
+    position: 'relative',
   },
   image: { width: '100%', height: '100%' },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(16,42,67,0.45)',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(16,42,67,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -325,7 +336,6 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     backgroundColor: colors.canvas,
   },
-  cta: { flex: 1 },
 });
 
 export default RoomDetailScreen;

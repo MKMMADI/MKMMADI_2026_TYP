@@ -10,8 +10,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { User } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
 
-interface ClerkProfileTabScreenProps {
+export interface ClerkProfileTabScreenProps {
   user: User;
+  onSignOut: () => void | Promise<void>;
 }
 
 export function ClerkProfileTabScreen({ user }: ClerkProfileTabScreenProps) {

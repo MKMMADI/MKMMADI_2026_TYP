@@ -55,6 +55,16 @@ export function EmployeeTabNavigator({
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
+        tabBarLabel:
+          route.name === 'HomeTab'
+            ? 'Home'
+            : route.name === 'MyBookingsTab'
+              ? 'My Bookings'
+              : route.name === 'FavoritesTab'
+                ? 'Favorites'
+                : route.name === 'ProfileTab'
+                  ? 'Profile'
+                  : route.name.replace(/Tab$/, ''),
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedSoft,
         tabBarStyle: {

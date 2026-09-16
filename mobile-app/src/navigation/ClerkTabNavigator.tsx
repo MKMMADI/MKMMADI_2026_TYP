@@ -5,12 +5,12 @@ import { DashboardTabScreen } from '../tabs/DashboardTabScreen';
 import { QueueTabScreen } from '../tabs/QueueTabScreen';
 import { RoomsTabScreen } from '../tabs/RoomsTabScreen';
 import { ClerkProfileTabScreen } from '../tabs/ClerkProfileTabScreen';
-import { User } from '../types';
+import { BookingStatus, User } from '../types';
 import { colors } from '../theme/tokens';
 
 export type ClerkTabParamList = {
   DashboardTab: undefined;
-  QueueTab: undefined;
+  QueueTab: { statusFilter?: BookingStatus | 'ALL' } | undefined;
   RoomsTab: undefined;
   ProfileTab: undefined;
 };
@@ -19,9 +19,10 @@ const Tab = createBottomTabNavigator<ClerkTabParamList>();
 
 interface ClerkTabNavigatorProps {
   user: User;
+  onSignOut: () => void | Promise<void>;
 }
 
-export function ClerkTabNavigator({ user }: ClerkTabNavigatorProps) {
+export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -43,6 +44,16 @@ export function ClerkTabNavigator({ user }: ClerkTabNavigatorProps) {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
+        tabBarLabel:
+          route.name === 'DashboardTab'
+            ? 'Dashboard'
+            : route.name === 'QueueTab'
+              ? 'Queue'
+              : route.name === 'RoomsTab'
+                ? 'Rooms'
+                : route.name === 'ProfileTab'
+                  ? 'Profile'
+                  : route.name.replace(/Tab$/, ''),
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedSoft,
         tabBarStyle: {
@@ -60,16 +71,28 @@ export function ClerkTabNavigator({ user }: ClerkTabNavigatorProps) {
       })}
     >
       <Tab.Screen name="DashboardTab">
-        {() => <DashboardTabScreen />}
+        {({ navigation }) => (
+          <DashboardTabScreen
+            user={user}
+            onOpenQueue={(status) =>
+              navigation.navigate('QueueTab', {
+                statusFilter: status ?? 'ALL',
+              })
+            }
+            onOpenRooms={() => navigation.navigate('RoomsTab')}
+          />
+        )}
       </Tab.Screen>
       <Tab.Screen name="QueueTab">
-        {() => <QueueTabScreen />}
+        {({ route }) => (
+          <QueueTabScreen initialStatus={route.params?.statusFilter ?? 'ALL'} />
+        )}
       </Tab.Screen>
       <Tab.Screen name="RoomsTab">
         {() => <RoomsTabScreen />}
       </Tab.Screen>
       <Tab.Screen name="ProfileTab">
-        {() => <ClerkProfileTabScreen user={user} />}
+        {() => <ClerkProfileTabScreen user={user} onSignOut={onSignOut} />}
       </Tab.Screen>
     </Tab.Navigator>
   );

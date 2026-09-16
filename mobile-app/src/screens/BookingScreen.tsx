@@ -213,6 +213,7 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.body}>
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Ionicons name="arrow-back" size={22} color={colors.ink} />
@@ -220,7 +221,7 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
         <Text style={styles.headerTitle}>Book room</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.roomName}>{room.name}</Text>
         <Text style={styles.roomMeta}>
           Up to {room.capacity} people · {room.location || 'Main building'}
@@ -297,7 +298,8 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button title="Confirm booking" onPress={handleSubmit} loading={loading} style={styles.cta} />
+        <Button title="Confirm booking" onPress={handleSubmit} loading={loading} fullWidth />
+      </View>
       </View>
 
       <Modal visible={calendarOpen} animationType="slide" transparent onRequestClose={() => setCalendarOpen(false)}>
@@ -356,6 +358,8 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
+  body: { flex: 1 },
+  scroll: { flex: 1 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -449,7 +453,6 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     backgroundColor: colors.canvas,
   },
-  cta: { flex: 1 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(16,42,67,0.35)' },
   calendarSheet: {
     backgroundColor: colors.canvas,

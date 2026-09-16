@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { RoomStatus } from '@prisma/client';
 import prisma from '../prisma';
 import { createHttpError } from '../utils/httpError';
 import { listAvailableRooms } from '../services/bookingService';
@@ -120,6 +121,38 @@ export async function archiveRoom(req: Request, res: Response, next: NextFunctio
   }
 }
 
+const ROOM_STATUS_VALUES = ['AVAILABLE', 'OUT_OF_SERVICE', 'MAINTENANCE'] as const;
+type RoomStatusValue = (typeof ROOM_STATUS_VALUES)[number];
+
+function isRoomStatus(value: unknown): value is RoomStatusValue {
+  return typeof value === 'string' && (ROOM_STATUS_VALUES as readonly string[]).includes(value);
+}
+
+/** Clerk/manager operational status only (not full room edit). */
+export async function updateRoomStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return next(createHttpError('Invalid room id', 400));
+    }
+    const { status: rawStatus } = req.body as { status?: string };
+    if (!isRoomStatus(rawStatus)) {
+      return next(createHttpError('Status must be AVAILABLE, OUT_OF_SERVICE, or MAINTENANCE', 400));
+    }
+    const status: RoomStatus = rawStatus;
+
+    const room = await prisma.room.update({
+      where: { id },
+      data: { status },
+    });
+
+    // Status-only response — full room+amenities still available via GET /rooms/:id
+    res.json(room);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function searchAvailability(req: Request, res: Response, next: NextFunction) {
   try {
     const rooms = await listAvailableRooms({
@@ -130,51 +163,6 @@ export async function searchAvailability(req: Request, res: Response, next: Next
     });
 
     res.json(rooms);
-  } catch (error) {
-    next(error);
-  }
-}
-
-
-/** Occupancy windows across rooms (no employee PII). */
-export async function listRoomOccupancy(req: Request, res: Response, next: NextFunction) {
-  try {
-    const from = req.query.from ? new Date(String(req.query.from)) : new Date();
-    const to = req.query.to
-      ? new Date(String(req.query.to))
-      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-
-    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) {
-      return next(createHttpError('Invalid from/to range', 400));
-    }
-
-    const bookings = await prisma.booking.findMany({
-      where: {
-        status: { notIn: ['CANCELLED', 'COMPLETED'] },
-        startAt: { lt: to },
-        endAt: { gt: from },
-      },
-      select: {
-        id: true,
-        startAt: true,
-        endAt: true,
-        status: true,
-        rooms: { select: { roomId: true } },
-      },
-      orderBy: { startAt: 'asc' },
-    });
-
-    const slots = bookings.flatMap((b) =>
-      b.rooms.map((r) => ({
-        bookingId: b.id,
-        roomId: r.roomId,
-        startAt: b.startAt,
-        endAt: b.endAt,
-        status: b.status,
-      })),
-    );
-
-    res.json(slots);
   } catch (error) {
     next(error);
   }

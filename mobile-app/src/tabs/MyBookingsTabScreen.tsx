@@ -48,6 +48,8 @@ function canCancelBooking(booking: Booking): boolean {
 
 interface MyBookingsTabScreenProps {
   onOpenBookingDetail: (booking: Booking) => void;
+  showBackToProfile?: boolean;
+  onBackToProfile?: () => void;
 }
 
 function mapBooking(item: any): Booking {
@@ -99,7 +101,11 @@ function mapBooking(item: any): Booking {
   };
 }
 
-export function MyBookingsTabScreen({ onOpenBookingDetail }: MyBookingsTabScreenProps) {
+export function MyBookingsTabScreen({
+  onOpenBookingDetail,
+  showBackToProfile = false,
+  onBackToProfile,
+}: MyBookingsTabScreenProps) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [tabFilter, setTabFilter] = useState<TabFilter>('UPCOMING');
   const [loading, setLoading] = useState(true);
@@ -192,6 +198,18 @@ export function MyBookingsTabScreen({ onOpenBookingDetail }: MyBookingsTabScreen
       <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
       <View style={styles.header}>
+        {showBackToProfile && onBackToProfile ? (
+          <TouchableOpacity
+            style={styles.backRow}
+            onPress={onBackToProfile}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Back to profile"
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.ink} />
+            <Text style={styles.backLabel}>Profile</Text>
+          </TouchableOpacity>
+        ) : null}
         <Text style={styles.title}>My Bookings</Text>
       </View>
 
@@ -287,6 +305,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     paddingTop: spacing.base,
     paddingBottom: spacing.md,
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  backLabel: {
+    ...typography.bodyMd,
+    color: colors.ink,
+    fontWeight: '600',
   },
   title: {
     ...typography.displayMd,
