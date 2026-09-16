@@ -1,12 +1,14 @@
-import { Platform, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import React from 'react';
+import { Platform, StyleSheet, View, ViewStyle, TextStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, shadows } from '../theme/tokens';
 
-/** Horizontal inset so the bar reads as a floating pill above the home indicator. */
-export const FLOATING_TAB_MARGIN_H = 16;
+/** Horizontal inset — larger = narrower floating bar. */
+export const FLOATING_TAB_MARGIN_H = 28;
 /** Gap above the bottom edge / safe-area. */
 export const FLOATING_TAB_MARGIN_BOTTOM = 12;
 /** Visible bar height (icons + labels). */
-export const FLOATING_TAB_HEIGHT = 64;
+export const FLOATING_TAB_HEIGHT = 62;
 
 /**
  * Shared floating tab-bar chrome for Employee + Clerk navigators.
@@ -24,8 +26,9 @@ export function getFloatingTabBarStyle(bottomInset = 0): ViewStyle {
     borderTopWidth: 0,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.hairlineSoft,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingTop: 6,
+    paddingBottom: 6,
+    paddingHorizontal: 6,
     ...Platform.select({
       ios: {
         shadowColor: shadows.search.shadowColor,
@@ -42,9 +45,10 @@ export function getFloatingTabBarStyle(bottomInset = 0): ViewStyle {
 }
 
 export const floatingTabBarLabelStyle: TextStyle = {
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: '600',
-  marginBottom: 2,
+  marginBottom: 0,
+  marginTop: 2,
 };
 
 /** Extra scroll padding so list content isn’t hidden under the floating bar. */
@@ -54,5 +58,46 @@ export function getFloatingTabContentPadding(bottomInset = 0): number {
     Math.max(bottomInset, FLOATING_TAB_MARGIN_BOTTOM) +
     FLOATING_TAB_MARGIN_BOTTOM +
     8
+  );
+}
+
+const indicatorStyles = StyleSheet.create({
+  /** Active indicator (selected tab pill) around the icon. */
+  pill: {
+    width: 44,
+    height: 28,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillActive: {
+    backgroundColor: colors.steelLight,
+  },
+  pillIdle: {
+    backgroundColor: 'transparent',
+  },
+});
+
+export type TabIconName = keyof typeof Ionicons.glyphMap;
+
+/**
+ * Icon + active indicator pill for the focused tab.
+ * Design term: “active indicator” (also called selected pill / tab highlight).
+ */
+export function FloatingTabIcon({
+  name,
+  focused,
+  color,
+  size = 22,
+}: {
+  name: TabIconName;
+  focused: boolean;
+  color: string;
+  size?: number;
+}) {
+  return (
+    <View style={[indicatorStyles.pill, focused ? indicatorStyles.pillActive : indicatorStyles.pillIdle]}>
+      <Ionicons name={name} size={size} color={color} />
+    </View>
   );
 }

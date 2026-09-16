@@ -1,5 +1,4 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeTabScreen } from '../tabs/HomeTabScreen';
@@ -9,8 +8,10 @@ import { ProfileTabScreen } from '../tabs/ProfileTabScreen';
 import { Room, Booking, User } from '../types';
 import { colors } from '../theme/tokens';
 import {
+  FloatingTabIcon,
   floatingTabBarLabelStyle,
   getFloatingTabBarStyle,
+  TabIconName,
 } from './floatingTabBar';
 
 export type EmployeeTabParamList = {
@@ -28,6 +29,21 @@ const TAB_LABELS: Record<keyof EmployeeTabParamList, string> = {
   FavoritesTab: 'Favorites',
   ProfileTab: 'Profile',
 };
+
+function iconForRoute(name: keyof EmployeeTabParamList, focused: boolean): TabIconName {
+  switch (name) {
+    case 'HomeTab':
+      return focused ? 'home' : 'home-outline';
+    case 'MyBookingsTab':
+      return focused ? 'calendar' : 'calendar-outline';
+    case 'FavoritesTab':
+      return focused ? 'heart' : 'heart-outline';
+    case 'ProfileTab':
+      return focused ? 'person-circle' : 'person-circle-outline';
+    default:
+      return 'ellipse-outline';
+  }
+}
 
 interface EmployeeTabNavigatorProps {
   user: User;
@@ -52,28 +68,13 @@ export function EmployeeTabNavigator({
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap;
-
-          switch (route.name) {
-            case 'HomeTab':
-              iconName = focused ? 'home' : 'home-outline';
-              break;
-            case 'MyBookingsTab':
-              iconName = focused ? 'calendar' : 'calendar-outline';
-              break;
-            case 'FavoritesTab':
-              iconName = focused ? 'heart' : 'heart-outline';
-              break;
-            case 'ProfileTab':
-              iconName = focused ? 'person-circle' : 'person-circle-outline';
-              break;
-            default:
-              iconName = 'ellipse-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
+        tabBarIcon: ({ focused, color }) => (
+          <FloatingTabIcon
+            name={iconForRoute(route.name, focused)}
+            focused={focused}
+            color={color}
+          />
+        ),
         tabBarLabel: TAB_LABELS[route.name],
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedSoft,
