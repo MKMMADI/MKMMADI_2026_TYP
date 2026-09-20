@@ -12,13 +12,22 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mkmmadi.conferencerooms"
+      "bundleIdentifier": "com.mkmmadi.conferencerooms",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FF385C"
       },
       "package": "com.mkmmadi.conferencerooms"
+    },
+    "extra": {
+      "apiUrl": "http://10.0.2.2:4000",
+      "eas": {
+        "projectId": "9d7243c5-ce4e-431e-bd38-2272da7fe52f"
+      }
     }
   }
 }

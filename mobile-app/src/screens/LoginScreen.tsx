@@ -1,8 +1,10 @@
 ﻿import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import LottieView from 'lottie-react-native';
 import { Button } from '../components/Button';
 import api from '../api';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import problemSolvingTeam from '../assets/animations/problem-solving-team.json';
 
 interface LoginScreenProps {
   onLogin: (user: any) => void;
@@ -34,6 +36,12 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
 
   return (
     <View style={styles.container}>
+      <LottieView
+        source={problemSolvingTeam}
+        style={styles.animation}
+        autoPlay
+        loop
+      />
       <Text style={styles.title}>Sign in</Text>
       <Text style={styles.subtitle}>Welcome back — sign in to continue</Text>
 
@@ -74,6 +82,12 @@ const styles = StyleSheet.create({
     padding: spacing.base,
     justifyContent: 'center',
     backgroundColor: colors.canvas,
+  },
+  animation: {
+    alignSelf: 'center',
+    width: 200,
+    height: 200,
+    marginBottom: spacing.base,
   },
   title: {
     ...typography.displayLg,
