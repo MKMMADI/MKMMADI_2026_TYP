@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { RoomStatus } from '@prisma/client';
 import prisma from '../prisma';
 import { createHttpError } from '../utils/httpError';
 import { listAvailableRooms } from '../services/bookingService';
@@ -114,6 +115,38 @@ export async function archiveRoom(req: Request, res: Response, next: NextFunctio
       where: { id },
       data: { isActive: false },
     });
+    res.json(room);
+  } catch (error) {
+    next(error);
+  }
+}
+
+const ROOM_STATUS_VALUES = ['AVAILABLE', 'OUT_OF_SERVICE', 'MAINTENANCE'] as const;
+type RoomStatusValue = (typeof ROOM_STATUS_VALUES)[number];
+
+function isRoomStatus(value: unknown): value is RoomStatusValue {
+  return typeof value === 'string' && (ROOM_STATUS_VALUES as readonly string[]).includes(value);
+}
+
+/** Clerk/manager operational status only (not full room edit). */
+export async function updateRoomStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return next(createHttpError('Invalid room id', 400));
+    }
+    const { status: rawStatus } = req.body as { status?: string };
+    if (!isRoomStatus(rawStatus)) {
+      return next(createHttpError('Status must be AVAILABLE, OUT_OF_SERVICE, or MAINTENANCE', 400));
+    }
+    const status: RoomStatus = rawStatus;
+
+    const room = await prisma.room.update({
+      where: { id },
+      data: { status },
+    });
+
+    // Status-only response — full room+amenities still available via GET /rooms/:id
     res.json(room);
   } catch (error) {
     next(error);

@@ -104,7 +104,7 @@ export async function createBooking(input: CreateBookingInput) {
         purpose: input.purpose,
         startAt,
         endAt,
-        status: BookingStatus.CONFIRMED,
+        status: BookingStatus.PENDING,
         rooms: {
           create: roomIds.map((roomId) => ({ roomId, roomStatus: 'BOOKED' })),
         },

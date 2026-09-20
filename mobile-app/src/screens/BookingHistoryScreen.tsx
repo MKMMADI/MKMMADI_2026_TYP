@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Booking } from '../types';
+import { Booking, Room } from '../types';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
 interface BookingHistoryScreenProps {
   bookings: Booking[];
   onBack: () => void;
+  onOpenBooking?: (booking: Booking) => void;
+  onBookAgain?: (room: Room) => void;
 }
 
 function formatBookingDate(dateIso: string) {
@@ -19,7 +21,12 @@ function formatBookingDate(dateIso: string) {
   });
 }
 
-export function BookingHistoryScreen({ bookings, onBack }: BookingHistoryScreenProps) {
+export function BookingHistoryScreen({
+  bookings,
+  onBack,
+  onOpenBooking,
+  onBookAgain,
+}: BookingHistoryScreenProps) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.topBar}>
@@ -36,20 +43,59 @@ export function BookingHistoryScreen({ bookings, onBack }: BookingHistoryScreenP
             <Text style={styles.emptyText}>Your recent room requests will appear here.</Text>
           </View>
         ) : (
-          bookings.map((booking) => (
-            <View key={booking.id} style={styles.card}>
-              <View style={styles.rowBetween}>
-                <Text style={styles.title}>{booking.purpose}</Text>
-                <View style={[styles.statusPill, booking.status === 'CONFIRMED' ? styles.confirmed : styles.defaultStatus]}>
-                  <Text style={[styles.statusText, booking.status !== 'CONFIRMED' && styles.statusTextMuted]}>{booking.status}</Text>
+          bookings.map((booking) => {
+            const room = booking.rooms[0]?.room;
+            return (
+              <TouchableOpacity
+                key={booking.id}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() => onOpenBooking?.(booking)}
+              >
+                <View style={styles.rowBetween}>
+                  <Text style={styles.title}>{room?.name || booking.purpose || 'Booking'}</Text>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      booking.status === 'CONFIRMED' ? styles.confirmed : styles.defaultStatus,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        booking.status !== 'CONFIRMED' && styles.statusTextMuted,
+                      ]}
+                    >
+                      {booking.status}
+                    </Text>
+                  </View>
                 </View>
-              </View>
 
-              <Text style={styles.meta}>{booking.rooms.map((room) => room.room?.name || room.roomId).join(', ')}</Text>
-              <Text style={styles.meta}>{formatBookingDate(booking.startAt)} – {formatBookingDate(booking.endAt)}</Text>
-              <Text style={styles.meta}>Amenities: {booking.requestedAmenities.length ? booking.requestedAmenities.map((a) => a.name).join(', ') : 'None'}</Text>
-            </View>
-          ))
+                <Text style={styles.meta}>{booking.purpose}</Text>
+                <Text style={styles.meta}>
+                  {formatBookingDate(booking.startAt)} – {formatBookingDate(booking.endAt)}
+                </Text>
+                <Text style={styles.meta}>
+                  Amenities:{' '}
+                  {booking.requestedAmenities?.length
+                    ? booking.requestedAmenities.map((a) => a.name).join(', ')
+                    : room?.amenities?.length
+                      ? room.amenities.map((a) => a.name).join(', ')
+                      : 'None'}
+                </Text>
+
+                {room && onBookAgain ? (
+                  <TouchableOpacity
+                    style={styles.bookAgain}
+                    onPress={() => onBookAgain(room)}
+                  >
+                    <Ionicons name="refresh-outline" size={14} color={colors.primary} />
+                    <Text style={styles.bookAgainText}>Book again</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>
@@ -113,6 +159,16 @@ const styles = StyleSheet.create({
     ...typography.bodySm,
     color: colors.muted,
     marginTop: 6,
+  },
+  bookAgain: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bookAgainText: {
+    ...typography.buttonSm,
+    color: colors.primary,
   },
   emptyState: {
     backgroundColor: colors.surfaceSoft,

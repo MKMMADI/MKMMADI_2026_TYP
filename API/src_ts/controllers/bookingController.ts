@@ -16,6 +16,15 @@ const bookingInclude = {
 /** Statuses clerks may set on the preparation queue (including moving backwards). */
 const PREP_STATUSES = new Set(['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED']);
 
+
+function parseBookingId(raw: string | string[] | undefined): number | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (value == null || value === '') return null;
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return id;
+}
+
 export async function createBookingHandler(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const booking = await createBooking({
@@ -62,7 +71,10 @@ export async function listBookings(req: AuthRequest, res: Response, next: NextFu
 
 export async function getBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
+    const id = parseBookingId(req.params.id);
+    if (id == null) {
+      return next(createHttpError('Invalid booking id', 400));
+    }
     const booking = await prisma.booking.findUnique({
       where: { id },
       include: bookingInclude,
@@ -96,7 +108,10 @@ export async function listRejectionReasons(_req: AuthRequest, res: Response, nex
 
 export async function approveBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
+    const id = parseBookingId(req.params.id);
+    if (id == null) {
+      return next(createHttpError('Invalid booking id', 400));
+    }
     const existing = await prisma.booking.findUnique({ where: { id } });
 
     if (!existing) {
@@ -127,7 +142,10 @@ export async function approveBooking(req: AuthRequest, res: Response, next: Next
 
 export async function rejectBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
+    const id = parseBookingId(req.params.id);
+    if (id == null) {
+      return next(createHttpError('Invalid booking id', 400));
+    }
     const { reasonCode, note } = req.body as { reasonCode?: string; note?: string };
 
     if (!reasonCode || !isValidRejectionCode(reasonCode)) {
@@ -166,7 +184,10 @@ export async function rejectBooking(req: AuthRequest, res: Response, next: NextF
 
 export async function updateBookingStatus(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
+    const id = parseBookingId(req.params.id);
+    if (id == null) {
+      return next(createHttpError('Invalid booking id', 400));
+    }
     const { status } = req.body as { status?: string };
 
     if (!status) {
@@ -236,7 +257,10 @@ export async function updateBookingStatus(req: AuthRequest, res: Response, next:
 
 export async function cancelBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
+    const id = parseBookingId(req.params.id);
+    if (id == null) {
+      return next(createHttpError('Invalid booking id', 400));
+    }
     const booking = await prisma.booking.findUnique({ where: { id } });
     if (!booking) {
       return next(createHttpError('Booking not found', 404));
@@ -249,6 +273,26 @@ export async function cancelBooking(req: AuthRequest, res: Response, next: NextF
       return next(createHttpError('Forbidden', 403));
     }
 
+    // Employees may always cancel PENDING. For approved pipeline statuses they need ≥6 hours before start.
+    const staffOverride = req.user.role === 'MANAGER' || req.user.role === 'CLERK';
+    if (!staffOverride) {
+      if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
+        return next(createHttpError('This booking can no longer be cancelled', 400));
+      }
+      if (booking.status !== 'PENDING') {
+        const msUntilStart = new Date(booking.startAt).getTime() - Date.now();
+        const sixHoursMs = 6 * 60 * 60 * 1000;
+        if (msUntilStart < sixHoursMs) {
+          return next(
+            createHttpError(
+              'Approved bookings can only be cancelled at least 6 hours before the start time',
+              400,
+            ),
+          );
+        }
+      }
+    }
+
     const updatedBooking = await prisma.booking.update({
       where: { id },
       data: { status: 'CANCELLED' },
@@ -256,6 +300,50 @@ export async function cancelBooking(req: AuthRequest, res: Response, next: NextF
     });
 
     res.json(updatedBooking);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** Occupancy windows for all rooms (no PII) — used by employee home availability. */
+export async function listOccupancy(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const from = req.query.from ? new Date(String(req.query.from)) : new Date();
+    const to = req.query.to
+      ? new Date(String(req.query.to))
+      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) {
+      return next(createHttpError('Invalid from/to range', 400));
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        status: { notIn: ['CANCELLED', 'COMPLETED'] },
+        startAt: { lt: to },
+        endAt: { gt: from },
+      },
+      select: {
+        id: true,
+        startAt: true,
+        endAt: true,
+        status: true,
+        rooms: { select: { roomId: true } },
+      },
+      orderBy: { startAt: 'asc' },
+    });
+
+    const slots = bookings.flatMap((b) =>
+      b.rooms.map((r) => ({
+        bookingId: b.id,
+        roomId: r.roomId,
+        startAt: b.startAt,
+        endAt: b.endAt,
+        status: b.status,
+      })),
+    );
+
+    res.json(slots);
   } catch (error) {
     next(error);
   }

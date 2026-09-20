@@ -18,10 +18,17 @@ interface RoomCardProps {
   room: Room;
   onPress: (room: Room) => void;
   onToggleFavorite?: (room: Room) => void;
+  showFavorite?: boolean;
 }
 
-export function RoomCard({ room, onPress, onToggleFavorite }: RoomCardProps) {
+export function RoomCard({
+  room,
+  onPress,
+  onToggleFavorite,
+  showFavorite,
+}: RoomCardProps) {
   const isUnavailable = room.status !== 'AVAILABLE';
+  const showHeart = showFavorite ?? Boolean(onToggleFavorite);
 
   return (
     <TouchableOpacity
@@ -38,19 +45,24 @@ export function RoomCard({ room, onPress, onToggleFavorite }: RoomCardProps) {
         />
         {room.isFavorite && (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>Guest favorite</Text>
+            <Text style={styles.badgeText}>Favorite</Text>
           </View>
         )}
-        {onToggleFavorite && (
+        {showHeart && (
           <TouchableOpacity
-            style={styles.heart}
-            onPress={() => onToggleFavorite(room)}
+            style={[styles.heart, room.isFavorite && styles.heartActive]}
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              onToggleFavorite?.(room);
+            }}
             hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={room.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
             <Ionicons
               name={room.isFavorite ? 'heart' : 'heart-outline'}
-              size={22}
-              color={room.isFavorite ? colors.primary : colors.onPrimary}
+              size={20}
+              color={room.isFavorite ? '#E11D48' : colors.ink}
             />
           </TouchableOpacity>
         )}
@@ -77,17 +89,18 @@ export function RoomCard({ room, onPress, onToggleFavorite }: RoomCardProps) {
         </View>
 
         <Text style={styles.subtitle} numberOfLines={1}>
-          {room.location} · Floor {room.floor} · Up to {room.capacity} people
+          {room.location || 'Main building'} · Floor {room.floor || 'G'} · Up to {room.capacity}{' '}
+          people
         </Text>
 
         <View style={styles.amenitiesRow}>
-          {room.amenities.slice(0, 3).map((a) => (
+          {(room.amenities || []).slice(0, 3).map((a) => (
             <View key={a.id} style={styles.amenityChip}>
               <Ionicons name={a.icon as any} size={12} color={colors.muted} />
               <Text style={styles.amenityText}>{a.name}</Text>
             </View>
           ))}
-          {room.amenities.length > 3 && (
+          {(room.amenities || []).length > 3 && (
             <Text style={styles.moreAmenities}>+{room.amenities.length - 3}</Text>
           )}
         </View>
@@ -99,62 +112,78 @@ export function RoomCard({ room, onPress, onToggleFavorite }: RoomCardProps) {
 const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: colors.canvas,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
+    ...shadows.card,
   },
   imageWrap: {
     width: '100%',
-    aspectRatio: 1,
-    borderRadius: radii.md,
+    height: 180,
+    backgroundColor: colors.surfaceSoft,
+    position: 'relative',
     overflow: 'hidden',
-    backgroundColor: colors.surfaceStrong,
   },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
+  image: { width: '100%', height: '100%' },
   badge: {
     position: 'absolute',
-    top: spacing.sm + 2,
-    left: spacing.sm + 2,
+    top: 12,
+    left: 12,
     backgroundColor: colors.canvas,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: radii.full,
-    ...shadows.soft,
   },
   badgeText: {
-    ...typography.badge,
+    ...typography.captionSm,
     color: colors.ink,
+    fontWeight: '600',
   },
   heart: {
     position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 36,
-    height: 36,
-    borderRadius: radii.full,
+    top: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
+    zIndex: 2,
+    elevation: 3,
+  },
+  heartActive: {
+    backgroundColor: '#FFF1F2',
+    borderColor: '#FECDD3',
   },
   unavailableOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(16,42,67,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   unavailableText: {
-    ...typography.titleMd,
+    ...typography.titleSm,
     color: colors.onPrimary,
   },
   meta: {
-    paddingTop: spacing.md,
-    gap: 4,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.sm,
+    gap: 8,
   },
   title: {
     ...typography.titleMd,
@@ -164,30 +193,31 @@ const styles = StyleSheet.create({
   rating: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
   },
   ratingText: {
-    ...typography.caption,
+    ...typography.captionSm,
     color: colors.ink,
   },
   subtitle: {
     ...typography.bodySm,
     color: colors.muted,
+    marginTop: 4,
   },
   amenitiesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 6,
+    marginTop: spacing.sm,
   },
   amenityChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.surfaceSoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: radii.full,
+    backgroundColor: colors.surfaceSoft,
   },
   amenityText: {
     ...typography.captionSm,

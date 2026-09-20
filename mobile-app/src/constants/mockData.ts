@@ -90,11 +90,58 @@ export const CURRENT_USER: User = {
   id: 'u1',
   name: 'Alex Rivera',
   email: 'alex.rivera@company.com',
-  department: 'Product Design',
+  department: 'Operations',
   contactNumber: '+27 82 555 0192',
-  role: 'EMPLOYEE',
+  role: 'CLERK',
   avatarUrl: 'https://i.pravatar.cc/150?u=alex',
 };
+
+export const MOCK_CLERK_QUEUE: Booking[] = [
+  {
+    id: 'b2',
+    employeeId: 'u2',
+    startAt: '2026-08-28T09:00:00Z',
+    endAt: '2026-08-28T10:00:00Z',
+    purpose: 'Q3 roadmap review with design leads',
+    status: 'CONFIRMED',
+    createdAt: '2026-08-27T09:00:00Z',
+    rooms: [{ id: 'br2', roomId: 'r1', room: ROOMS[0] }],
+    requestedAmenities: [AMENITIES[0], AMENITIES[2]],
+  },
+  {
+    id: 'b3',
+    employeeId: 'u3',
+    startAt: '2026-08-28T11:30:00Z',
+    endAt: '2026-08-28T12:30:00Z',
+    purpose: 'Finance board briefing',
+    status: 'PREPARING',
+    createdAt: '2026-08-27T10:30:00Z',
+    rooms: [{ id: 'br3', roomId: 'r4', room: ROOMS[3] }],
+    requestedAmenities: [AMENITIES[1], AMENITIES[4]],
+  },
+  {
+    id: 'b4',
+    employeeId: 'u4',
+    startAt: '2026-08-28T14:00:00Z',
+    endAt: '2026-08-28T15:00:00Z',
+    purpose: 'Customer onboarding demo',
+    status: 'READY',
+    createdAt: '2026-08-27T11:00:00Z',
+    rooms: [{ id: 'br4', roomId: 'r5', room: ROOMS[4] }],
+    requestedAmenities: [AMENITIES[3]],
+  },
+  {
+    id: 'b5',
+    employeeId: 'u5',
+    startAt: '2026-08-28T16:30:00Z',
+    endAt: '2026-08-28T17:30:00Z',
+    purpose: 'Harbor team sync',
+    status: 'COMPLETED',
+    createdAt: '2026-08-27T12:00:00Z',
+    rooms: [{ id: 'br5', roomId: 'r2', room: ROOMS[1] }],
+    requestedAmenities: [AMENITIES[5]],
+  },
+];
 
 export const MOCK_BOOKINGS: Booking[] = [
   {

@@ -1,4 +1,4 @@
-﻿import { API_BASE_URL } from './config';
+import { API_BASE_URL } from './config';
 import { clearTokens, getRefreshToken, getToken, saveTokens } from './lib/storage';
 
 let accessToken: string | null = null;
@@ -174,51 +174,14 @@ export async function createBooking(payload: any) {
 }
 
 export async function toggleFavorite(roomId: string) {
-  // No backend favorite model yet — persist on-device and return the new state.
-  const { toggleFavoriteRoomId } = await import('./lib/preferences');
-  const isFavorite = await toggleFavoriteRoomId(String(roomId));
-  return { roomId: String(roomId), isFavorite };
-}
-
-
-
-export async function getOccupancy(from?: string, to?: string) {
-  const params = new URLSearchParams();
-  if (from) params.set('from', from);
-  if (to) params.set('to', to);
-  const q = params.toString();
-  // Prefer /rooms/occupancy so a stale bookings router cannot treat "occupancy" as :id.
-  try {
-    return await request(`/api/v1/rooms/occupancy${q ? `?${q}` : ''}`);
-  } catch (err: any) {
-    if (err?.status === 404 || err?.status === 400) {
-      return request(`/api/v1/bookings/occupancy${q ? `?${q}` : ''}`);
-    }
-    throw err;
-  }
-}
-
-export async function searchAvailability(params: {
-  startAt?: string;
-  endAt?: string;
-  capacity?: number;
-  amenityIds?: string[];
-}) {
-  const qs = new URLSearchParams();
-  if (params.startAt) qs.set('startAt', params.startAt);
-  if (params.endAt) qs.set('endAt', params.endAt);
-  if (params.capacity) qs.set('capacity', String(params.capacity));
-  if (params.amenityIds?.length) qs.set('amenityIds', params.amenityIds.join(','));
-  const q = qs.toString();
-  return request(`/api/v1/rooms/availability${q ? `?${q}` : ''}`);
-}
-
-export async function cancelBooking(id: number | string) {
-  return request(`/api/v1/bookings/${id}/cancel`, {
-    method: 'PATCH',
+  return request(`/api/v1/rooms/${roomId}/favorite`, {
+    method: 'POST',
   });
 }
 
+// Added to support RoomsTabScreen (Clerk tab) room status updates.
+// Confirm this matches your backend's actual route before relying on it —
+// the analysis flagged PATCH /api/v1/rooms/{roomId}/status as unconfirmed.
 export async function updateRoomStatus(roomId: string, status: string) {
   return request(`/api/v1/rooms/${roomId}/status`, {
     method: 'PATCH',
@@ -242,7 +205,4 @@ export default {
   createBooking,
   toggleFavorite,
   updateRoomStatus,
-  cancelBooking,
-  getOccupancy,
-  searchAvailability,
 };
