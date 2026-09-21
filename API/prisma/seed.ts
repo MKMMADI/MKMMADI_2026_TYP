@@ -387,7 +387,7 @@ async function main() {
     status: BookingStatus;
     startAt: Date;
     endAt: Date;
-    roomIds: number[];
+    roomId: number;
     amenityIds: number[];
   };
 
@@ -399,7 +399,7 @@ async function main() {
       status: BookingStatus.PENDING,
       startAt: daysFromNow(1, 9, 0),
       endAt: daysFromNow(1, 11, 0),
-      roomIds: [atlas.id],
+      roomId: atlas.id,
       amenityIds: [display.id, videoConf.id, whiteboard.id],
     },
     {
@@ -408,7 +408,7 @@ async function main() {
       status: BookingStatus.PENDING,
       startAt: daysFromNow(1, 13, 0),
       endAt: daysFromNow(1, 14, 30),
-      roomIds: [studio2.id],
+      roomId: studio2.id,
       amenityIds: [display.id, whiteboard.id, flipChart.id],
     },
     {
@@ -417,7 +417,7 @@ async function main() {
       status: BookingStatus.PENDING,
       startAt: daysFromNow(2, 10, 0),
       endAt: daysFromNow(2, 11, 30),
-      roomIds: [horizon.id],
+      roomId: horizon.id,
       amenityIds: [display.id, videoConf.id, speakerphone.id],
     },
     {
@@ -426,7 +426,7 @@ async function main() {
       status: BookingStatus.PENDING,
       startAt: daysFromNow(3, 9, 0),
       endAt: daysFromNow(3, 12, 0),
-      roomIds: [baobab.id],
+      roomId: baobab.id,
       amenityIds: [display.id, whiteboard.id, flipChart.id, coffee.id],
     },
 
@@ -438,7 +438,7 @@ async function main() {
       status: BookingStatus.CONFIRMED,
       startAt: daysFromNow(0, 14, 0),
       endAt: daysFromNow(0, 15, 30),
-      roomIds: [studio2.id],
+      roomId: studio2.id,
       amenityIds: [display.id, whiteboard.id],
     },
     {
@@ -448,7 +448,7 @@ async function main() {
       status: BookingStatus.CONFIRMED,
       startAt: daysFromNow(1, 8, 30),
       endAt: daysFromNow(1, 10, 0),
-      roomIds: [horizon.id],
+      roomId: horizon.id,
       amenityIds: [display.id, wifi.id],
     },
     {
@@ -458,7 +458,7 @@ async function main() {
       status: BookingStatus.CONFIRMED,
       startAt: daysFromNow(2, 9, 0),
       endAt: daysFromNow(2, 11, 0),
-      roomIds: [atlas.id],
+      roomId: atlas.id,
       amenityIds: [display.id, videoConf.id, coffee.id],
     },
 
@@ -470,7 +470,7 @@ async function main() {
       status: BookingStatus.PREPARING,
       startAt: daysFromNow(0, 11, 0),
       endAt: daysFromNow(0, 12, 30),
-      roomIds: [horizon.id],
+      roomId: horizon.id,
       amenityIds: [display.id, speakerphone.id],
     },
     {
@@ -480,7 +480,7 @@ async function main() {
       status: BookingStatus.PREPARING,
       startAt: daysFromNow(0, 15, 0),
       endAt: daysFromNow(0, 16, 30),
-      roomIds: [atlas.id],
+      roomId: atlas.id,
       amenityIds: [display.id, videoConf.id, coffee.id],
     },
 
@@ -492,7 +492,7 @@ async function main() {
       status: BookingStatus.READY,
       startAt: daysFromNow(0, 9, 0),
       endAt: daysFromNow(0, 10, 0),
-      roomIds: [podA.id],
+      roomId: podA.id,
       amenityIds: [wifi.id, speakerphone.id],
     },
 
@@ -504,7 +504,7 @@ async function main() {
       status: BookingStatus.COMPLETED,
       startAt: daysFromNow(-1, 9, 0),
       endAt: daysFromNow(-1, 9, 45),
-      roomIds: [studio2.id],
+      roomId: studio2.id,
       amenityIds: [display.id],
     },
     {
@@ -514,7 +514,7 @@ async function main() {
       status: BookingStatus.COMPLETED,
       startAt: daysFromNow(-2, 10, 0),
       endAt: daysFromNow(-2, 12, 0),
-      roomIds: [baobab.id],
+      roomId: baobab.id,
       amenityIds: [display.id, coffee.id, accessible.id],
     },
     {
@@ -524,7 +524,7 @@ async function main() {
       status: BookingStatus.COMPLETED,
       startAt: daysFromNow(-3, 14, 0),
       endAt: daysFromNow(-3, 15, 30),
-      roomIds: [horizon.id],
+      roomId: horizon.id,
       amenityIds: [display.id, whiteboard.id],
     },
 
@@ -535,7 +535,7 @@ async function main() {
       status: BookingStatus.CANCELLED,
       startAt: daysFromNow(1, 16, 0),
       endAt: daysFromNow(1, 17, 0),
-      roomIds: [atlas.id],
+      roomId: atlas.id,
       amenityIds: [display.id, videoConf.id],
     },
     {
@@ -544,7 +544,7 @@ async function main() {
       status: BookingStatus.CANCELLED,
       startAt: daysFromNow(-1, 13, 0),
       endAt: daysFromNow(-1, 15, 0),
-      roomIds: [studio2.id],
+      roomId: studio2.id,
       amenityIds: [display.id, whiteboard.id],
     },
   ];
@@ -559,10 +559,10 @@ async function main() {
         startAt: seed.startAt,
         endAt: seed.endAt,
         rooms: {
-          create: seed.roomIds.map((roomId) => ({
-            roomId,
+          create: {
+            roomId: seed.roomId,
             roomStatus: "BOOKED",
-          })),
+          },
         },
         amenities: {
           create: seed.amenityIds.map((amenityId) => ({ amenityId })),

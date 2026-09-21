@@ -27,13 +27,18 @@ function parseBookingId(raw: string | string[] | undefined): number | null {
 
 export async function createBookingHandler(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    const roomId = Number(req.body.roomId);
+    const amenityIds = Array.isArray(req.body.amenityIds)
+      ? req.body.amenityIds.map((amenityId: unknown) => Number(amenityId))
+      : req.body.amenityIds;
+
     const booking = await createBooking({
       employeeId: req.user?.id,
       purpose: req.body.purpose,
       startAt: req.body.startAt,
       endAt: req.body.endAt,
-      roomIds: req.body.roomIds,
-      amenityIds: req.body.amenityIds,
+      roomId,
+      amenityIds,
       capacity: Number(req.body.capacity || 0),
     });
 

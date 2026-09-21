@@ -4,15 +4,13 @@
   "description": "API for Project 2026_TYP (Node + Express)",
   "main": "dist/server.js",
   "scripts": {
-    "preinstall": "npx npm-force-resolutions",
     "start": "node dist/server.js",
     "dev": "tsx watch src_ts/server.ts",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --runInBand",
     "build": "tsc",
-    "prebuild": "npm test",
-    "seed": "prisma db seed"
+    "prebuild": "npm test"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
@@ -56,9 +54,11 @@
     "msgpackr-extract": true,
     "workerd": true,
     "prisma@7.10.0": true,
+    "@parcel/watcher@2.6.0": true,
+    "unrs-resolver@1.12.2": true,
     "@prisma/engines@7.10.0": true
   },
-  "resolutions": {
+  "overrides": {
     "hono": "4.14.0",
     "@hono/node-server": "1.20.0",
     "lodash": "4.17.21",
@@ -67,6 +67,7 @@
     "mysql2": "3.24.0"
   },
   "prisma": {
-    "schema": "prisma/schema.prisma"
+    "schema": "prisma/schema.prisma",
+    "seed": "tsx prisma/seed.ts"
   }
 }

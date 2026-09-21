@@ -1,0 +1,22 @@
+services:
+  api:
+    build:
+      context: ./API
+      dockerfile: DockerFile
+      target: production
+    environment:
+      DATABASE_URL: postgresql://postgres:Zt.s.HqFUN39%40F@host.docker.internal:5432/typ_test_1
+      JWT_SECRET: 06051255a67bd0442ccc2e31fb440ffa8648d96721d62230104cab144eac1272bb546396c03288aabdb3278f274b60e5b036b8681656d2ec4bfc531ab9a362e7
+      NODE_ENV: production
+      PORT: 4000
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: ./web-app
+      dockerfile: DockerFile
+    depends_on:
+      - api
+    ports:
+      - "8081:80"

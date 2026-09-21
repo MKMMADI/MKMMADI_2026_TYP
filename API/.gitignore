@@ -12,6 +12,7 @@ pnpm-debug.log*
 # dotenv
 .env
 .env.*
+!.env.example
 
 # OS files
 .DS_Store

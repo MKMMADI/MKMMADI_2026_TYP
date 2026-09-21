@@ -36,7 +36,7 @@ interface BookingScreenProps {
     purpose: string;
     startAt: string;
     endAt: string;
-    roomIds: string[];
+    roomId: string;
     amenityIds: string[];
     capacity: number;
   }) => Promise<void> | void;
@@ -91,7 +91,7 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
   const [endMeridiem, setEndMeridiem] = useState<Meridiem>('AM');
 
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(
-    room.amenities.slice(0, 2).map((a) => a.id),
+    (room.amenities || []).slice(0, 2).map((a) => a.id),
   );
   const [loading, setLoading] = useState(false);
 
@@ -110,7 +110,9 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
 
   function toggleAmenity(id: string) {
     setSelectedAmenities((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+      Array.isArray(prev) && prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...(Array.isArray(prev) ? prev : []), id],
     );
   }
 
@@ -146,7 +148,7 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
         purpose: purpose.trim(),
         startAt: start.toISOString(),
         endAt: end.toISOString(),
-        roomIds: [room.id],
+        roomId: room.id,
         amenityIds: selectedAmenities,
         capacity: room.capacity,
       });
@@ -274,7 +276,7 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Amenities</Text>
           <View style={styles.amenityGrid}>
-            {room.amenities.map((amenity) => {
+            {(room.amenities || []).map((amenity) => {
               const active = selectedAmenities.includes(amenity.id);
               return (
                 <TouchableOpacity

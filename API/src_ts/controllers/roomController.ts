@@ -54,6 +54,9 @@ export async function createRoom(req: Request, res: Response, next: NextFunction
 export async function getRoom(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return next(createHttpError('Invalid room id', 400));
+    }
     const room = await prisma.room.findUnique({
       where: { id },
       include: { amenities: { include: { amenity: true } } },
