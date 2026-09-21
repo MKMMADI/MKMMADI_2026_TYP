@@ -8,7 +8,7 @@ export interface CreateBookingInput {
   purpose: string;
   startAt: string | Date;
   endAt: string | Date;
-  roomIds: number[];
+  roomId: number;
   amenityIds?: number[];
   capacity: number;
 }
@@ -21,12 +21,11 @@ function parseDate(value: string | Date, fieldName: string) {
   return parsed;
 }
 
-function normalizeRoomIds(roomIds: number[]) {
-  const uniqueIds = Array.from(new Set(roomIds.filter((id) => Number.isInteger(id) && id > 0)));
-  if (uniqueIds.length === 0) {
-    throw createHttpError('At least one room is required', 400);
+function normalizeRoomId(roomId: number) {
+  if (!Number.isInteger(roomId) || roomId <= 0) {
+    throw createHttpError('A valid room is required', 400);
   }
-  return uniqueIds;
+  return roomId;
 }
 
 async function validateRequestedAmenities(amenityIds: number[] | undefined, tx: Prisma.TransactionClient) {
@@ -55,18 +54,18 @@ export async function createBooking(input: CreateBookingInput) {
     throw createHttpError('Bookings cannot start in the past', 400);
   }
 
-  const roomIds = normalizeRoomIds(input.roomIds);
+  const roomId = normalizeRoomId(input.roomId);
 
   return prisma.$transaction(async (tx) => {
     const normalizedAmenityIds = await validateRequestedAmenities(input.amenityIds, tx);
 
     const rooms = await tx.room.findMany({
-      where: { id: { in: roomIds }, isActive: true },
+      where: { id: roomId, isActive: true },
       include: { amenities: true },
     });
 
-    if (rooms.length !== roomIds.length) {
-      throw createHttpError('One or more selected rooms do not exist', 400);
+    if (rooms.length !== 1) {
+      throw createHttpError('Selected room does not exist', 400);
     }
 
     for (const room of rooms) {
@@ -106,7 +105,7 @@ export async function createBooking(input: CreateBookingInput) {
         endAt,
         status: BookingStatus.PENDING,
         rooms: {
-          create: roomIds.map((roomId) => ({ roomId, roomStatus: 'BOOKED' })),
+          create: { roomId, roomStatus: 'BOOKED' },
         },
         amenities: {
           create: normalizedAmenityIds.map((amenityId) => ({ amenityId })),
