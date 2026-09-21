@@ -1,15 +1,4 @@
 ```
-# Dependencies
-node_modules/
-# Test coverage and cache
-.nyc_output/
-coverage/
-*.log
-# Environment
-.env
-.env.local
-.env.*
-# Editors
-.vscode/
-.idea/
+# Test files
+API/tests/
 ```
