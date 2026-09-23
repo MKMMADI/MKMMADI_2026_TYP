@@ -1,4 +1,8 @@
 ```
 # Test files
 API/tests/
+
+*.tgz
+*.zip
+*.sh
 ```
