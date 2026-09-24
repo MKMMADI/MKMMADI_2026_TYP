@@ -236,6 +236,7 @@ describe('bookingController - approveBooking', () => {
     expect(prisma.booking.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: expect.objectContaining({ status: 'CONFIRMED' }),
+      include: expect.any(Object),
     });
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'CONFIRMED' }));
   });
@@ -286,7 +287,7 @@ describe('bookingController - rejectBooking', () => {
     const req = {
       params: { id: '1' },
       user: mockManagerUser,
-      body: { reasonCode: 'DUPLICATE', note: 'Duplicate request' },
+      body: { reasonCode: 'ROOM_UNAVAILABLE', note: 'Duplicate request' },
     } as any;
     const res = { json: jest.fn() } as any;
     const next = jest.fn();
@@ -295,7 +296,11 @@ describe('bookingController - rejectBooking', () => {
 
     expect(prisma.booking.update).toHaveBeenCalledWith({
       where: { id: 1 },
-      data: expect.objectContaining({ status: 'CANCELLED', rejectionReasonCode: 'DUPLICATE' }),
+      data: expect.objectContaining({
+        status: 'CANCELLED',
+        rejectionReasonCode: 'ROOM_UNAVAILABLE',
+      }),
+      include: expect.any(Object),
     });
   });
 
@@ -363,6 +368,7 @@ describe('bookingController - updateBookingStatus', () => {
     expect(prisma.booking.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: expect.objectContaining({ status: 'PREPARING', preparedById: mockClerkUser.id }),
+      include: expect.any(Object),
     });
   });
 
@@ -432,6 +438,7 @@ describe('bookingController - cancelBooking', () => {
     expect(prisma.booking.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { status: 'CANCELLED' },
+      include: expect.any(Object),
     });
   });
 

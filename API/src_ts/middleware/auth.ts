@@ -30,6 +30,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
     const user = await prisma.user.findUnique({ where: { id: session.userId } });
     if (!user) return res.status(401).json({ message: 'User not found' });
+    if (!user.Active) return res.status(401).json({ message: 'Account deactivated' });
 
     req.user = { id: user.id, email: user.email, role: user.role };
     req.tokenJti = jti;

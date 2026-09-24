@@ -207,7 +207,8 @@ export async function adjustStock(req: AuthRequest, res: Response, next: NextFun
 export async function getStockAdjustments(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = Number(req.params.id);
-    const limit = req.query.limit ? Number(req.query.limit) : 50;
+    const rawLimit = req.query && req.query.limit !== undefined ? Number(req.query.limit) : 50;
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 50;
 
     const existing = await prisma.consumableItem.findUnique({
       where: { id },

@@ -249,6 +249,11 @@ describe('consumableController - adjustStock', () => {
       adjustment: { id: 1, quantityChange: 10, reason: 'Restock' },
     };
 
+    const expectedResponse = {
+      item: mockTransactionResult.updated,
+      adjustment: mockTransactionResult.adjustment,
+    };
+
     (prisma.$transaction as jest.Mock).mockResolvedValue(mockTransactionResult);
 
     const req = {
@@ -262,7 +267,7 @@ describe('consumableController - adjustStock', () => {
     await adjustStock(req, res, next);
 
     expect(prisma.$transaction).toHaveBeenCalled();
-    expect(res.json).toHaveBeenCalledWith(mockTransactionResult);
+    expect(res.json).toHaveBeenCalledWith(expectedResponse);
   });
 
   it('returns 400 when quantityChange is missing', async () => {

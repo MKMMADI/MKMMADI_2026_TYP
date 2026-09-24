@@ -27,7 +27,14 @@ export async function createAmenity(req: Request, res: Response, next: NextFunct
 export async function updateAmenity(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return next(createHttpError('Invalid amenity id', 400));
+    }
     const { name, description, isActive } = req.body;
+    const existingAmenity = await prisma.amenity.findUnique({ where: { id } });
+    if (!existingAmenity) {
+      return next(createHttpError('Amenity not found', 404));
+    }
     const amenity = await prisma.amenity.update({
       where: { id },
       //does the below follow business rules?
@@ -46,6 +53,13 @@ export async function updateAmenity(req: Request, res: Response, next: NextFunct
 export async function archiveAmenity(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return next(createHttpError('Invalid amenity id', 400));
+    }
+    const existingAmenity = await prisma.amenity.findUnique({ where: { id } });
+    if (!existingAmenity) {
+      return next(createHttpError('Amenity not found', 404));
+    }
     const amenity = await prisma.amenity.update({ where: { id }, data: { isActive: false } });
     res.json(amenity);
   } catch (error) {
