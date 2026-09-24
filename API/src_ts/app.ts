@@ -6,6 +6,7 @@ import amenityRoutes from './routes/amenityRoutes';
 import bookingRoutes from './routes/bookingRoutes';
 import consumableRoutes from './routes/consumableRoutes';
 import reportRoutes from './routes/reportRoutes';
+import profileRoutes from './routes/profileRoutes';
 import requestLogging from './middleware/requestLogging';
 import mainErrorHandler from './middleware/mainError';
 import { getProfile, updateProfile } from './controllers/profileController';
@@ -26,6 +27,7 @@ app.use('/api/v1/amenities', amenityRoutes);
 app.use('/api/v1/bookings', bookingRoutes);
 app.use('/api/v1/consumables', consumableRoutes);   
 app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/profile', profileRoutes);
 
 app.get('/api/v1/me', authenticate, getProfile);
 app.patch('/api/v1/me', authenticate, updateProfile);

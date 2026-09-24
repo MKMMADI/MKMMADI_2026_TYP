@@ -76,7 +76,14 @@ export async function getRoom(req: Request, res: Response, next: NextFunction) {
 export async function updateRoom(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return next(createHttpError('Invalid room id', 400));
+    }
     const { name, description, capacity, status, isActive, amenityIds } = req.body;
+    const existingRoom = await prisma.room.findUnique({ where: { id } });
+    if (!existingRoom) {
+      return next(createHttpError('Room not found', 404));
+    }
 
     const room = await prisma.room.update({
       where: { id },
@@ -114,6 +121,13 @@ export async function updateRoom(req: Request, res: Response, next: NextFunction
 export async function archiveRoom(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return next(createHttpError('Invalid room id', 400));
+    }
+    const existingRoom = await prisma.room.findUnique({ where: { id } });
+    if (!existingRoom) {
+      return next(createHttpError('Room not found', 404));
+    }
     const room = await prisma.room.update({
       where: { id },
       data: { isActive: false },
