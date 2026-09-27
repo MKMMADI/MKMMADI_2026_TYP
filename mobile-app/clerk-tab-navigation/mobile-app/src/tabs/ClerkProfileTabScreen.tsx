@@ -3,9 +3,9 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { User } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
@@ -22,7 +22,6 @@ export function ClerkProfileTabScreen({ user }: ClerkProfileTabScreenProps) {
       </View>
 
       <View style={styles.profileCard}>
-        <View style={styles.avatarPlaceholder}>
           <Ionicons name="person-circle" size={60} color={colors.primary} />
         </View>
         <Text style={styles.name}>{user.name}</Text>

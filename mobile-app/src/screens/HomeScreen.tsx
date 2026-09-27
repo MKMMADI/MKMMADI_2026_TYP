@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { SearchBar } from '../components/SearchBar';
 import { RoomCard } from '../components/RoomCard';
 import { Room, SearchFilters } from '../types';

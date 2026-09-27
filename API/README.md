@@ -1,6 +1,28 @@
 # MKMMADI_2026_TYP
 2026 Third Year Project
 
+## Create a booking
+
+`POST /api/v1/bookings` requires an authenticated employee and accepts one or
+more room IDs in the `roomIds` array:
+
+```json
+{
+  "roomIds": [12, 15],
+  "purpose": "Department workshop",
+  "startAt": "2026-10-01T09:00:00.000Z",
+  "endAt": "2026-10-01T11:00:00.000Z",
+  "capacity": 15,
+  "amenityIds": [3]
+}
+```
+
+`capacity` is the expected attendee count, not the selected rooms' summed
+capacity. Repeated room IDs are silently deduplicated. The request is rejected
+when the room list is empty or invalid, capacity is not a positive whole
+number, a selected room is unavailable, the combined room capacity is
+insufficient, or a requested amenity is missing from any selected room.
+
 ## Build and run the Web and API images
 
 The repository's `main` branch is the source of truth for this setup. The API

@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TextInput,
   TouchableOpacity,
   Alert,
   Modal,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
   addMonths,
@@ -30,13 +30,13 @@ import { Button } from '../components/Button';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
 interface BookingScreenProps {
-  room: Room;
+  rooms: Room[];
   onBack: () => void;
   onConfirm: (payload: {
     purpose: string;
     startAt: string;
     endAt: string;
-    roomId: string;
+    roomIds: string[];
     amenityIds: string[];
     capacity: number;
   }) => Promise<void> | void;
@@ -77,7 +77,7 @@ function inBusinessHours(d: Date, isEnd = false) {
   return mins >= min && mins < max;
 }
 
-export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
+export function BookingScreen({ rooms, onBack, onConfirm }: BookingScreenProps) {
   const [purpose, setPurpose] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
   const [monthCursor, setMonthCursor] = useState<Date>(startOfMonth(new Date()));
@@ -89,11 +89,18 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
   const [endHour, setEndHour] = useState('10');
   const [endMinute, setEndMinute] = useState('00');
   const [endMeridiem, setEndMeridiem] = useState<Meridiem>('AM');
-
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>(
-    (room.amenities || []).slice(0, 2).map((a) => a.id),
-  );
+  const [selectedRooms, setSelectedRooms] = useState<Room[]>(rooms);
+  const [attendeeCount, setAttendeeCount] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const totalCapacity = selectedRooms.reduce((total, item) => total + item.capacity, 0);
+  const availableAmenities = useMemo(() => {
+    const firstRoomAmenities = selectedRooms[0]?.amenities || [];
+    return firstRoomAmenities.filter((amenity) =>
+      selectedRooms.every((room) => room.amenities.some((candidate) => candidate.id === amenity.id)),
+    );
+  }, [selectedRooms]);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
 
   const calendarDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(monthCursor), { weekStartsOn: 1 });
@@ -114,6 +121,26 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
         ? prev.filter((item) => item !== id)
         : [...(Array.isArray(prev) ? prev : []), id],
     );
+  }
+
+  function removeRoom(roomId: string) {
+    if (selectedRooms.length <= 1) return;
+
+    const nextRooms = selectedRooms.filter((room) => room.id !== roomId);
+    const sharedAmenityIds = new Set(
+      (nextRooms[0]?.amenities || [])
+        .filter((amenity) =>
+          nextRooms.every((room) => room.amenities.some((candidate) => candidate.id === amenity.id)),
+        )
+        .map((amenity) => amenity.id),
+    );
+    setSelectedRooms(nextRooms);
+    setSelectedAmenities((currentAmenities) =>
+      currentAmenities.filter((amenityId) => sharedAmenityIds.has(amenityId)),
+    );
+    const nextCapacity = nextRooms.reduce((total, room) => total + room.capacity, 0);
+    setAttendeeCount((currentCount) => Math.min(currentCount, nextCapacity));
+    setBookingError(null);
   }
 
   async function handleSubmit() {
@@ -143,15 +170,18 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
     }
 
     setLoading(true);
+    setBookingError(null);
     try {
       await onConfirm({
         purpose: purpose.trim(),
         startAt: start.toISOString(),
         endAt: end.toISOString(),
-        roomId: room.id,
+        roomIds: selectedRooms.map((item) => item.id),
         amenityIds: selectedAmenities,
-        capacity: room.capacity,
+        capacity: attendeeCount,
       });
+    } catch (error) {
+      setBookingError(error instanceof Error ? error.message : 'Booking failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -224,14 +254,68 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.roomName}>{room.name}</Text>
-        <Text style={styles.roomMeta}>
-          Up to {room.capacity} people · {room.location || 'Main building'}
+        <Text style={styles.roomName}>
+          {selectedRooms.length === 1 ? selectedRooms[0].name : `${selectedRooms.length} rooms selected`}
         </Text>
+        <Text style={styles.roomMeta}>
+          {totalCapacity} combined seats
+        </Text>
+
+        <View style={styles.selectedRooms}>
+          {selectedRooms.length === 0 ? (
+            <Text style={styles.emptyRooms}>No rooms selected. Go back and choose at least one room.</Text>
+          ) : selectedRooms.map((item) => (
+            <View key={item.id} style={styles.selectedRoomRow}>
+              <View style={styles.selectedRoomInfo}>
+                <Text style={styles.selectedRoomName}>{item.name}</Text>
+                <Text style={styles.selectedRoomCapacity}>{item.capacity} seats</Text>
+              </View>
+              {selectedRooms.length > 1 ? (
+                <TouchableOpacity
+                  style={styles.removeRoomButton}
+                  onPress={() => removeRoom(item.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${item.name}`}
+                >
+                  <Ionicons name="close-circle-outline" size={20} color={colors.muted} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Attendees</Text>
+          <View style={styles.capacityStepper}>
+            <TouchableOpacity
+              style={styles.capacityButton}
+              onPress={() => setAttendeeCount((count) => Math.max(1, count - 1))}
+              disabled={attendeeCount <= 1}
+              accessibilityLabel="Decrease attendee count"
+            >
+              <Ionicons name="remove" size={18} color={colors.ink} />
+            </TouchableOpacity>
+            <Text style={styles.capacityValue}>{attendeeCount}</Text>
+            <TouchableOpacity
+              style={styles.capacityButton}
+              onPress={() => setAttendeeCount((count) => Math.min(totalCapacity, count + 1))}
+              disabled={attendeeCount >= totalCapacity}
+              accessibilityLabel="Increase attendee count"
+            >
+              <Ionicons name="add" size={18} color={colors.ink} />
+            </TouchableOpacity>
+            <Text style={styles.capacityHint}>of {totalCapacity} seats</Text>
+          </View>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Date</Text>
-          <TouchableOpacity style={styles.dateBtn} onPress={() => setCalendarOpen(true)}>
+          <TouchableOpacity
+            style={styles.dateBtn}
+            onPress={() => setCalendarOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Choose booking date"
+          >
             <Ionicons name="calendar-outline" size={18} color={colors.primary} />
             <Text style={styles.dateBtnText}>{format(selectedDate, 'EEEE, d MMMM yyyy')}</Text>
             <Ionicons name="chevron-down" size={16} color={colors.muted} />
@@ -276,7 +360,9 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Amenities</Text>
           <View style={styles.amenityGrid}>
-            {(room.amenities || []).map((amenity) => {
+            {availableAmenities.length === 0 ? (
+              <Text style={styles.noAmenities}>No amenities are shared by all selected rooms.</Text>
+            ) : availableAmenities.map((amenity) => {
               const active = selectedAmenities.includes(amenity.id);
               return (
                 <TouchableOpacity
@@ -297,10 +383,21 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
             })}
           </View>
         </View>
+        {bookingError ? (
+          <Text style={styles.errorMessage} accessibilityRole="alert">
+            {bookingError}
+          </Text>
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button title="Confirm booking" onPress={handleSubmit} loading={loading} fullWidth />
+        <Button
+          title="Confirm booking"
+          onPress={handleSubmit}
+          loading={loading}
+          disabled={selectedRooms.length === 0}
+          fullWidth
+        />
       </View>
       </View>
 
@@ -333,6 +430,8 @@ export function BookingScreen({ room, onBack, onConfirm }: BookingScreenProps) {
                   key={day.toISOString()}
                   style={[styles.dayCell, selected && styles.daySelected]}
                   disabled={past}
+                  accessibilityRole="button"
+                  accessibilityLabel={format(day, 'EEEE d MMMM yyyy')}
                   onPress={() => {
                     setSelectedDate(startOfDay(day));
                     setCalendarOpen(false);
@@ -384,8 +483,42 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.base, paddingBottom: spacing.section },
   roomName: { ...typography.displaySm, color: colors.ink },
   roomMeta: { ...typography.bodySm, color: colors.muted, marginTop: 4 },
+  selectedRooms: {
+    marginTop: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  selectedRoomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  selectedRoomInfo: { flex: 1 },
+  selectedRoomName: { ...typography.bodySm, color: colors.ink },
+  selectedRoomCapacity: { ...typography.captionSm, color: colors.muted },
+  emptyRooms: { ...typography.bodySm, color: colors.muted },
+  removeRoomButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   section: { marginTop: spacing.lg },
   sectionLabel: { ...typography.titleMd, color: colors.ink, marginBottom: spacing.sm },
+  capacityStepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  capacityButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceSoft,
+  },
+  capacityValue: { ...typography.titleMd, color: colors.ink, minWidth: 28, textAlign: 'center' },
+  capacityHint: { ...typography.bodySm, color: colors.muted },
   dateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -447,6 +580,15 @@ const styles = StyleSheet.create({
   amenityOptionActive: { backgroundColor: colors.primary },
   amenityText: { ...typography.captionSm, color: colors.body },
   amenityTextActive: { color: colors.onPrimary },
+  noAmenities: { ...typography.bodySm, color: colors.muted },
+  errorMessage: {
+    ...typography.bodySm,
+    color: colors.error,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceSoft,
+  },
   footer: {
     paddingHorizontal: spacing.base,
     paddingTop: spacing.md,

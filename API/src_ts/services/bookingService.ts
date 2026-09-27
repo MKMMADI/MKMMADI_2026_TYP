@@ -8,7 +8,7 @@ export interface CreateBookingInput {
   purpose: string;
   startAt: string | Date;
   endAt: string | Date;
-  roomId: number;
+  roomIds: number[];
   amenityIds?: number[];
   capacity: number;
 }
@@ -21,11 +21,25 @@ function parseDate(value: string | Date, fieldName: string) {
   return parsed;
 }
 
-function normalizeRoomId(roomId: number) {
-  if (!Number.isInteger(roomId) || roomId <= 0) {
-    throw createHttpError('A valid room is required', 400);
+function normalizeRoomIds(roomIds: unknown) {
+  if (!Array.isArray(roomIds) || roomIds.length === 0) {
+    throw createHttpError('At least one room is required', 400);
   }
-  return roomId;
+
+  const normalizedRoomIds = Array.from(new Set(roomIds));
+  if (normalizedRoomIds.some((roomId) => !Number.isInteger(roomId) || roomId <= 0)) {
+    throw createHttpError('All rooms must be valid', 400);
+  }
+
+  return normalizedRoomIds;
+}
+
+function normalizeCapacity(capacity: unknown) {
+  if (!Number.isInteger(capacity) || Number(capacity) <= 0) {
+    throw createHttpError('Capacity must be a positive whole number', 400);
+  }
+
+  return Number(capacity);
 }
 
 async function validateRequestedAmenities(amenityIds: number[] | undefined, tx: Prisma.TransactionClient) {
@@ -54,26 +68,29 @@ export async function createBooking(input: CreateBookingInput) {
     throw createHttpError('Bookings cannot start in the past', 400);
   }
 
-  const roomId = normalizeRoomId(input.roomId);
+  const roomIds = normalizeRoomIds(input.roomIds);
+  const capacity = normalizeCapacity(input.capacity);
 
   return prisma.$transaction(async (tx) => {
     const normalizedAmenityIds = await validateRequestedAmenities(input.amenityIds, tx);
 
     const rooms = await tx.room.findMany({
-      where: { id: roomId, isActive: true },
+      where: { id: { in: roomIds }, isActive: true },
       include: { amenities: true },
     });
 
-    if (rooms.length !== 1) {
-      throw createHttpError('Selected room does not exist', 400);
+    if (rooms.length !== roomIds.length) {
+      throw createHttpError('One or more selected rooms do not exist', 400);
+    }
+
+    const totalCapacity = rooms.reduce((sum, room) => sum + room.capacity, 0);
+    if (totalCapacity < capacity) {
+      throw createHttpError('Selected rooms do not provide enough capacity', 400);
     }
 
     for (const room of rooms) {
       if (room.status !== 'AVAILABLE') {
         throw createHttpError(`Room ${room.name} is not available for booking`, 400);
-      }
-      if (room.capacity < input.capacity) {
-        throw createHttpError(`Room ${room.name} is too small for the requested capacity`, 400);
       }
       if (normalizedAmenityIds.length > 0) {
         const roomAmenityIds = room.amenities.map((item) => item.amenityId);
@@ -105,7 +122,7 @@ export async function createBooking(input: CreateBookingInput) {
         endAt,
         status: BookingStatus.PENDING,
         rooms: {
-          create: { roomId, roomStatus: 'BOOKED' },
+          create: roomIds.map((roomId) => ({ roomId, roomStatus: 'BOOKED' })),
         },
         amenities: {
           create: normalizedAmenityIds.map((amenityId) => ({ amenityId })),

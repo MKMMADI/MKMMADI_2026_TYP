@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../components/Button';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
@@ -9,24 +10,35 @@ interface BookingConfirmationScreenProps {
 }
 
 export function BookingConfirmationScreen({ booking, onBackHome }: BookingConfirmationScreenProps) {
-  const roomName = booking?.rooms?.[0]?.room?.name || 'Conference room';
+  const rooms = booking?.rooms?.map((item: any) => item.room).filter(Boolean) ?? [];
+  const statusLabel = booking?.status === 'PENDING' ? 'Pending approval' : booking?.status || 'Pending approval';
   const when = booking?.startAt && booking?.endAt
     ? `${new Date(booking.startAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} – ${new Date(booking.endAt).toLocaleString([], { hour: 'numeric', minute: '2-digit' })}`
-    : 'Booked successfully';
+    : 'Booking time unavailable';
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.card}>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>Confirmed</Text>
+          <Text style={styles.badgeText}>{statusLabel}</Text>
         </View>
 
-        <Text style={styles.title}>Your booking is confirmed</Text>
-        <Text style={styles.subtitle}>{roomName}</Text>
+        <Text style={styles.title}>Your booking request was sent</Text>
+        {rooms.length > 0 ? (
+          <View style={styles.roomList}>
+            {rooms.map((room: any) => (
+              <Text key={room.id} style={styles.subtitle}>{room.name}</Text>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.subtitle}>Room details are not available</Text>
+        )}
         <Text style={styles.meta}>{when}</Text>
 
         <Text style={styles.note}>
-          The room request has been sent. A manager can approve or update the booking status from their dashboard.
+          {rooms.length > 0
+            ? 'A manager can approve or update the booking status from their dashboard.'
+            : 'Your request was submitted. You can view its details from My Bookings.'}
         </Text>
 
         <Button title="Back to rooms" onPress={onBackHome} style={styles.button} />
@@ -72,6 +84,7 @@ const styles = StyleSheet.create({
     color: colors.body,
     marginTop: spacing.sm,
   },
+  roomList: { alignItems: 'center', marginTop: spacing.sm, gap: 4 },
   meta: {
     ...typography.bodySm,
     color: colors.muted,
