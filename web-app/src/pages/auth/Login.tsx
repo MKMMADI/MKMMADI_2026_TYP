@@ -22,7 +22,7 @@ export default function Login() {
     try {
       await signIn(email, password);
     } catch {
-      // The hook exposes the error for rendering.
+      // TODO :The hook exposes the error for rendering.
     }
   };
 

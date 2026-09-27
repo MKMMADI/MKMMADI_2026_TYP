@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   StatusBar,
   Modal,
   TouchableOpacity,
   TextInput,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Room, SearchFilters } from '../types';
 import { RoomCard } from '../components/RoomCard';
@@ -19,6 +19,7 @@ import { Button } from '../components/Button';
 import { colors, spacing, typography, radii } from '../theme/tokens';
 import api from '../api';
 import { applyFavoriteFlags, getFavoriteRoomIds } from '../lib/preferences';
+import { FLOATING_TAB_HEIGHT, FLOATING_TAB_MARGIN_BOTTOM } from '../navigation/floatingTabBar';
 
 interface OccupancySlot {
   bookingId: number | string;
@@ -30,9 +31,11 @@ interface OccupancySlot {
 
 interface HomeTabScreenProps {
   onOpenRoom: (room: Room) => void;
+  onBookRooms: (rooms: Room[]) => void;
 }
 
 const HOUR_MS = 60 * 60 * 1000;
+const SELECTION_BAR_TAB_CLEARANCE = FLOATING_TAB_HEIGHT + FLOATING_TAB_MARGIN_BOTTOM + spacing.sm;
 
 function mapRoom(item: any): Room {
   const amenities = (item.amenities || []).map((a: any) =>
@@ -78,7 +81,7 @@ function isBusyNow(roomId: string, slots: OccupancySlot[], now = new Date()): bo
   });
 }
 
-export function HomeTabScreen({ onOpenRoom }: HomeTabScreenProps) {
+export function HomeTabScreen({ onOpenRoom, onBookRooms }: HomeTabScreenProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [occupancy, setOccupancy] = useState<OccupancySlot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +94,20 @@ export function HomeTabScreen({ onOpenRoom }: HomeTabScreenProps) {
   const [draft, setDraft] = useState<SearchFilters>(filters);
   const [filterOpen, setFilterOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
+
+  const selectedRooms = rooms.filter((room) => selectedRoomIds.includes(room.id));
+  const selectedCapacity = selectedRooms.reduce((total, room) => total + room.capacity, 0);
+
+  function toggleRoomSelection(room: Room) {
+    if (room.status !== 'AVAILABLE') return;
+
+    setSelectedRoomIds((current) =>
+      current.includes(room.id)
+        ? current.filter((id) => id !== room.id)
+        : [...current, room.id],
+    );
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -261,6 +278,56 @@ export function HomeTabScreen({ onOpenRoom }: HomeTabScreenProps) {
                     }
                   }}
                 />
+                <TouchableOpacity
+                  style={[
+                    styles.selectRoomButton,
+                    selectedRoomIds.includes(room.id) && styles.selectRoomButtonActive,
+                    (room._busy || room.status !== 'AVAILABLE') && styles.selectRoomButtonDisabled,
+                  ]}
+                  onPress={() => toggleRoomSelection(room)}
+                  disabled={room._busy || room.status !== 'AVAILABLE'}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    room._busy || room.status !== 'AVAILABLE'
+                      ? `Unavailable room ${room.name}`
+                      : `${selectedRoomIds.includes(room.id) ? 'Deselect' : 'Select'} room ${room.name}`
+                  }
+                  accessibilityState={{
+                    disabled: room._busy || room.status !== 'AVAILABLE',
+                    selected: selectedRoomIds.includes(room.id),
+                  }}
+                >
+                  <Ionicons
+                    name={
+                      room._busy || room.status !== 'AVAILABLE'
+                        ? 'close-circle-outline'
+                        : selectedRoomIds.includes(room.id)
+                          ? 'checkmark-circle'
+                          : 'add-circle-outline'
+                    }
+                    size={18}
+                    color={
+                      room._busy || room.status !== 'AVAILABLE'
+                        ? colors.muted
+                        : selectedRoomIds.includes(room.id)
+                          ? colors.onPrimary
+                          : colors.primary
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.selectRoomText,
+                      selectedRoomIds.includes(room.id) && styles.selectRoomTextActive,
+                      (room._busy || room.status !== 'AVAILABLE') && styles.selectRoomTextDisabled,
+                    ]}
+                  >
+                    {room._busy || room.status !== 'AVAILABLE'
+                      ? 'Unavailable'
+                      : selectedRoomIds.includes(room.id)
+                        ? 'Selected'
+                        : 'Add to booking'}
+                  </Text>
+                </TouchableOpacity>
                 {room._busy && room.status === 'AVAILABLE' ? (
                   <Text style={styles.busyHint}>In use or starting within the hour</Text>
                 ) : null}
@@ -269,6 +336,19 @@ export function HomeTabScreen({ onOpenRoom }: HomeTabScreenProps) {
           })
         )}
       </ScrollView>
+
+      {selectedRooms.length > 0 ? (
+        <View style={styles.selectionBar}>
+          <View style={styles.selectionSummary}>
+            <Text style={styles.selectionTitle}>{selectedRooms.length} room(s) selected</Text>
+            <Text style={styles.selectionMeta}>{selectedCapacity} total seats</Text>
+          </View>
+          <TouchableOpacity onPress={() => setSelectedRoomIds([])}>
+            <Text style={styles.clearSelection}>Clear</Text>
+          </TouchableOpacity>
+          <Button title="Continue" onPress={() => onBookRooms(selectedRooms)} />
+        </View>
+      ) : null}
 
       <Modal visible={filterOpen} animationType="slide" transparent onRequestClose={() => setFilterOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setFilterOpen(false)} />
@@ -383,6 +463,43 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     marginLeft: 4,
   },
+  selectRoomButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: -8,
+    marginBottom: spacing.md,
+    paddingVertical: 9,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.canvas,
+  },
+  selectRoomButtonActive: { backgroundColor: colors.primary },
+  selectRoomButtonDisabled: {
+    borderColor: colors.hairline,
+    backgroundColor: colors.surfaceSoft,
+  },
+  selectRoomText: { ...typography.buttonSm, color: colors.primary },
+  selectRoomTextActive: { color: colors.onPrimary },
+  selectRoomTextDisabled: { color: colors.muted },
+  selectionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    marginBottom: SELECTION_BAR_TAB_CLEARANCE,
+    borderTopWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.canvas,
+  },
+  selectionSummary: { flex: 1, minWidth: 120 },
+  selectionTitle: { ...typography.buttonSm, color: colors.ink },
+  selectionMeta: { ...typography.captionSm, color: colors.muted, marginTop: 2 },
+  clearSelection: { ...typography.buttonSm, color: colors.steel },
   empty: { alignItems: 'center', paddingVertical: spacing.xl },
   emptyTitle: { ...typography.titleMd, color: colors.ink, marginTop: spacing.sm },
   emptySub: { ...typography.bodySm, color: colors.muted, marginTop: 4 },

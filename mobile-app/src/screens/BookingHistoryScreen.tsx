@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Booking, Room } from '../types';
 import { colors, radii, spacing, typography } from '../theme/tokens';
@@ -8,7 +9,7 @@ interface BookingHistoryScreenProps {
   bookings: Booking[];
   onBack: () => void;
   onOpenBooking?: (booking: Booking) => void;
-  onBookAgain?: (room: Room) => void;
+  onBookAgain?: (rooms: Room[]) => void;
 }
 
 function formatBookingDate(dateIso: string) {
@@ -44,7 +45,7 @@ export function BookingHistoryScreen({
           </View>
         ) : (
           bookings.map((booking) => {
-            const room = booking.rooms[0]?.room;
+            const rooms = booking.rooms.map((item) => item.room).filter(Boolean);
             return (
               <TouchableOpacity
                 key={booking.id}
@@ -53,7 +54,9 @@ export function BookingHistoryScreen({
                 onPress={() => onOpenBooking?.(booking)}
               >
                 <View style={styles.rowBetween}>
-                  <Text style={styles.title}>{room?.name || booking.purpose || 'Booking'}</Text>
+                  <Text style={styles.title}>
+                    {rooms.length === 1 ? rooms[0].name : `${rooms.length} rooms · ${booking.purpose || 'Booking'}`}
+                  </Text>
                   <View
                     style={[
                       styles.statusPill,
@@ -72,6 +75,11 @@ export function BookingHistoryScreen({
                 </View>
 
                 <Text style={styles.meta}>{booking.purpose}</Text>
+                {rooms.map((room) => (
+                  <Text key={room.id} style={styles.meta}>
+                    {room.name} · {room.capacity} seats
+                  </Text>
+                ))}
                 <Text style={styles.meta}>
                   {formatBookingDate(booking.startAt)} – {formatBookingDate(booking.endAt)}
                 </Text>
@@ -79,15 +87,15 @@ export function BookingHistoryScreen({
                   Amenities:{' '}
                   {booking.requestedAmenities?.length
                     ? booking.requestedAmenities.map((a) => a.name).join(', ')
-                    : room?.amenities?.length
-                      ? room.amenities.map((a) => a.name).join(', ')
+                      : rooms.some((room) => room.amenities?.length)
+                      ? Array.from(new Set(rooms.flatMap((room) => room.amenities || []).map((a) => a.name))).join(', ')
                       : 'None'}
                 </Text>
 
-                {room && onBookAgain ? (
+                {rooms.length > 0 && onBookAgain ? (
                   <TouchableOpacity
                     style={styles.bookAgain}
-                    onPress={() => onBookAgain(room)}
+                    onPress={() => onBookAgain(rooms)}
                   >
                     <Ionicons name="refresh-outline" size={14} color={colors.primary} />
                     <Text style={styles.bookAgainText}>Book again</Text>

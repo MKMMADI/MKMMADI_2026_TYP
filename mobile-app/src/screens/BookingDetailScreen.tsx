@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Booking, BookingStatus, Room } from '../types';
@@ -31,7 +31,7 @@ const statusMeta: Record<
 interface BookingDetailScreenProps {
   booking: Booking;
   onBack: () => void;
-  onBookAgain: (room: Room) => void;
+  onBookAgain: (rooms: Room[]) => void;
   onCancelled?: (booking: Booking) => void;
 }
 
@@ -71,15 +71,13 @@ export function BookingDetailScreen({
   const [booking, setBooking] = useState(initial);
   const [cancelling, setCancelling] = useState(false);
 
-  const room = booking.rooms[0]?.room;
+  const rooms = booking.rooms.map((item) => item.room).filter(Boolean);
+  const room = rooms[0];
   const meta = statusMeta[booking.status] ?? statusMeta.PENDING;
   const cancelGate = useMemo(() => canCancelBooking(booking), [booking]);
 
   // Prefer amenities on the room; fall back to requestedAmenities on the booking
-  const amenities =
-    room?.amenities?.length
-      ? room.amenities
-      : booking.requestedAmenities ?? [];
+  const amenities = booking.requestedAmenities ?? [];
 
   const handleCancel = () => {
     if (!cancelGate.ok) {
@@ -152,24 +150,43 @@ export function BookingDetailScreen({
             </>
           )}
 
-          <Text style={styles.sectionLabel}>Amenities</Text>
-          {amenities.length === 0 ? (
-            <Text style={styles.muted}>No amenities listed for this room</Text>
-          ) : (
-            <View style={styles.amenitiesRow}>
-              {amenities.map((a) => (
-                <View key={a.id} style={styles.amenityChip}>
-                  <Ionicons name={(a.icon as any) || 'checkmark-circle-outline'} size={14} color={colors.body} />
-                  <Text style={styles.amenityText}>{a.name}</Text>
+          <Text style={styles.sectionLabel}>Rooms</Text>
+          {rooms.length === 0 ? <Text style={styles.muted}>Room details are not available.</Text> : null}
+          {rooms.map((selectedRoom, index) => (
+            <View key={selectedRoom.id} style={styles.roomDetailRow}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.selectedRoomName}>{selectedRoom.name}</Text>
+                <Text style={styles.roomStatus}>{booking.rooms[index]?.roomStatus || selectedRoom.status}</Text>
+              </View>
+              <Text style={styles.meta}>
+                {selectedRoom.location || 'Main building'}
+                {selectedRoom.floor ? ` · Floor ${selectedRoom.floor}` : ''}
+                {selectedRoom.capacity ? ` · ${selectedRoom.capacity} seats` : ''}
+              </Text>
+              {selectedRoom.description ? <Text style={styles.body}>{selectedRoom.description}</Text> : null}
+              {selectedRoom.amenities.length > 0 ? (
+                <View style={styles.amenitiesRow}>
+                  {selectedRoom.amenities.map((amenity) => (
+                    <View key={amenity.id} style={styles.amenityChip}>
+                      <Ionicons name={(amenity.icon as any) || 'checkmark-circle-outline'} size={14} color={colors.body} />
+                      <Text style={styles.amenityText}>{amenity.name}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
+              ) : null}
             </View>
-          )}
-
-          {room?.description ? (
+          ))}
+          {amenities.length > 0 ? (
             <>
-              <Text style={styles.sectionLabel}>About this space</Text>
-              <Text style={styles.body}>{room.description}</Text>
+              <Text style={styles.sectionLabel}>Requested amenities</Text>
+              <View style={styles.amenitiesRow}>
+                {amenities.map((amenity) => (
+                  <View key={amenity.id} style={styles.amenityChip}>
+                    <Ionicons name={(amenity.icon as any) || 'checkmark-circle-outline'} size={14} color={colors.body} />
+                    <Text style={styles.amenityText}>{amenity.name}</Text>
+                  </View>
+                ))}
+              </View>
             </>
           ) : null}
         </View>
@@ -185,10 +202,10 @@ export function BookingDetailScreen({
             )}
           </TouchableOpacity>
         )}
-        {room && (
+        {rooms.length > 0 && (
           <Button
-            title="Book this room again"
-            onPress={() => onBookAgain(room)}
+            title={rooms.length === 1 ? 'Book this room again' : 'Book these rooms again'}
+            onPress={() => onBookAgain(rooms)}
             style={styles.cta}
           />
         )}
@@ -246,6 +263,13 @@ const styles = StyleSheet.create({
     ...typography.displaySm,
     color: colors.ink,
     flex: 1,
+  },
+  selectedRoomName: { ...typography.titleSm, color: colors.ink, flex: 1 },
+  roomStatus: { ...typography.captionSm, color: colors.muted },
+  roomDetailRow: {
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.hairlineSoft,
   },
   statusPill: {
     borderRadius: radii.full,

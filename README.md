@@ -1,6 +1,24 @@
 # MKMMADI_2026_TYP
 2026 Third Year Project
 
+## Multi-room booking API
+
+An employee creates a booking with `POST /api/v1/bookings`. Send all selected
+room IDs in `roomIds`; `capacity` is the expected attendee count, not the sum
+of the selected rooms' capacities. The API checks that the selected rooms
+provide enough seats and creates one booking linked to every room.
+
+```json
+{
+  "roomIds": [12, 15],
+  "purpose": "Department workshop",
+  "startAt": "2026-10-01T09:00:00.000Z",
+  "endAt": "2026-10-01T11:00:00.000Z",
+  "capacity": 15,
+  "amenityIds": [3]
+}
+```
+
 ## Build and run the Web and API images
 
 The repository's `main` branch is the source of truth for this setup. The API

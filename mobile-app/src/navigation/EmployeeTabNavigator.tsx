@@ -48,6 +48,7 @@ function iconForRoute(name: keyof EmployeeTabParamList, focused: boolean): TabIc
 interface EmployeeTabNavigatorProps {
   user: User;
   onOpenRoom: (room: Room) => void;
+  onBookRooms: (rooms: Room[]) => void;
   onOpenBookingDetail: (booking: Booking) => void;
   onBookRoom?: (room: Room) => void;
   onSignOut: () => void | Promise<void>;
@@ -57,6 +58,7 @@ interface EmployeeTabNavigatorProps {
 export function EmployeeTabNavigator({
   user,
   onOpenRoom,
+  onBookRooms,
   onOpenBookingDetail,
   onBookRoom,
   onSignOut,
@@ -86,7 +88,7 @@ export function EmployeeTabNavigator({
       })}
     >
       <Tab.Screen name="HomeTab">
-        {() => <HomeTabScreen onOpenRoom={onOpenRoom} />}
+        {() => <HomeTabScreen onOpenRoom={onOpenRoom} onBookRooms={onBookRooms} />}
       </Tab.Screen>
       <Tab.Screen name="MyBookingsTab">
         {() => <MyBookingsTabScreen onOpenBookingDetail={onOpenBookingDetail} />}

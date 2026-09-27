@@ -27,17 +27,19 @@ function parseBookingId(raw: string | string[] | undefined): number | null {
 
 export async function createBookingHandler(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const roomId = Number(req.body.roomId);
+    const roomIds = Array.isArray(req.body.roomIds)
+      ? req.body.roomIds.map((roomId: unknown) => Number(roomId))
+      : [];
     const amenityIds = Array.isArray(req.body.amenityIds)
       ? req.body.amenityIds.map((amenityId: unknown) => Number(amenityId))
-      : req.body.amenityIds;
+      : [];
 
     const booking = await createBooking({
       employeeId: req.user?.id,
       purpose: req.body.purpose,
       startAt: req.body.startAt,
       endAt: req.body.endAt,
-      roomId,
+      roomIds,
       amenityIds,
       capacity: Number(req.body.capacity || 0),
     });
@@ -126,7 +128,7 @@ export async function approveBooking(req: AuthRequest, res: Response, next: Next
       return next(createHttpError('Only pending bookings can be approved', 400));
     }
 
-    const booking = await prisma.booking.update({
+    await prisma.booking.update({
       where: { id },
       data: {
         status: 'CONFIRMED',
@@ -135,8 +137,8 @@ export async function approveBooking(req: AuthRequest, res: Response, next: Next
         rejectionReasonCode: null,
         rejectionNote: null,
       },
-      include: bookingInclude,
     });
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingInclude });
 
     // TODO: notify employee (email / in-app notification)
     res.json(booking);
@@ -168,7 +170,7 @@ export async function rejectBooking(req: AuthRequest, res: Response, next: NextF
       return next(createHttpError('Only pending bookings can be rejected', 400));
     }
 
-    const booking = await prisma.booking.update({
+    await prisma.booking.update({
       where: { id },
       data: {
         status: 'CANCELLED',
@@ -177,8 +179,8 @@ export async function rejectBooking(req: AuthRequest, res: Response, next: NextF
         reviewedById: req.user.id,
         reviewedAt: new Date(),
       },
-      include: bookingInclude,
     });
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingInclude });
 
     // TODO: notify employee with reason
     res.json(booking);
@@ -248,11 +250,11 @@ export async function updateBookingStatus(req: AuthRequest, res: Response, next:
       data.preparedById = null;
     }
 
-    const booking = await prisma.booking.update({
+    await prisma.booking.update({
       where: { id },
       data,
-      include: bookingInclude,
     });
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingInclude });
 
     res.json(booking);
   } catch (error) {
@@ -298,11 +300,11 @@ export async function cancelBooking(req: AuthRequest, res: Response, next: NextF
       }
     }
 
-    const updatedBooking = await prisma.booking.update({
+    await prisma.booking.update({
       where: { id },
       data: { status: 'CANCELLED' },
-      include: bookingInclude,
     });
+    const updatedBooking = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingInclude });
 
     res.json(updatedBooking);
   } catch (error) {

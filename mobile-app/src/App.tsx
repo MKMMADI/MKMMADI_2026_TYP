@@ -120,7 +120,7 @@ function HistoryLoader({
 }: {
   onBack: () => void;
   onOpenBooking: (b: Booking) => void;
-  onBookAgain: (r: Room) => void;
+  onBookAgain: (rooms: Room[]) => void;
 }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   useEffect(() => {
@@ -163,6 +163,7 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void |
             <EmployeeTabNavigator
               user={user}
               onOpenRoom={(room: Room) => navigation.navigate('RoomDetail', { room })}
+              onBookRooms={(rooms: Room[]) => navigation.navigate('Booking', { rooms })}
               onOpenBookingDetail={(booking: Booking) =>
                 navigation.navigate('BookingDetail', { booking })
               }
@@ -187,7 +188,7 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void |
       <AppStack.Screen name="Booking">
         {({ navigation, route }: any) => (
           <BookingScreen
-            room={route.params?.room as Room}
+            rooms={(route.params?.rooms || (route.params?.room ? [route.params.room] : [])) as Room[]}
             onBack={() => navigation.goBack()}
             onConfirm={async (payload) => {
               const result = await api.createBooking(payload);
@@ -225,7 +226,7 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void |
           <BookingDetailScreen
             booking={route.params?.booking as Booking}
             onBack={() => navigation.goBack()}
-            onBookAgain={(room) => navigation.navigate('Booking', { room })}
+            onBookAgain={(rooms) => navigation.navigate('Booking', { rooms })}
             onCancelled={() => {
               /* list will refresh when user returns to My Bookings */
             }}
@@ -238,7 +239,7 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void |
           <HistoryLoader
             onBack={() => navigation.goBack()}
             onOpenBooking={(booking) => navigation.navigate('BookingDetail', { booking })}
-            onBookAgain={(room) => navigation.navigate('Booking', { room })}
+            onBookAgain={(rooms) => navigation.navigate('Booking', { rooms })}
           />
         )}
       </AppStack.Screen>

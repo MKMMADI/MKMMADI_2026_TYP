@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   StatusBar,
   TouchableOpacity,
   TextInput,
@@ -12,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
@@ -48,42 +48,41 @@ interface QueueTabScreenProps {
 }
 
 function mapBooking(item: any): Booking {
-  const roomPayload = item.rooms?.[0]?.room ?? item.rooms?.[0] ?? null;
-  const room = roomPayload
-    ? {
-        id: String(roomPayload.id ?? 'unknown'),
-        name: roomPayload.name ?? 'Room',
-        description: roomPayload.description ?? '',
-        capacity: roomPayload.capacity ?? 0,
-        status: roomPayload.status ?? 'AVAILABLE',
-        isActive: roomPayload.isActive ?? true,
-        imageUrl: roomPayload.imageUrl ?? '',
-        amenities: (roomPayload.amenities || []).map((a: any) =>
-          a?.amenity
-            ? {
-                id: String(a.amenity.id),
-                name: a.amenity.name,
-                icon: a.amenity.icon ?? 'checkmark-circle-outline',
-                description: a.amenity.description,
-              }
-            : {
-                id: String(a.id),
-                name: a.name,
-                icon: a.icon ?? 'checkmark-circle-outline',
-                description: a.description,
-              },
-        ),
-      }
-    : {
-        id: 'unknown',
-        name: 'Room',
-        description: '',
-        capacity: 0,
-        status: 'AVAILABLE' as const,
-        isActive: true,
-        imageUrl: '',
-        amenities: [],
-      };
+  const roomLinks = Array.isArray(item.rooms) ? item.rooms : [];
+  const rooms = roomLinks.map((link: any) => {
+    const payload = link.room ?? link;
+    const room = {
+      id: String(payload.id ?? link.roomId ?? 'unknown'),
+      name: payload.name ?? 'Room',
+      description: payload.description ?? '',
+      capacity: payload.capacity ?? 0,
+      status: payload.status ?? 'AVAILABLE',
+      isActive: payload.isActive ?? true,
+      imageUrl: payload.imageUrl ?? '',
+      amenities: (payload.amenities || []).map((a: any) =>
+        a?.amenity
+          ? {
+              id: String(a.amenity.id),
+              name: a.amenity.name,
+              icon: a.amenity.icon ?? 'checkmark-circle-outline',
+              description: a.amenity.description,
+            }
+          : {
+              id: String(a.id),
+              name: a.name,
+              icon: a.icon ?? 'checkmark-circle-outline',
+              description: a.description,
+            },
+      ),
+    };
+
+    return {
+      id: String(link.id ?? `${item.id}-${room.id}`),
+      roomId: String(link.roomId ?? room.id),
+      room,
+      roomStatus: link.roomStatus,
+    };
+  });
 
   return {
     id: String(item.id),
@@ -93,13 +92,7 @@ function mapBooking(item: any): Booking {
     purpose: item.purpose ?? '',
     status: item.status as BookingStatus,
     createdAt: item.createdAt ?? new Date().toISOString(),
-    rooms: [
-      {
-        id: String(item.rooms?.[0]?.id ?? `${item.id}-room`),
-        roomId: String(room.id),
-        room,
-      },
-    ],
+    rooms,
     requestedAmenities: Array.isArray(item.amenities)
       ? item.amenities.map((entry: any) => ({
           id: String(entry.amenity?.id ?? entry.id ?? `${item.id}-amenity`),
@@ -112,9 +105,9 @@ function mapBooking(item: any): Booking {
 }
 
 function inventoryChecklistForRoom(booking: Booking): string[] {
-  const roomName = booking.rooms[0]?.room?.name ?? 'Room';
+  const roomSetups = booking.rooms.map(({ room }) => `${room.name} set-up checklist`);
   const baseList = [
-    `${roomName} set-up checklist`,
+    ...roomSetups,
     'Sanitiser and wipe-down check',
     'Table and chair layout',
   ];
@@ -214,7 +207,7 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
         if (hidePast && new Date(booking.endAt).getTime() < now) return false;
         if (selectedStatus !== 'ALL' && booking.status !== selectedStatus) return false;
         if (!q) return true;
-        const roomName = booking.rooms[0]?.room?.name?.toLowerCase() ?? '';
+        const roomName = booking.rooms.map(({ room }) => room.name.toLowerCase()).join(' ');
         const purpose = (booking.purpose || '').toLowerCase();
         const status = booking.status.toLowerCase();
         const employee = ''; // employee name may not be on Booking type
@@ -254,7 +247,7 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
     if (booking.status === newStatus) return;
     const from = statusMeta[booking.status]?.label ?? booking.status;
     const to = statusMeta[newStatus]?.label ?? newStatus;
-    const roomName = booking.rooms[0]?.room?.name ?? 'this room';
+    const roomName = booking.rooms.map(({ room }) => room.name).join(', ') || 'this booking';
     Alert.alert(
       'Confirm status change',
       `Update ${roomName} from ${from} to ${to}?`,
@@ -276,7 +269,7 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
       text: statusMeta[s].label + (s === booking.status ? ' (current)' : ''),
       onPress: () => confirmStatusChange(booking, s),
     }));
-    Alert.alert('Set status', booking.rooms[0]?.room?.name ?? 'Booking', [
+    Alert.alert('Set status', booking.rooms.map(({ room }) => room.name).join(', ') || 'Booking', [
       ...options,
       { text: 'Cancel', style: 'cancel' },
     ]);
@@ -386,7 +379,7 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
           ) : (
             filteredQueue.map((booking) => {
               const meta = statusMeta[booking.status] ?? statusMeta.CONFIRMED;
-              const roomName = booking.rooms[0]?.room?.name ?? 'Room';
+              const roomName = booking.rooms.map(({ room }) => room.name).join(', ') || 'Room';
               const expanded = expandedId === booking.id;
               const checklist = inventoryChecklistForRoom(booking);
               const next = NEXT_STATUS[booking.status];
