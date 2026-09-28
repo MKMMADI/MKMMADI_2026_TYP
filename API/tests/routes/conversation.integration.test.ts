@@ -1,6 +1,5 @@
 import request from 'supertest';
 import app from '../../src_ts/app';
-import prisma from '../../src_ts/prismaTest';
 import {
   authHeader,
   cleanupTestData,
@@ -16,12 +15,13 @@ describe('Conversations API', () => {
 
   beforeEach(async () => {
     await cleanupTestData();
+    const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const [mA, mB, emp, clk, empB] = await Promise.all([
-      createAndLoginUser({ role: 'MANAGER', name: 'Manager A', email: `mgr_a_${Date.now()}@test.com` }),
-      createAndLoginUser({ role: 'MANAGER', name: 'Manager B', email: `mgr_b_${Date.now()}@test.com` }),
-      createAndLoginUser({ role: 'EMPLOYEE', name: 'Employee A', email: `emp_a_${Date.now()}@test.com` }),
-      createAndLoginUser({ role: 'CLERK', name: 'Clerk A', email: `clk_a_${Date.now()}@test.com` }),
-      createAndLoginUser({ role: 'EMPLOYEE', name: 'Employee B', email: `emp_b_${Date.now()}@test.com` }),
+      createAndLoginUser({ role: 'MANAGER', name: 'Manager A', email: `mgr_a_${suffix}@test.com` }),
+      createAndLoginUser({ role: 'MANAGER', name: 'Manager B', email: `mgr_b_${suffix}@test.com` }),
+      createAndLoginUser({ role: 'EMPLOYEE', name: 'Employee A', email: `emp_a_${suffix}@test.com` }),
+      createAndLoginUser({ role: 'CLERK', name: 'Clerk A', email: `clk_a_${suffix}@test.com` }),
+      createAndLoginUser({ role: 'EMPLOYEE', name: 'Employee B', email: `emp_b_${suffix}@test.com` }),
     ]);
     managerA = { id: mA.user.id, tokens: mA.tokens };
     managerB = { id: mB.user.id, tokens: mB.tokens };
@@ -35,7 +35,7 @@ describe('Conversations API', () => {
   });
 
   describe('authorization matrix', () => {
-    it('allows manager \u2194 manager, manager \u2194 employee, manager \u2194 clerk', async () => {
+    it('allows manager-manager, manager-employee, and manager-clerk pairs', async () => {
       for (const [from, to] of [
         [managerA, managerB],
         [managerA, employee],
@@ -52,7 +52,7 @@ describe('Conversations API', () => {
       }
     });
 
-    it('rejects employee \u2194 employee, employee \u2194 clerk, clerk \u2194 clerk', async () => {
+    it('rejects employee-employee, employee-clerk, and clerk-clerk pairs', async () => {
       for (const [from, to] of [
         [employee, employeeB],
         [employee, clerk],
@@ -175,7 +175,8 @@ describe('Conversations API', () => {
         .set(authHeader(employee.tokens.accessToken));
       expect(employeeContacts.status).toBe(200);
       const empContactIds = employeeContacts.body.map((c: { id: number }) => c.id);
-      expect(empContactIds).toContain(managerA.id);
+      // All active managers are valid contacts for an employee.
+      expect(empContactIds).toEqual(expect.arrayContaining([managerA.id, managerB.id]));
       expect(empContactIds).not.toContain(employeeB.id);
       expect(empContactIds).not.toContain(clerk.id);
     });
