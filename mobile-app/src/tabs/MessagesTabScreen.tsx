@@ -247,34 +247,46 @@ export function MessagesTabScreen({ user }: { user: User }) {
         </View>
 
         <View style={styles.contactSection}>
+          <Text style={styles.sectionLabel}>People you can message</Text>
           <View style={styles.searchBox}>
             <Ionicons name="search" size={17} color={colors.muted} />
             <TextInput
-              accessibilityLabel="Search permitted contacts"
+              accessibilityLabel="Filter permitted contacts"
               style={styles.searchInput}
               value={contactSearch}
               onChangeText={setContactSearch}
-              placeholder="Start a conversation"
+              placeholder="Filter by name or role"
               placeholderTextColor={colors.mutedSoft}
             />
           </View>
-          {contactSearch.trim() ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.contactResults}>
-              {filteredContacts.map((contact) => (
-                <TouchableOpacity
-                  key={contact.id}
-                  style={styles.contactChip}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Start conversation with ${contact.name}`}
-                  onPress={() => void beginConversation(Number(contact.id))}
-                >
-                  <Text style={styles.contactName}>{contact.name}</Text>
-                  <Text style={styles.contactRole}>{contact.role.toLowerCase()}</Text>
-                </TouchableOpacity>
-              ))}
-              {filteredContacts.length === 0 ? <Text style={styles.emptyInline}>No permitted contacts</Text> : null}
-            </ScrollView>
-          ) : null}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.contactResults}
+          >
+            {loading ? <ActivityIndicator color={colors.primary} /> : null}
+            {!loading && filteredContacts.map((contact) => (
+              <TouchableOpacity
+                key={contact.id}
+                style={styles.contactChip}
+                accessibilityRole="button"
+                accessibilityLabel={`Message ${contact.name}`}
+                onPress={() => void beginConversation(Number(contact.id))}
+              >
+                <View style={styles.contactAvatar}>
+                  <Text style={styles.contactAvatarText}>{contact.name.slice(0, 1).toUpperCase()}</Text>
+                </View>
+                <Text style={styles.contactName} numberOfLines={1}>{contact.name}</Text>
+                <Text style={styles.contactRole}>{contact.role.toLowerCase()}</Text>
+                <Text style={styles.contactAction}>Message</Text>
+              </TouchableOpacity>
+            ))}
+            {!loading && filteredContacts.length === 0 ? (
+              <Text style={styles.emptyInline}>
+                {contactSearch.trim() ? 'No matching contacts' : 'No permitted contacts'}
+              </Text>
+            ) : null}
+          </ScrollView>
         </View>
 
         <View style={styles.conversationStrip}>
@@ -359,7 +371,7 @@ export function MessagesTabScreen({ user }: { user: User }) {
           </View>
         ) : (
           <View style={styles.emptyPrompt}>
-            <Text style={styles.emptyPromptText}>Search for a manager to start a conversation.</Text>
+            <Text style={styles.emptyPromptText}>Pick someone above to start a conversation.</Text>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -374,13 +386,17 @@ const styles = StyleSheet.create({
   headerCopy: { gap: 2 },
   title: { ...typography.displayMd, color: colors.ink },
   subtitle: { ...typography.captionSm, color: colors.muted, textTransform: 'capitalize' },
-  contactSection: { paddingHorizontal: spacing.base },
+  contactSection: { paddingHorizontal: spacing.base, gap: spacing.xs },
+  sectionLabel: { ...typography.captionSm, color: colors.muted, fontWeight: '600', marginBottom: 2 },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md, borderRadius: radii.md, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSoft },
   searchInput: { flex: 1, minWidth: 0, paddingVertical: 8, ...typography.bodySm, color: colors.ink },
-  contactResults: { gap: spacing.sm, paddingVertical: spacing.sm },
-  contactChip: { maxWidth: 190, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.hairline, borderRadius: radii.md, backgroundColor: colors.canvas },
+  contactResults: { gap: spacing.sm, paddingVertical: spacing.sm, alignItems: 'stretch' },
+  contactChip: { width: 132, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.hairline, borderRadius: radii.md, backgroundColor: colors.canvas, gap: 2 },
+  contactAvatar: { width: 28, height: 28, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.steelLight, marginBottom: 2 },
+  contactAvatarText: { ...typography.badge, color: colors.primary, fontWeight: '700' },
   contactName: { ...typography.captionSm, color: colors.ink, fontWeight: '600' },
   contactRole: { ...typography.badge, color: colors.muted, textTransform: 'capitalize' },
+  contactAction: { ...typography.badge, color: colors.steel, fontWeight: '700', marginTop: 2 },
   emptyInline: { ...typography.captionSm, color: colors.muted, paddingVertical: spacing.md },
   conversationStrip: { flexDirection: 'row', gap: spacing.sm, minHeight: 60, paddingHorizontal: spacing.base, paddingVertical: spacing.sm },
   conversationChip: { width: 150, justifyContent: 'center', gap: 3, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.hairlineSoft, borderRadius: radii.md, backgroundColor: colors.canvas },
