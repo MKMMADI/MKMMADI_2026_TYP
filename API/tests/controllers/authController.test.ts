@@ -12,6 +12,7 @@ jest.mock('../../src_ts/prisma', () => ({
       create: jest.fn(),
     },
     session: {
+      findUnique: jest.fn(),
       updateMany: jest.fn(),
     },
     refreshToken: {
@@ -31,6 +32,12 @@ jest.mock('../../src_ts/utils/auth', () => ({
   storeRefreshToken: jest.fn(),
   refreshTokenExpiryDate: jest.fn(() => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
 }));
+
+jest.mock('../../src_ts/services/realtime', () => ({
+  disconnectUserSockets: jest.fn(),
+}));
+
+import { disconnectUserSockets } from '../../src_ts/services/realtime';
 
 const mockUser = {
   id: 1,
@@ -321,6 +328,7 @@ describe('authController - logout', () => {
 
   it('logs out successfully with valid token', async () => {
     jest.spyOn(require('jsonwebtoken'), 'verify').mockReturnValue({ jti: 'mock_jti_123' } as any);
+    (prisma.session.findUnique as jest.Mock).mockResolvedValue({ userId: 1 });
     (prisma.session.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     (prisma.refreshToken.findUnique as jest.Mock).mockResolvedValue(mockRefreshToken);
     (prisma.refreshToken.update as jest.Mock).mockResolvedValue(mockRefreshToken);
@@ -334,7 +342,36 @@ describe('authController - logout', () => {
 
     await logout(req, res, next);
 
+    expect(prisma.session.findUnique).toHaveBeenCalledWith({
+      where: { jwtId: 'mock_jti_123' },
+      select: { userId: true },
+    });
+    expect(prisma.session.updateMany).toHaveBeenCalledWith({
+      where: { jwtId: 'mock_jti_123' },
+      data: { revoked: true },
+    });
+    expect(disconnectUserSockets).toHaveBeenCalledWith(1);
     expect(res.json).toHaveBeenCalledWith({ message: 'Logged out' });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 when session is not found', async () => {
+    jest.spyOn(require('jsonwebtoken'), 'verify').mockReturnValue({ jti: 'mock_jti_123' } as any);
+    (prisma.session.findUnique as jest.Mock).mockResolvedValue(null);
+
+    const req = {
+      headers: { authorization: 'Bearer valid_token' },
+      body: {},
+    } as any;
+    const res = { json: jest.fn() } as any;
+    const next = jest.fn();
+
+    await logout(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Session not found', status: 401 })
+    );
+    expect(res.json).not.toHaveBeenCalled();
   });
 
   it('returns 400 error when Authorization header is missing', async () => {
