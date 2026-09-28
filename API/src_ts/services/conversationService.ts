@@ -51,8 +51,18 @@ function serializeMessage<T extends {
   };
 }
 
+/** Allowed pairs: any conversation involving a manager, plus employee \u2194 clerk. */
 function rolesMayCommunicate(firstRole: Role, secondRole: Role) {
-  return firstRole === 'MANAGER' || secondRole === 'MANAGER';
+  if (firstRole === 'MANAGER' || secondRole === 'MANAGER') return true;
+  const pair = new Set([firstRole, secondRole]);
+  return pair.has('EMPLOYEE') && pair.has('CLERK');
+}
+
+function contactRoleFilter(role: Role): Role[] | undefined {
+  if (role === 'MANAGER') return undefined; // all other active users
+  if (role === 'EMPLOYEE') return ['MANAGER', 'CLERK'];
+  if (role === 'CLERK') return ['MANAGER', 'EMPLOYEE'];
+  return ['MANAGER'];
 }
 
 function getOtherParticipant(conversation: ConversationWithParticipants, userId: number) {
@@ -146,11 +156,12 @@ export async function listConversationContacts(userId: number) {
   });
   if (!currentUser?.Active) throw createHttpError('Not authenticated', 401);
 
+  const allowedRoles = contactRoleFilter(currentUser.role);
   const contacts = await prisma.user.findMany({
     where: {
       id: { not: userId },
       Active: true,
-      ...(currentUser.role === 'MANAGER' ? {} : { role: 'MANAGER' as Role }),
+      ...(allowedRoles ? { role: { in: allowedRoles } } : {}),
     },
     select: participantSelect,
     orderBy: [{ name: 'asc' }, { id: 'asc' }],
@@ -174,7 +185,7 @@ export async function startConversation(userId: number, participantId: number) {
   if (!currentUser?.Active) throw createHttpError('Not authenticated', 401);
   if (!otherUser?.Active) throw createHttpError('User not found', 404);
   if (!rolesMayCommunicate(currentUser.role, otherUser.role)) {
-    throw createHttpError('Conversations require at least one manager', 403);
+    throw createHttpError('You are not allowed to message this user', 403);
   }
 
   const participantAId = Math.min(userId, participantId);
