@@ -25,18 +25,18 @@ insufficient, or a requested amenity is missing from any selected room.
 
 ## Messaging
 
-Messaging is authenticated and one-to-one. A conversation is allowed only when
-at least one participant is a manager: managers can message employees, clerks,
-and other managers; employees and clerks can message managers only. Employee to
-employee, employee to clerk, and clerk to clerk conversations are rejected.
+Messaging is authenticated and one-to-one. Allowed pairs are:
+manager\u2194manager, manager\u2194employee, manager\u2194clerk, and employee\u2194clerk.
+Employee\u2194employee and clerk\u2194clerk conversations are rejected.
 Conversations are unique per participant pair, regardless of who starts them.
+`GET /api/v1/conversations/contacts` returns only the users the current role may message.
 
 - `GET /api/v1/conversations` lists the authenticated user's conversations,
   counterpart, latest message, and unread count.
 - `POST /api/v1/conversations` with `{ "participantId": 42 }` creates or returns
   the existing conversation with that user.
 - `GET /api/v1/conversations/:id/messages?limit=50&beforeId=123` returns messages
-  in chronological order, with a cursor for older history. `limit` is 1–100.
+  in chronological order, with a cursor for older history. `limit` is 1\u2013100.
 - `POST /api/v1/conversations/:id/messages` with `{ "body": "Hello" }` stores
   and returns a message. Empty messages and bodies over 4000 characters are
   rejected.
@@ -97,10 +97,10 @@ Run the API image directly by providing the same database and secret settings
 that the application requires:
 
 ```sh
-docker run --rm --name mkmmadi-api \
-  -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/typ \
-  -e JWT_SECRET=replace-with-a-long-random-secret \
-  -p 4000:4000 \
+docker run --rm --name mkmmadi-api \\
+  -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/typ \\
+  -e JWT_SECRET=replace-with-a-long-random-secret \\
+  -p 4000:4000 \\
   mkmmadi-api:main
 ```
 
