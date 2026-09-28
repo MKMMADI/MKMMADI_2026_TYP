@@ -73,7 +73,7 @@ Replace mock data in `constants/mockData.ts` with real endpoints:
 
 - `POST /auth/login`, `POST /auth/register`
 - `GET /rooms/availability`
-- `POST /bookings` with `{ roomIds, purpose, startAt, endAt, capacity, amenityIds }`, where `capacity` is the attendee count
+- `POST /bookings` with `{ roomIds, purpose, startAt, endAt, capacity, amenityIds }`
 - `GET /me`, `GET /me/bookings`
 
 ## Design notes

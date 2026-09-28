@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
-import { Booking, BookingStatus } from '../types';
+import { Amenity, Booking, BookingStatus } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
 
 type StatusFilter = 'ALL' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'COMPLETED';
@@ -49,38 +49,35 @@ interface QueueTabScreenProps {
 
 function mapBooking(item: any): Booking {
   const roomLinks = Array.isArray(item.rooms) ? item.rooms : [];
-  const rooms = roomLinks.map((link: any) => {
-    const payload = link.room ?? link;
-    const room = {
-      id: String(payload.id ?? link.roomId ?? 'unknown'),
-      name: payload.name ?? 'Room',
-      description: payload.description ?? '',
-      capacity: payload.capacity ?? 0,
-      status: payload.status ?? 'AVAILABLE',
-      isActive: payload.isActive ?? true,
-      imageUrl: payload.imageUrl ?? '',
-      amenities: (payload.amenities || []).map((a: any) =>
-        a?.amenity
-          ? {
-              id: String(a.amenity.id),
-              name: a.amenity.name,
-              icon: a.amenity.icon ?? 'checkmark-circle-outline',
-              description: a.amenity.description,
-            }
-          : {
-              id: String(a.id),
-              name: a.name,
-              icon: a.icon ?? 'checkmark-circle-outline',
-              description: a.description,
-            },
-      ),
-    };
+  const rooms = roomLinks.map((link: any, index: number) => {
+    const roomPayload = link?.room ?? link ?? {};
+    const roomAmenities = roomPayload.amenities;
 
     return {
-      id: String(link.id ?? `${item.id}-${room.id}`),
-      roomId: String(link.roomId ?? room.id),
-      room,
-      roomStatus: link.roomStatus,
+      id: String(link?.id ?? `${item.id}-room-${index + 1}`),
+      roomId: String(link?.roomId ?? roomPayload.id ?? 'unknown-room'),
+      roomStatus: link?.roomStatus,
+      roomAmenitiesLoaded: Array.isArray(roomAmenities),
+      room: {
+        id: String(roomPayload.id ?? 'unknown-room'),
+        name: roomPayload.name ?? 'Room',
+        description: roomPayload.description ?? '',
+        capacity: roomPayload.capacity ?? 0,
+        status: roomPayload.status ?? 'AVAILABLE',
+        isActive: roomPayload.isActive ?? true,
+        imageUrl: roomPayload.imageUrl ?? '',
+        amenities: Array.isArray(roomAmenities)
+          ? roomAmenities.map((entry: any) => {
+              const amenity = entry?.amenity ?? entry;
+              return {
+                id: String(amenity.id),
+                name: amenity.name,
+                icon: amenity.icon ?? 'checkmark-circle-outline',
+                description: amenity.description ?? '',
+              };
+            })
+          : [],
+      },
     };
   });
 
@@ -104,25 +101,39 @@ function mapBooking(item: any): Booking {
   };
 }
 
-function inventoryChecklistForRoom(booking: Booking): string[] {
-  const roomSetups = booking.rooms.map(({ room }) => `${room.name} set-up checklist`);
-  const baseList = [
-    ...roomSetups,
-    'Sanitiser and wipe-down check',
-    'Table and chair layout',
-  ];
+interface RoomChecklist {
+  id: string;
+  roomName: string;
+  amenitiesAvailable: boolean;
+  checks: string[];
+}
 
-  const extras = (booking.requestedAmenities || []).map((amenity) => {
-    const name = amenity.name.toLowerCase();
-    if (name.includes('projector')) return 'Projector remote + HDMI cable';
-    if (name.includes('whiteboard')) return 'Whiteboard markers and eraser';
-    if (name.includes('phone')) return 'Conference phone charged';
-    if (name.includes('coffee')) return 'Coffee station restocked';
-    if (name.includes('tv')) return 'TV input checked';
-    return `${amenity.name} set and checked`;
+function amenityCheck(name: string) {
+  const normalizedName = name.toLowerCase();
+  if (normalizedName.includes('projector')) return 'Projector remote + HDMI cable';
+  if (normalizedName.includes('whiteboard')) return 'Whiteboard markers and eraser';
+  if (normalizedName.includes('phone')) return 'Conference phone charged';
+  if (normalizedName.includes('coffee')) return 'Coffee station restocked';
+  if (normalizedName.includes('tv')) return 'TV input checked';
+  return `${name} set and checked`;
+}
+
+function inventoryChecklistsForBooking(booking: Booking): RoomChecklist[] {
+  return booking.rooms.map((bookingRoom) => {
+    const amenitiesAvailable = bookingRoom.roomAmenitiesLoaded === true;
+    const amenities: Amenity[] = amenitiesAvailable ? bookingRoom.room.amenities : [];
+
+    return {
+      id: bookingRoom.id,
+      roomName: bookingRoom.room.name,
+      amenitiesAvailable,
+      checks: [
+        'Sanitiser and wipe-down check',
+        'Table and chair layout',
+        ...amenities.map((amenity) => amenityCheck(amenity.name)),
+      ],
+    };
   });
-
-  return [...baseList, ...extras];
 }
 
 function formatTimeRange(start: string, end: string) {
@@ -286,7 +297,13 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
             {filteredQueue.length} shown · {counts.CONFIRMED} queued · {counts.PREPARING} in prep
           </Text>
         </View>
-        <TouchableOpacity style={styles.iconBtn} onPress={onRefresh} disabled={refreshing}>
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={onRefresh}
+          disabled={refreshing}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh queue"
+        >
           <Ionicons name="refresh" size={18} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -379,9 +396,9 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
           ) : (
             filteredQueue.map((booking) => {
               const meta = statusMeta[booking.status] ?? statusMeta.CONFIRMED;
-              const roomName = booking.rooms.map(({ room }) => room.name).join(', ') || 'Room';
+              const roomName = booking.rooms.map(({ room }) => room.name).join(', ') || 'Room details unavailable';
               const expanded = expandedId === booking.id;
-              const checklist = inventoryChecklistForRoom(booking);
+              const checklists = inventoryChecklistsForBooking(booking);
               const next = NEXT_STATUS[booking.status];
               const busy = updatingId === booking.id;
 
@@ -410,15 +427,34 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
                     </Text>
                   )}
 
-                  {(booking.requestedAmenities || []).length > 0 ? (
-                    <View style={styles.amenityRow}>
-                      {(booking.requestedAmenities || []).slice(0, 4).map((a) => (
-                        <View key={a.id} style={styles.amenityChip}>
-                          <Text style={styles.amenityText}>{a.name}</Text>
+                  {booking.rooms.length > 0 ? (
+                    <View style={styles.roomAmenitiesList}>
+                      {booking.rooms.map((bookingRoom) => (
+                        <View key={bookingRoom.id} style={styles.roomAmenitiesGroup}>
+                          <Text style={styles.roomAmenitiesTitle}>{bookingRoom.room.name} amenities</Text>
+                          {bookingRoom.roomAmenitiesLoaded ? (
+                            bookingRoom.room.amenities.length > 0 ? (
+                              <View style={styles.amenityRow}>
+                                {bookingRoom.room.amenities.map((amenity) => (
+                                  <View key={amenity.id} style={styles.amenityChip}>
+                                    <Text style={styles.amenityText}>{amenity.name}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            ) : (
+                              <Text style={styles.amenityStateText}>No amenities assigned to this room.</Text>
+                            )
+                          ) : (
+                            <Text style={styles.amenityStateText}>
+                              Room amenity data unavailable. Refresh the queue to retry.
+                            </Text>
+                          )}
                         </View>
                       ))}
                     </View>
-                  ) : null}
+                  ) : (
+                    <Text style={styles.amenityStateText}>Room details unavailable. Refresh the queue to retry.</Text>
+                  )}
 
                   <TouchableOpacity
                     style={styles.checklistToggle}
@@ -436,12 +472,26 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
 
                   {expanded ? (
                     <View style={styles.checklistBox}>
-                      {checklist.map((item, idx) => (
-                        <View key={`${booking.id}-c-${idx}`} style={styles.checklistItem}>
-                          <Ionicons name="ellipse-outline" size={12} color={colors.muted} />
-                          <Text style={styles.checklistText}>{item}</Text>
+                      {checklists.length > 0 ? checklists.map((checklist) => (
+                        <View key={checklist.id} style={styles.checklistGroup}>
+                          <Text style={styles.checklistRoomTitle}>{checklist.roomName} checklist</Text>
+                          {!checklist.amenitiesAvailable ? (
+                            <Text style={styles.amenityStateText}>
+                              Amenity-specific checks unavailable until room data is refreshed.
+                            </Text>
+                          ) : null}
+                          {checklist.checks.map((item, index) => (
+                            <View key={`${checklist.id}-check-${index}`} style={styles.checklistItem}>
+                              <Ionicons name="ellipse-outline" size={12} color={colors.muted} />
+                              <Text style={styles.checklistText}>{item}</Text>
+                            </View>
+                          ))}
                         </View>
-                      ))}
+                      )) : (
+                        <Text style={styles.amenityStateText}>
+                          Room details unavailable. Refresh the queue to retry.
+                        </Text>
+                      )}
                     </View>
                   ) : null}
 
@@ -594,6 +644,15 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: spacing.sm,
   },
+  roomAmenitiesList: {
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  roomAmenitiesGroup: {
+    gap: 4,
+  },
+  roomAmenitiesTitle: { ...typography.captionSm, color: colors.ink, fontWeight: '700' },
+  amenityStateText: { ...typography.captionSm, color: colors.muted },
   amenityChip: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -615,6 +674,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
     gap: 8,
   },
+  checklistGroup: { gap: 8 },
+  checklistRoomTitle: { ...typography.bodySm, color: colors.ink, fontWeight: '700' },
   checklistItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   checklistText: { ...typography.bodySm, color: colors.body, flex: 1 },
   actionsRow: {

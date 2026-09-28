@@ -84,39 +84,16 @@ function formatBookingDateTime(start: string, end: string) {
 }
 
 function mapBookingFromApi(payload: any): Booking {
-  const rooms = (Array.isArray(payload.rooms) ? payload.rooms : []).map((link: any) => {
-    const source = link.room ?? link;
-    const room = {
-      id: String(source.id ?? link.roomId ?? 'unknown-room'),
-      name: source.name ?? 'Unassigned room',
-      description: source.description ?? 'Room details unavailable',
-      capacity: source.capacity ?? 0,
-      status: source.status ?? 'AVAILABLE',
-      isActive: source.isActive ?? true,
-      imageUrl: source.imageUrl ?? '',
-      amenities: (source.amenities || []).map((entry: any) =>
-        entry?.amenity
-          ? {
-              id: String(entry.amenity.id),
-              name: entry.amenity.name,
-              icon: entry.amenity.icon ?? 'checkmark-circle-outline',
-              description: entry.amenity.description,
-            }
-          : {
-              id: String(entry.id),
-              name: entry.name,
-              icon: entry.icon ?? 'checkmark-circle-outline',
-              description: entry.description,
-            },
-      ),
-    };
-    return {
-      id: String(link.id ?? `${payload.id}-${room.id}`),
-      roomId: String(link.roomId ?? room.id),
-      room,
-      roomStatus: link.roomStatus,
-    };
-  });
+  const room = payload.rooms?.[0]?.room ?? {
+    id: String(payload.roomId ?? 'unknown-room'),
+    name: 'Unassigned room',
+    description: 'Room details unavailable',
+    capacity: 0,
+    status: 'AVAILABLE',
+    isActive: true,
+    imageUrl: '',
+    amenities: [],
+  };
 
   return {
     id: String(payload.id),
@@ -126,7 +103,13 @@ function mapBookingFromApi(payload: any): Booking {
     purpose: payload.purpose,
     status: payload.status,
     createdAt: payload.createdAt ?? new Date().toISOString(),
-    rooms,
+    rooms: [
+      {
+        id: String(payload.rooms?.[0]?.id ?? `${payload.id}-room`),
+        roomId: String(room.id),
+        room,
+      },
+    ],
     requestedAmenities: Array.isArray(payload.amenities)
       ? payload.amenities.map((entry: any) => ({
           id: String(entry.amenity?.id ?? entry.id ?? `${payload.id}-amenity`),
@@ -139,8 +122,8 @@ function mapBookingFromApi(payload: any): Booking {
 }
 
 function inventoryChecklistForRoom(booking: Booking): string[] {
-  const roomSetups = booking.rooms.map(({ room }) => `${room.name} set-up checklist`);
-  const baseList = [...roomSetups, 'Sanitiser and wipe-down check', 'Table and chair layout'];
+  const roomName = booking.rooms[0]?.room?.name ?? 'Room';
+  const baseList = [`${roomName} set-up checklist`, 'Sanitiser and wipe-down check', 'Table and chair layout'];
 
   const extras = booking.requestedAmenities.map((amenity) => {
     const name = amenity.name.toLowerCase();
@@ -199,7 +182,7 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
     const query = searchText.trim().toLowerCase();
 
     return queue.filter((booking) => {
-      const roomName = booking.rooms.map(({ room }) => room.name.toLowerCase()).join(' ');
+      const roomName = booking.rooms[0]?.room?.name ?? '';
       const matchesStatus = statusFilter === 'ALL' || booking.status === statusFilter;
       const matchesSearch =
         !query ||
@@ -234,7 +217,7 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
 
     Alert.alert(
       'Confirm status change',
-      `Update ${selectedBooking.rooms.map(({ room }) => room.name).join(', ') || 'this booking'} (${formatBookingDateTime(selectedBooking.startAt, selectedBooking.endAt)}) from ${statusMeta[selectedBooking.status].label} to ${statusMeta[pendingStatus].label}?`,
+      `Update ${selectedBooking.rooms[0]?.room?.name ?? 'this room'} (${formatBookingDateTime(selectedBooking.startAt, selectedBooking.endAt)}) from ${statusMeta[selectedBooking.status].label} to ${statusMeta[pendingStatus].label}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -361,7 +344,7 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
             </View>
           ) : (
             filteredQueue.map((booking) => {
-              const roomName = booking.rooms.map(({ room }) => room.name).join(', ') || 'Room assignment';
+              const roomName = booking.rooms[0]?.room?.name ?? 'Room assignment';
               const meta = statusMeta[booking.status];
 
               return (
@@ -397,9 +380,7 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
           <View style={styles.modalBackdrop}>
             <View style={styles.modalSheet}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {selectedBooking.rooms.map(({ room }) => room.name).join(', ') || 'Room details'}
-                </Text>
+                <Text style={styles.modalTitle}>{selectedBooking.rooms[0]?.room?.name ?? 'Room details'}</Text>
                 <TouchableOpacity onPress={() => setSelectedBookingId(null)} style={styles.closeButton}>
                   <Ionicons name="close" size={22} color={colors.ink} />
                 </TouchableOpacity>
@@ -419,16 +400,6 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Time</Text>
                   <Text style={styles.value}>{formatTimeRange(selectedBooking.startAt, selectedBooking.endAt)}</Text>
-                </View>
-
-                <View style={styles.sectionBlock}>
-                  <Text style={styles.sectionTitle}>Rooms in this booking</Text>
-                  {selectedBooking.rooms.map(({ room, roomStatus }) => (
-                    <View key={room.id} style={styles.infoRow}>
-                      <Text style={styles.label}>{room.name}</Text>
-                      <Text style={styles.value}>{roomStatus || room.status} · {room.capacity} seats</Text>
-                    </View>
-                  ))}
                 </View>
 
                 <View style={styles.infoRow}>

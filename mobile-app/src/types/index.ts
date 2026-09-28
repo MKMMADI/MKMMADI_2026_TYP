@@ -48,6 +48,7 @@ export interface BookingRoom {
   roomId: string;
   room: Room;
   roomStatus?: string;
+  roomAmenitiesLoaded?: boolean;
 }
 
 export interface Booking {

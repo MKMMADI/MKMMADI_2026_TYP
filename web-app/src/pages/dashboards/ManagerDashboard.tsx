@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ManagerLayout from "@/components/ManagerLayout";
 import { apiFetch } from "@/lib/api";
+import { countPresentPreparingRooms, getRecentBookings } from "@/lib/managerBookingRules";
 
 type IconName =
   | "grid"
@@ -139,6 +140,7 @@ type BookingStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "COMPLETE
 
 interface ApiBooking {
   id: number;
+  createdAt: string;
   purpose: string;
   startAt: string;
   endAt: string;
@@ -248,13 +250,11 @@ export default function ManagerDashboard() {
     return start >= todayStart && start <= todayEnd;
   });
 
-  const recentBookings = [...bookings]
-    .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-    .slice(0, 4);
+  const recentBookings = getRecentBookings(bookings);
 
   const summary = {
     confirmed: bookings.filter((b) => b.status === "CONFIRMED").length,
-    preparing: bookings.filter((b) => b.status === "PREPARING").length,
+    preparing: countPresentPreparingRooms(bookings),
     ready: bookings.filter((b) => b.status === "READY").length,
     completed: bookings.filter((b) => b.status === "COMPLETED").length,
   };
@@ -369,7 +369,7 @@ export default function ManagerDashboard() {
               <div className="manager-panel-header">
                 <div>
                   <h2>Recent Bookings</h2>
-                  <p>Upcoming and ongoing meetings</p>
+                  <p>Latest booking requests</p>
                 </div>
                 <button type="button" onClick={() => navigate("/manager/bookings")}>
                   View all <Icon name="arrow" size={16} />

@@ -6,7 +6,13 @@ import { AuthRequest } from '../middleware/auth';
 import { isValidRejectionCode, REJECTION_REASONS } from '../constants/rejectionReasons';
 
 const bookingInclude = {
-  rooms: { include: { room: true } },
+  rooms: {
+    include: {
+      room: {
+        include: { amenities: { include: { amenity: true } } },
+      },
+    },
+  },
   amenities: { include: { amenity: true } },
   employee: { select: { id: true, name: true, email: true } },
   preparedBy: { select: { id: true, name: true, email: true } },

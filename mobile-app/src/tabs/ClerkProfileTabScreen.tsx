@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { User } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
-import api from '../api';
 
 export interface ClerkProfileTabScreenProps {
   user: User;
@@ -30,7 +29,6 @@ export function ClerkProfileTabScreen({ user, onSignOut }: ClerkProfileTabScreen
         onPress: async () => {
           setSigningOut(true);
           try {
-            await api.signOut();
             await onSignOut();
           } catch (err) {
             console.warn('Sign out error', err);

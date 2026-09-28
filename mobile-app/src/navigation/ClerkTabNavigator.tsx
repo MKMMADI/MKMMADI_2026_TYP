@@ -1,5 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
+import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DashboardTabScreen } from '../tabs/DashboardTabScreen';
 import { QueueTabScreen } from '../tabs/QueueTabScreen';
@@ -19,6 +20,7 @@ export type ClerkTabParamList = {
   QueueTab: { statusFilter?: BookingStatus | 'ALL' } | undefined;
   RoomsTab: undefined;
   ProfileTab: undefined;
+  SignOutTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<ClerkTabParamList>();
@@ -28,6 +30,7 @@ const TAB_LABELS: Record<keyof ClerkTabParamList, string> = {
   QueueTab: 'Queue',
   RoomsTab: 'Rooms',
   ProfileTab: 'Profile',
+  SignOutTab: 'Sign out',
 };
 
 function iconForRoute(name: keyof ClerkTabParamList, focused: boolean): TabIconName {
@@ -40,9 +43,15 @@ function iconForRoute(name: keyof ClerkTabParamList, focused: boolean): TabIconN
       return focused ? 'business' : 'business-outline';
     case 'ProfileTab':
       return focused ? 'person-circle' : 'person-circle-outline';
+    case 'SignOutTab':
+      return 'log-out-outline';
     default:
       return 'ellipse-outline';
   }
+}
+
+function SignOutTabScreen() {
+  return null;
 }
 
 interface ClerkTabNavigatorProps {
@@ -98,6 +107,19 @@ export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
       <Tab.Screen name="ProfileTab">
         {() => <ClerkProfileTabScreen user={user} onSignOut={onSignOut} />}
       </Tab.Screen>
+      <Tab.Screen
+        name="SignOutTab"
+        component={SignOutTabScreen}
+        listeners={{
+          tabPress: (event) => {
+            event.preventDefault();
+            Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign out', style: 'destructive', onPress: onSignOut },
+            ]);
+          },
+        }}
+      />
     </Tab.Navigator>
   );
 }

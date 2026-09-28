@@ -178,6 +178,30 @@ describe('bookingController - createBookingHandler', () => {
   });
 });
 
+describe('bookingController - room amenity response', () => {
+  it('includes each room amenity when listing bookings', async () => {
+    (prisma.booking.findMany as jest.Mock).mockResolvedValue([]);
+    const req = { query: {}, user: mockClerkUser } as any;
+    const res = { json: jest.fn() } as any;
+
+    await listBookings(req, res, jest.fn());
+
+    expect(prisma.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      include: expect.objectContaining({
+        rooms: {
+          include: {
+            room: {
+              include: {
+                amenities: { include: { amenity: true } },
+              },
+            },
+          },
+        },
+      }),
+    }));
+  });
+});
+
 describe('bookingController - listBookings', () => {
   beforeEach(() => {
     jest.clearAllMocks();

@@ -1,6 +1,8 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import "@/styles/manager-dashboard.css";
+import { apiFetch } from "@/lib/api";
+import { countPresentPreparingRooms, type QueueBookingSummary } from "@/lib/managerBookingRules";
 
 
 type IconName =
@@ -130,7 +132,10 @@ interface NavItem {
   label: string;
   icon: IconName;
   path: string;
-  badge?: string;
+}
+
+interface ApiQueueBooking extends QueueBookingSummary {
+  rooms: { room: { id: number } }[];
 }
 
 interface NavCategory {
@@ -150,7 +155,7 @@ const navConfig: Record<string, NavCategory> = {
     icon: "calendar",
     items: [
       { id: "all-bookings", label: "All Bookings", icon: "calendar", path: "/manager/bookings" },
-      { id: "queue", label: "Preparation Queue", icon: "clock", path: "/manager/queue", badge: "3" },
+      { id: "queue", label: "Preparation Queue", icon: "clock", path: "/manager/queue" },
     ],
   },
   facilities: {
@@ -179,6 +184,8 @@ const navConfig: Record<string, NavCategory> = {
 
 export default function ManagerLayout({ children }: { children: ReactNode }) {
   const [noticeOpen, setNoticeOpen] = useState(false);
+  const [preparingRoomCount, setPreparingRoomCount] = useState(0);
+  const location = useLocation();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(["dashboard", "bookings", "facilities"])
   );
@@ -191,6 +198,39 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
     if (activeCategory) {
       setExpandedCategories((prev) => new Set(prev).add(activeCategory[0]));
     }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function refreshPreparingRoomCount() {
+      try {
+        const bookings = await apiFetch<ApiQueueBooking[]>("/bookings?status=PREPARING");
+        if (active) {
+          setPreparingRoomCount(
+            countPresentPreparingRooms(Array.isArray(bookings) ? bookings : []),
+          );
+        }
+      } catch {
+        // Keep the last known count when the manager is temporarily offline.
+      }
+    }
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refreshPreparingRoomCount();
+    };
+
+    void refreshPreparingRoomCount();
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const intervalId = window.setInterval(refreshPreparingRoomCount, 60_000);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(intervalId);
+    };
   }, [location.pathname]);
 
   const toggleCategory = (categoryId: string) => {
@@ -231,6 +271,18 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
         <nav className="manager-nav" aria-label="Manager navigation">
           {Object.entries(navConfig).map(([categoryId, category]) => (
             <div key={categoryId} className="manager-nav-category">
+              {categoryId === "dashboard" ? (
+                <div className="manager-nav-items">
+                  <Link
+                    to={category.items[0].path}
+                    className={isActive(category.items[0].path) ? "active" : ""}
+                  >
+                    <Icon name={category.icon} size={18} />
+                    <span>Dashboard</span>
+                  </Link>
+                </div>
+              ) : (
+                <>
               <button
                 className="manager-nav-category-toggle"
                 onClick={() => toggleCategory(categoryId)}
@@ -254,10 +306,16 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
                     >
                       <Icon name={item.icon} size={18} />
                       <span>{item.label}</span>
-                      {item.badge && <span className="nav-badge">{item.badge}</span>}
+                      {item.id === "queue" && (
+                        <span className="nav-badge" aria-label={`${preparingRoomCount} rooms in progress`}>
+                          {preparingRoomCount}
+                        </span>
+                      )}
                     </Link>
                   ))}
                 </div>
+              )}
+                </>
               )}
             </div>
           ))}

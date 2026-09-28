@@ -97,21 +97,24 @@ These sprints cover the clerk and manager workflow improvements and manager/empl
 
 **Goal:** make sign-out easy to find and make each queue checklist reflect the actual amenities of its booked room.
 
-- [ ] Move or expose the Clerk app's Sign Out action in a persistently visible, clearly labelled location without removing the confirmation step.
-- [ ] Load the room's actual amenity list for each queued booking and show it with that room's checklist; do not infer requested room amenities from a generic booking-level list.
-- [ ] Keep checklist items distinct for each room when a booking contains multiple rooms.
-- [ ] Show loading, empty, and API-error/retry states for room amenity data; do not silently show a misleading generic checklist when room data fails.
-- [ ] Add or extend mobile tests for Clerk tab visibility and sign-out confirmation/action.
-- [ ] Add or extend mobile queue tests for actual room amenity rendering, multi-room separation, and loading/error/empty behavior.
+- [x] Move or expose the Clerk app's Sign Out action in a persistently visible, clearly labelled location without removing the confirmation step.
+- [x] Load the room's actual amenity list for each queued booking and show it with that room's checklist; do not infer requested room amenities from a generic booking-level list.
+- [x] Keep checklist items distinct for each room when a booking contains multiple rooms.
+- [x] Show loading, empty, and API-error/retry states for room amenity data; do not silently show a misleading generic checklist when room data fails.
+- [x] Add or extend mobile tests for Clerk tab visibility and sign-out confirmation/action.
+- [x] Add or extend mobile queue tests for actual room amenity rendering, multi-room separation, and loading/error/empty behavior.
 
 **Tests to conduct:**
 
 - Automated: `cd mobile-app && npm test -- --runInBand` and `cd mobile-app && npx tsc --noEmit`.
+- Automated results: mobile tests pass (5 suites, 11 tests); mobile TypeScript check passes; API `npm run build` passes (15 suites, 235 tests).
 - Manual on a clerk account: confirm Sign Out is visible from the normal Clerk workflow, cancel the confirmation without signing out, then confirm sign-out returns to authentication.
 - Manual with seeded rooms that have different amenities: check one-room and multi-room queue entries; verify each room's checklist contains only its own amenities and remains readable on a narrow device.
 - Manual/API failure: verify the queue displays a retryable error and never presents generic items as actual room amenities.
 
 **Definition of done:** a clerk can reach sign-out from the normal workflow and reliably check the real amenity setup for every room in a queued booking.
+
+**Status:** implementation and automated verification complete. Manual clerk-device checks above remain pending before the sprint can be declared fully verified.
 
 ## Sprint 7: Manager queue, recent bookings, and navigation
 

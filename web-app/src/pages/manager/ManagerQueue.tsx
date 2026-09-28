@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import ManagerLayout from "@/components/ManagerLayout";
 import { apiFetch } from "@/lib/api";
+import { countPresentPreparingRooms, getPresentPreparingBookings } from "@/lib/managerBookingRules";
 import "@/styles/manager-queue.css";
 
 type QueueStatus = "CONFIRMED" | "PREPARING" | "READY";
@@ -72,9 +73,9 @@ export default function ManagerQueue() {
   /** When true, only meetings starting today or later are listed. */
   const [hidePast, setHidePast] = useState(false);
 
-  async function loadQueue() {
+  const loadQueue = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       setError(null);
       // Prefer server-side status filter when supported; still works if ignored
       const data = await apiFetch<ApiBooking[]>(
@@ -84,31 +85,55 @@ export default function ManagerQueue() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load preparation queue");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    loadQueue();
   }, []);
 
-  // All confirmed / preparing / ready — includes past meetings unless hidePast is on
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadQueue(false);
+    };
+
+    void loadQueue();
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const intervalId = window.setInterval(() => void loadQueue(false), 60_000);
+
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(intervalId);
+    };
+  }, [loadQueue]);
+
+  const presentPreparingBookings = useMemo(
+    () => getPresentPreparingBookings(bookings),
+    [bookings],
+  );
+  const presentPreparingIds = useMemo(
+    () => new Set(presentPreparingBookings.map((booking) => booking.id)),
+    [presentPreparingBookings],
+  );
+
   const queueItems = useMemo(() => {
     const today = startOfToday();
     return bookings
       .filter((b) => {
         if (!QUEUE_STATUSES.includes(b.status as QueueStatus)) return false;
+        if (b.status === "PREPARING" && !presentPreparingIds.has(b.id)) return false;
         if (hidePast && new Date(b.startAt) < today) return false;
         return true;
       })
       .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
-  }, [bookings, hidePast]);
+  }, [bookings, hidePast, presentPreparingIds]);
 
   const pastInQueueCount = useMemo(() => {
     const today = startOfToday();
     return bookings.filter(
       (b) =>
-        QUEUE_STATUSES.includes(b.status as QueueStatus) && new Date(b.startAt) < today
+        QUEUE_STATUSES.includes(b.status as QueueStatus) &&
+        b.status !== "PREPARING" &&
+        new Date(b.startAt) < today
     ).length;
   }, [bookings]);
 
@@ -134,10 +159,10 @@ export default function ManagerQueue() {
   const counts = useMemo(
     () => ({
       awaiting: queueItems.filter((b) => b.status === "CONFIRMED").length,
-      preparing: queueItems.filter((b) => b.status === "PREPARING").length,
+      preparing: countPresentPreparingRooms(presentPreparingBookings),
       ready: queueItems.filter((b) => b.status === "READY").length,
     }),
-    [queueItems]
+    [queueItems, presentPreparingBookings]
   );
   return (
     <ManagerLayout>
@@ -230,7 +255,7 @@ export default function ManagerQueue() {
         {error && !loading && (
           <div className="mq-state mq-state--error">
             <p>{error}</p>
-            <button type="button" className="manager-outline-button" onClick={loadQueue}>
+            <button type="button" className="manager-outline-button" onClick={() => void loadQueue()}>
               Retry
             </button>
           </div>
