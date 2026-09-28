@@ -51,13 +51,12 @@ describe('Conversation routes integration', () => {
       .set(authorizedAs(employee));
     expect(employeeContacts.status).toBe(200);
     const employeeIds = employeeContacts.body.map((contact: { id: number }) => contact.id);
-    // Employees may message any active manager, not only a single fixture manager.
+    // Employees may message managers and clerks.
     expect(employeeIds).toEqual(
-      expect.arrayContaining([manager.user.id, secondManager.user.id]),
+      expect.arrayContaining([manager.user.id, secondManager.user.id, clerk.user.id]),
     );
     expect(employeeIds).not.toContain(employee.user.id);
     expect(employeeIds).not.toContain(otherEmployee.user.id);
-    expect(employeeIds).not.toContain(clerk.user.id);
     expect(new Set(employeeIds).size).toBe(employeeIds.length);
 
     const clerkContacts = await request(app)
@@ -65,8 +64,9 @@ describe('Conversation routes integration', () => {
       .set(authorizedAs(clerk));
     expect(clerkContacts.status).toBe(200);
     const clerkIds = clerkContacts.body.map((contact: { id: number }) => contact.id);
-    expect(clerkIds).toEqual(expect.arrayContaining([manager.user.id, secondManager.user.id]));
-    expect(clerkIds).not.toContain(employee.user.id);
+    expect(clerkIds).toEqual(
+      expect.arrayContaining([manager.user.id, secondManager.user.id, employee.user.id, otherEmployee.user.id]),
+    );
     expect(clerkIds).not.toContain(clerk.user.id);
   });
 
@@ -83,5 +83,11 @@ describe('Conversation routes integration', () => {
       .send({ participantId: manager.user.id });
     expect([200, 201]).toContain(allowed.status);
     expect(allowed.body.participant.id).toBe(manager.user.id);
+
+    const employeeClerk = await request(app)
+      .post('/api/v1/conversations')
+      .set(authorizedAs(employee))
+      .send({ participantId: clerk.user.id });
+    expect([200, 201]).toContain(employeeClerk.status);
   });
 });
