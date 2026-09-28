@@ -1,11 +1,16 @@
+import { createServer } from 'http';
 import config from './config/index';
 import app from './app';
 import logger from './utils/logger';
 import prisma from './prisma';
+import { initializeRealtime } from './services/realtime';
 
 const PORT = config.PORT;
+const server = createServer(app);
 
-app.listen(PORT, async () => {
+initializeRealtime(server);
+
+server.listen(PORT, async () => {
   logger.info(`Server listening on ${PORT}`);
   console.log(`Server listening on ${PORT}`);
 

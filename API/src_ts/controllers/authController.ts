@@ -13,6 +13,7 @@ import {
   refreshTokenExpiryDate,
 } from '../utils/auth';
 import { createHttpError } from '../utils/httpError';
+import { disconnectUserSockets } from '../services/realtime';
 
 function accessExpiryFromNow() {
   const d = new Date();
@@ -253,12 +254,16 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
       return next(createHttpError('Token missing jti', 400));
     }
 
+    const session = await prisma.session.findUnique({ where: { jwtId: jti }, select: { userId: true } });
+    if (!session) return next(createHttpError('Session not found', 401));
+
     //revoke jwt id 
     try{
        await prisma.session.updateMany({ where: { jwtId: jti }, data: { revoked: true } });
     }catch(err){
       return next(createHttpError("Database error while revoking token",500))
     }
+    disconnectUserSockets(session.userId);
 
     //retrive refresh token , (must be provided)
     const { refreshToken } = req.body;

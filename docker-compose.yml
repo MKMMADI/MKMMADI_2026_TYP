@@ -22,6 +22,7 @@ services:
       JWT_SECRET: 06051255a67bd0442ccc2e31fb440ffa8648d96721d62230104cab144eac1272bb546396c03288aabdb3278f274b60e5b036b8681656d2ec4bfc531ab9a362e7
       NODE_ENV: production
       PORT: 4000
+      SOCKET_ALLOWED_ORIGINS: ${SOCKET_ALLOWED_ORIGINS:-http://localhost:8080}
     depends_on:
       db:
         condition: service_healthy
@@ -31,6 +32,8 @@ services:
   web:
     build:
       context: ./web-app
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000/api/v1}
     depends_on:
       - api
     ports:

@@ -6,6 +6,7 @@ import { DashboardTabScreen } from '../tabs/DashboardTabScreen';
 import { QueueTabScreen } from '../tabs/QueueTabScreen';
 import { RoomsTabScreen } from '../tabs/RoomsTabScreen';
 import { ClerkProfileTabScreen } from '../tabs/ClerkProfileTabScreen';
+import { MessagesTabScreen } from '../tabs/MessagesTabScreen';
 import { BookingStatus, User } from '../types';
 import { colors } from '../theme/tokens';
 import {
@@ -19,6 +20,7 @@ export type ClerkTabParamList = {
   DashboardTab: undefined;
   QueueTab: { statusFilter?: BookingStatus | 'ALL' } | undefined;
   RoomsTab: undefined;
+  MessagesTab: undefined;
   ProfileTab: undefined;
   SignOutTab: undefined;
 };
@@ -29,6 +31,7 @@ const TAB_LABELS: Record<keyof ClerkTabParamList, string> = {
   DashboardTab: 'Dashboard',
   QueueTab: 'Queue',
   RoomsTab: 'Rooms',
+  MessagesTab: 'Messages',
   ProfileTab: 'Profile',
   SignOutTab: 'Sign out',
 };
@@ -41,6 +44,8 @@ function iconForRoute(name: keyof ClerkTabParamList, focused: boolean): TabIconN
       return focused ? 'list' : 'list-outline';
     case 'RoomsTab':
       return focused ? 'business' : 'business-outline';
+    case 'MessagesTab':
+      return focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
     case 'ProfileTab':
       return focused ? 'person-circle' : 'person-circle-outline';
     case 'SignOutTab':
@@ -103,6 +108,9 @@ export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
       </Tab.Screen>
       <Tab.Screen name="RoomsTab">
         {() => <RoomsTabScreen />}
+      </Tab.Screen>
+      <Tab.Screen name="MessagesTab">
+        {() => <MessagesTabScreen user={user} />}
       </Tab.Screen>
       <Tab.Screen name="ProfileTab">
         {() => <ClerkProfileTabScreen user={user} onSignOut={onSignOut} />}

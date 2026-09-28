@@ -23,6 +23,51 @@ when the room list is empty or invalid, capacity is not a positive whole
 number, a selected room is unavailable, the combined room capacity is
 insufficient, or a requested amenity is missing from any selected room.
 
+## Messaging
+
+Messaging is authenticated and one-to-one. A conversation is allowed only when
+at least one participant is a manager: managers can message employees, clerks,
+and other managers; employees and clerks can message managers only. Employee to
+employee, employee to clerk, and clerk to clerk conversations are rejected.
+Conversations are unique per participant pair, regardless of who starts them.
+
+- `GET /api/v1/conversations` lists the authenticated user's conversations,
+  counterpart, latest message, and unread count.
+- `POST /api/v1/conversations` with `{ "participantId": 42 }` creates or returns
+  the existing conversation with that user.
+- `GET /api/v1/conversations/:id/messages?limit=50&beforeId=123` returns messages
+  in chronological order, with a cursor for older history. `limit` is 1–100.
+- `POST /api/v1/conversations/:id/messages` with `{ "body": "Hello" }` stores
+  and returns a message. Empty messages and bodies over 4000 characters are
+  rejected.
+- `PATCH /api/v1/conversations/:id/read` marks messages addressed to the current
+  user as read and returns the number updated.
+
+Every conversation and message operation checks authenticated membership and
+the current participant roles on the server. Nonparticipants receive a not-found
+response; message bodies are redacted from application error logs.
+
+### Realtime delivery
+
+Socket.IO is served from the API origin. Clients connect with
+`auth: { accessToken }`; the API verifies the JWT, session, expiry, revocation,
+and active account before assigning a server-controlled user room. Clients
+cannot join conversation rooms or publish messages over the socket.
+
+Messages must be sent through `POST /api/v1/conversations/:id/messages`. The API
+commits the message first, then emits `message:new` to the two participants.
+`PATCH /api/v1/conversations/:id/read` emits `conversation:read` after read state
+is updated. Clients reload REST history after reconnect to catch missed events.
+
+In production, set `SOCKET_ALLOWED_ORIGINS` to a comma-separated list of exact
+web origins, for example `https://bookspace.example.com`. Mobile native clients
+may connect without a browser Origin header but still require a valid token.
+Terminate TLS at the public API or reverse proxy and connect using `wss://`;
+never expose an insecure WebSocket endpoint to production clients. Local web
+development accepts localhost origins. Set the web build variable
+`VITE_API_URL` to the browser-reachable API base including `/api/v1`; the web
+client uses that URL's origin for Socket.IO as well as its REST API.
+
 ## Build and run the Web and API images
 
 The repository's `main` branch is the source of truth for this setup. The API

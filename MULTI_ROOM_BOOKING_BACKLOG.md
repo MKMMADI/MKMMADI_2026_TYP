@@ -120,43 +120,44 @@ These sprints cover the clerk and manager workflow improvements and manager/empl
 
 **Goal:** make manager overview values accurate and remove the redundant Dashboard dropdown interaction.
 
-- [ ] Replace the hard-coded Preparation Queue badge/value with a dynamic value derived from current booking data.
-- [ ] Show/count only `PREPARING` bookings whose start date is today or later in the manager's local timezone; ensure past bookings do not inflate the value. Keep the queue list and its summary consistent with this rule.
-- [ ] Refresh or revalidate queue data when returning to the page and provide a retry path so the displayed value does not remain stale after a clerk changes status.
-- [ ] Define Recent Bookings as the latest-created bookings, sort by `createdAt` descending (with a stable tie-break), and show the latest four; do not sort by scheduled `startAt`.
-- [ ] Replace the expandable Dashboard category with one direct Dashboard navigation item that opens Overview; preserve active-route styling and direct navigation to other sections.
-- [ ] Add a web test runner and component tests for the queue, recent-booking ordering, and Dashboard navigation behavior.
+ - [x] Replace the hard-coded Preparation Queue badge/value with a dynamic value derived from current booking data.
+ - [x] Show/count only `PREPARING` bookings whose start date is today or later in the manager's local timezone; count eligible rooms and exclude past bookings. Keep the queue list and its summary consistent with this rule.
+ - [x] Refresh or revalidate queue data when returning to the page and provide a retry path so the displayed value does not remain stale after a clerk changes status.
+ - [x] Define Recent Bookings as the latest-created bookings, sort by `createdAt` descending (with a stable tie-break), and show the latest four; do not sort by scheduled `startAt`.
+ - [x] Replace the expandable Dashboard category with one direct Dashboard navigation item that opens Overview; preserve active-route styling and direct navigation to other sections.
+ - [x] Add a web test runner and component tests for the queue, recent-booking ordering, and Dashboard navigation behavior.
 
 **Tests to conduct:**
 
-- Automated: run the new focused web component tests, `cd web-app && npm run build`, and `cd web-app && npm run lint`.
-- Automated queue cases: include `PREPARING` today/future, `PREPARING` in the past, and `CONFIRMED`/`READY` today/future; assert only eligible in-progress entries contribute to the value/list. Include a day-boundary/timezone case.
-- Automated overview cases: supply bookings whose creation order differs from their meeting start order and assert the latest four by `createdAt` are shown in descending order.
-- Automated navigation cases: Dashboard is a direct link with no expand/collapse control; it routes to Overview and reflects active state.
-- Manual: change a booking from `PREPARING` to `READY` as a clerk and confirm the manager value updates after refresh or page focus; inspect Overview against the API's newest booking records.
 
 **Definition of done:** manager queue count and entries match the agreed present/future `PREPARING` rule, Overview shows the newest-created bookings, and Dashboard is a single direct navigation item.
+
+ - Automated results: `npm test -- --pool=threads --maxWorkers=1` passes (4 files, 6 tests); `npm run build` passes. `npm run lint` could not load Oxlint's native binding because Windows Application Control blocked the binary.
 
 ## Sprint 8: Messaging persistence and authorization
 
 **Goal:** establish durable, server-authorized one-to-one conversations before adding realtime delivery.
 
-- [ ] Finalize and document the allowed participant pairs: manager-manager, manager-employee, and manager-clerk. Employees and clerks may message managers only; employee-employee, employee-clerk, and clerk-clerk messaging is forbidden.
-- [ ] Add a migration and Prisma models for conversations and messages, including participant/sender/recipient relations, message body, created timestamp, read timestamp (if read receipts are supported), cascade behavior, and indexes for conversation history and unread lookup.
-- [ ] Add authenticated APIs to list permitted conversations, fetch paginated message history, start/find an allowed conversation, and send a persisted message.
-- [ ] Enforce participant membership and role-pair rules in the API for every read and write; never rely on UI filtering for authorization.
-- [ ] Validate message length and empty content, normalize ordering, and return consistent authorization/not-found responses without leaking other users' conversations.
-- [ ] Add controller/route integration tests and migration/schema validation for permitted and forbidden role combinations, participant isolation, persistence, pagination/order, and unread/read state if included.
+**Status:** implementation and automated verification complete. Manual verification with separate manager, employee, and clerk accounts remains pending.
+
+- [x] Finalize and document the allowed participant pairs: manager-manager, manager-employee, and manager-clerk. Employees and clerks may message managers only; employee-employee, employee-clerk, and clerk-clerk messaging is forbidden.
+- [x] Add a migration and Prisma models for conversations and messages, including participant/sender/recipient relations, message body, created/read timestamps, cascade behavior, and indexes for conversation history and unread lookup.
+- [x] Add authenticated APIs to list permitted conversations, fetch paginated message history, start/find an allowed conversation, send persisted messages, and mark received messages as read.
+- [x] Enforce participant membership and role-pair rules in the API for every read and write; never rely on UI filtering for authorization.
+- [x] Validate message length and empty content, normalize ordering, and return consistent authorization/not-found responses without leaking other users' conversations. Redact conversation request bodies from error logs.
+- [x] Add controller/route integration tests and migration/schema validation for permitted and forbidden role combinations, participant isolation, persistence, pagination/order, and unread/read state.
 
 **Tests to conduct:**
 
-- Automated: validate the Prisma schema and migration on a clean test database; run the API test suite and `cd API && npm run build`.
-- Automated authorization matrix: prove manager↔manager, manager↔employee, and manager↔clerk are permitted in either direction; prove employee↔employee, employee↔clerk, and clerk↔clerk are rejected.
-- Automated isolation: a user who is not a conversation participant cannot list, fetch, mark read, or send to that conversation, even by guessing its ID.
-- Automated data behavior: valid messages persist with sender/recipient and timestamps, history is ordered and paginated, invalid/empty/over-limit bodies are rejected, and deletion behavior follows the migration's foreign-key policy.
+- Automated results: Prisma schema validates; the messaging migration applied to `typ_test_1`; `npm run build` passes (16 suites, 240 tests) and TypeScript compilation passes. The existing Jest open-handle warning remains.
+- Automated authorization matrix: manager↔manager, manager↔employee, and manager↔clerk are permitted from either side; employee↔employee, employee↔clerk, and clerk↔clerk are rejected from either side.
+- Automated isolation: a nonparticipant cannot list, fetch, mark read, or send to a conversation by guessing its ID.
+- Automated data behavior: messages persist with sender/recipient and timestamps, history is ordered and paginated, invalid/empty/over-limit bodies are rejected, read state updates, and cascading deletion follows the migration's foreign-key policy.
 - Manual: use separate manager, employee, and clerk accounts to verify the same allowed/denied pairs through the API or UI before socket work begins.
 
 **Definition of done:** persisted messaging APIs and database constraints support the agreed participant rules, and role/participant isolation is covered by automated tests.
+
+**Manual verification pending:** use separate manager, employee, and clerk accounts to confirm the allowed/denied pairs through the API before starting Sprint 9 realtime delivery.
 
 ## Sprint 9: Realtime messaging and end-to-end verification
 

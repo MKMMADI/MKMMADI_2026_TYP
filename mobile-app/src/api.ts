@@ -151,6 +151,44 @@ export async function getMe() {
   return request('/api/v1/me');
 }
 
+export async function getSocketAccessToken() {
+  await getMe();
+  if (!accessToken) throw new Error('No access token available for messaging');
+  return accessToken;
+}
+
+export async function getConversations() {
+  return request('/api/v1/conversations');
+}
+
+export async function getConversationContacts() {
+  return request('/api/v1/conversations/contacts');
+}
+
+export async function startConversation(participantId: number) {
+  return request('/api/v1/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ participantId }),
+  });
+}
+
+export async function getConversationMessages(conversationId: number, limit = 50, beforeId?: number) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (beforeId !== undefined) params.set('beforeId', String(beforeId));
+  return request(`/api/v1/conversations/${conversationId}/messages?${params.toString()}`);
+}
+
+export async function sendConversationMessage(conversationId: number, body: string) {
+  return request(`/api/v1/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });
+}
+
+export async function markConversationRead(conversationId: number) {
+  return request(`/api/v1/conversations/${conversationId}/read`, { method: 'PATCH' });
+}
+
 export async function getRooms() {
   return request('/api/v1/rooms');
 }
@@ -236,6 +274,13 @@ export default {
   login,
   register,
   getMe,
+  getSocketAccessToken,
+  getConversations,
+  getConversationContacts,
+  startConversation,
+  getConversationMessages,
+  sendConversationMessage,
+  markConversationRead,
   getRooms,
   getBookings,
   updateBookingStatus,

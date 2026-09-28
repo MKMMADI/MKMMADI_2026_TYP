@@ -1,7 +1,7 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import "@/styles/manager-dashboard.css";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, logout } from "@/lib/api";
 import { countPresentPreparingRooms, type QueueBookingSummary } from "@/lib/managerBookingRules";
 
 
@@ -9,7 +9,7 @@ type IconName =
   | "grid" | "calendar" | "room" | "people" | "chart" | "bell"
   | "plus" | "more" | "arrow" | "clock" | "wifi" | "box"
   | "user" | "settings" | "chevron-down" | "chevron-right"
-  | "search" | "filter";
+  | "search" | "filter" | "log-out" | "chat";
 
 function Icon({
   name,
@@ -118,6 +118,18 @@ function Icon({
       </>
     ),
     filter: <path d="M4 5h16l-6 7v5l-4 2v-7L4 5z" {...common} />,
+    chat: (
+      <>
+        <path d="M20 11.5a7.5 7.5 0 01-7.5 7.5 8 8 0 01-3.4-.76L4 20l1.7-4.3A7.5 7.5 0 1120 11.5z" {...common} />
+        <path d="M8 11.5h8M8 14.5h5" {...common} />
+      </>
+    ),
+    "log-out": (
+      <>
+        <path d="M10 17l5-5-5-5M15 12H3" {...common} />
+        <path d="M12 3h6a2 2 0 012 2v14a2 2 0 01-2 2h-6" {...common} />
+      </>
+    ),
   };
 
   return (
@@ -173,6 +185,7 @@ const navConfig: Record<string, NavCategory> = {
     items: [
       { id: "inventory", label: "Inventory", icon: "box", path: "/manager/inventory" },
       { id: "reports", label: "Reports", icon: "chart", path: "/manager/reports" },
+      { id: "messages", label: "Messages", icon: "chat", path: "/manager/messages" },
     ],
   },
   settings: {
@@ -186,6 +199,7 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [preparingRoomCount, setPreparingRoomCount] = useState(0);
   const location = useLocation();
+  const navigate = useNavigate();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(["dashboard", "bookings", "facilities"])
   );
@@ -201,6 +215,7 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
   }, [location.pathname]);
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("demo") === "1") return;
     let active = true;
 
     async function refreshPreparingRoomCount() {
@@ -241,6 +256,15 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
       return next;
     });
   };
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } catch {
+      // The client session is cleared even when the API cannot be reached.
+    }
+    navigate("/login", { replace: true });
+  }
 
   const isActive = (path: string) => {
     if (path === "/manager/dashboard") return location.pathname === path;
@@ -369,16 +393,28 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
               <i />
             </button>
 
+            <button type="button" className="manager-create">
+              <Icon name="plus" size={18} />
+              New booking
+            </button>
+
+            <button
+              type="button"
+              className="manager-logout-button"
+              onClick={() => void handleLogout()}
+              aria-label="Log out"
+              title="Log out"
+            >
+              <Icon name="log-out" size={18} />
+              <span>Log out</span>
+            </button>
+
             {noticeOpen && (
               <div className="manager-notice" role="status">
                 You have 2 bookings awaiting review.
               </div>
             )}
 
-            <button type="button" className="manager-create">
-              <Icon name="plus" size={18} />
-              New booking
-            </button>
           </div>
         </header>
 

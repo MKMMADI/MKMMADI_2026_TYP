@@ -14,6 +14,7 @@ import ManagerAmenities from "@/pages/manager/ManagerAmenities";
 import ManagerInventory from "@/pages/manager/ManagerInventory";
 import ManagerReports from "@/pages/manager/ManagerReports";
 import ManagerProfile from "@/pages/manager/ManagerProfile";
+import ManagerMessages from "@/pages/manager/ManagerMessages";
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
       <Route path="/manager/inventory" element={<ManagerInventory />} />
       <Route path="/manager/reports" element={<ManagerReports />} />
       <Route path="/manager/profile" element={<ManagerProfile />} />
+      <Route path="/manager/messages" element={<ManagerMessages />} />
     </Routes>
   );
 }

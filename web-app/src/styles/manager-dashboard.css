@@ -44,7 +44,7 @@
   flex-direction: column;
   align-items: flex-start; 
   gap: 6px; 
-  padding: 0 12px; 
+  padding: 0 12px;
   color: var(--m-ink); 
   font-size: 19px; 
   font-weight: 800; 
@@ -105,7 +105,9 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 12px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -147,7 +149,9 @@
   align-items: center; 
   gap: 12px; 
   width: 100%; 
-  padding: 10px 12px; 
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 12px;
   border: 0; 
   border-radius: 8px; 
   background: transparent; 
@@ -333,6 +337,30 @@
   background: var(--m-surface);
 }
 
+.manager-logout-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid var(--m-hairline);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--m-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.manager-logout-button:hover {
+  border-color: var(--m-teal);
+  color: var(--m-teal-dark);
+  background: var(--m-surface);
+}
+
 .manager-notifications i { 
   position: absolute; 
   top: 6px; 
@@ -417,7 +445,9 @@
 }
 
 .manager-create { 
-  padding: 11px 16px; 
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 16px;
   border: 1px solid var(--m-teal); 
   background: var(--m-teal); 
   color: #fff; 

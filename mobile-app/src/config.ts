@@ -12,3 +12,4 @@ if (typeof apiUrl !== 'string' || !apiUrl) {
 }
 
 export const API_BASE_URL = apiUrl.replace(/\/+$/, '');
+export const API_SOCKET_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, '');

@@ -5,6 +5,7 @@ import { HomeTabScreen } from '../tabs/HomeTabScreen';
 import { MyBookingsTabScreen } from '../tabs/MyBookingsTabScreen';
 import { FavoritesTabScreen } from '../tabs/FavoritesTabScreen';
 import { ProfileTabScreen } from '../tabs/ProfileTabScreen';
+import { MessagesTabScreen } from '../tabs/MessagesTabScreen';
 import { Room, Booking, User } from '../types';
 import { colors } from '../theme/tokens';
 import {
@@ -18,6 +19,7 @@ export type EmployeeTabParamList = {
   HomeTab: undefined;
   MyBookingsTab: undefined;
   FavoritesTab: undefined;
+  MessagesTab: undefined;
   ProfileTab: undefined;
 };
 
@@ -27,6 +29,7 @@ const TAB_LABELS: Record<keyof EmployeeTabParamList, string> = {
   HomeTab: 'Home',
   MyBookingsTab: 'My Bookings',
   FavoritesTab: 'Favorites',
+  MessagesTab: 'Messages',
   ProfileTab: 'Profile',
 };
 
@@ -38,6 +41,8 @@ function iconForRoute(name: keyof EmployeeTabParamList, focused: boolean): TabIc
       return focused ? 'calendar' : 'calendar-outline';
     case 'FavoritesTab':
       return focused ? 'heart' : 'heart-outline';
+    case 'MessagesTab':
+      return focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
     case 'ProfileTab':
       return focused ? 'person-circle' : 'person-circle-outline';
     default:
@@ -97,6 +102,9 @@ export function EmployeeTabNavigator({
         {() => (
           <FavoritesTabScreen onOpenRoom={onOpenRoom} onBookRoom={onBookRoom} />
         )}
+      </Tab.Screen>
+      <Tab.Screen name="MessagesTab">
+        {() => <MessagesTabScreen user={user} />}
       </Tab.Screen>
       <Tab.Screen name="ProfileTab">
         {({ navigation }) => (

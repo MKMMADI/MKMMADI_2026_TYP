@@ -8,13 +8,14 @@ const mainErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
   const status = err?.status || err?.statusCode || 500;
   const responseMessage = err?.message || 'Internal Server Error';
+  const isConversationRequest = req.originalUrl.split('?')[0].startsWith('/api/v1/conversations');
 
   logger.error('Unhandled error encountered', {
     message: responseMessage,
     status,
     method: req.method,
     path: req.originalUrl,
-    body: req.body,
+    body: isConversationRequest ? '[redacted]' : req.body,
     params: req.params,
     query: req.query,
     stack: err?.stack,
