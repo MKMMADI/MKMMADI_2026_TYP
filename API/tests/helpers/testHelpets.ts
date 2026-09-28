@@ -92,8 +92,11 @@ export function authHeader(token: string): { Authorization: string } {
  */
 export async function cleanupTestData(): Promise<void> {
   // Delete in reverse order of dependencies
+  await prisma.message.deleteMany();
+  await prisma.conversation.deleteMany();
   await prisma.stockAdjustment.deleteMany();
   await prisma.bookingAmenity.deleteMany();
+  await prisma.bookingRoom.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.amenity.deleteMany();
   await prisma.consumableItem.deleteMany();
@@ -115,4 +118,10 @@ export function sleep(ms: number): Promise<void> {
  */
 export function randomString(prefix: string = 'test'): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+}
+
+// Ensure messaging tables are cleaned (called from cleanup if not already)
+export async function cleanupMessagingData(): Promise<void> {
+  await prisma.message.deleteMany();
+  await prisma.conversation.deleteMany();
 }
