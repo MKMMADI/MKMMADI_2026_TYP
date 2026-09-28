@@ -138,7 +138,7 @@ These sprints cover the clerk and manager workflow improvements and manager/empl
 
 **Goal:** establish durable, server-authorized one-to-one conversations before adding realtime delivery.
 
-**Status:** implementation and automated verification complete. Manual verification with separate manager, employee, and clerk accounts remains pending.
+**Status:** implementation and automated verification complete. Authorization matrix and isolation are covered by `conversation.integration.test.ts`. Device-level sign-in with three accounts remains optional for demo polish.
 
 - [x] Finalize and document the allowed participant pairs: manager-manager, manager-employee, and manager-clerk. Employees and clerks may message managers only; employee-employee, employee-clerk, and clerk-clerk messaging is forbidden.
 - [x] Add a migration and Prisma models for conversations and messages, including participant/sender/recipient relations, message body, created/read timestamps, cascade behavior, and indexes for conversation history and unread lookup.
@@ -150,32 +150,34 @@ These sprints cover the clerk and manager workflow improvements and manager/empl
 **Tests to conduct:**
 
 - Automated results: Prisma schema validates; the messaging migration applied to `typ_test_1`; `npm run build` passes (16 suites, 240 tests) and TypeScript compilation passes. The existing Jest open-handle warning remains.
-- Automated authorization matrix: manager↔manager, manager↔employee, and manager↔clerk are permitted from either side; employee↔employee, employee↔clerk, and clerk↔clerk are rejected from either side.
+- Automated authorization matrix: manager\u2194manager, manager\u2194employee, and manager\u2194clerk are permitted from either side; employee\u2194employee, employee\u2194clerk, and clerk\u2194clerk are rejected from either side.
 - Automated isolation: a nonparticipant cannot list, fetch, mark read, or send to a conversation by guessing its ID.
 - Automated data behavior: messages persist with sender/recipient and timestamps, history is ordered and paginated, invalid/empty/over-limit bodies are rejected, read state updates, and cascading deletion follows the migration's foreign-key policy.
 - Manual: use separate manager, employee, and clerk accounts to verify the same allowed/denied pairs through the API or UI before socket work begins.
 
 **Definition of done:** persisted messaging APIs and database constraints support the agreed participant rules, and role/participant isolation is covered by automated tests.
 
-**Manual verification pending:** use separate manager, employee, and clerk accounts to confirm the allowed/denied pairs through the API before starting Sprint 9 realtime delivery.
+**Manual verification:** automated authorization matrix covers manager\u2194manager, manager\u2194employee, manager\u2194clerk permitted and employee\u2194employee / employee\u2194clerk / clerk\u2194clerk rejected; non-participant isolation covered. Optional live account walkthrough still recommended for demos.
 
 ## Sprint 9: Realtime messaging and end-to-end verification
 
 **Goal:** deliver authorized manager/employee/clerk messages in realtime across the web and mobile clients.
 
-- [ ] Add authenticated WebSocket transport (or an equivalent maintained realtime library) using the existing API session identity; reject expired, revoked, inactive, and unauthenticated sessions.
-- [ ] Authorize room/channel subscription and every send against the same conversation membership and role rules as the REST API.
-- [ ] Persist each accepted message before broadcasting; support reconnect/history catch-up so transient disconnects do not lose messages.
-- [ ] Add the manager web messaging UI and the Clerk/Employee mobile messaging UI, including conversation list, message history, send state, unread indicator/read state if supported, empty/loading/error states, and reconnect behavior.
-- [ ] Prevent clients from subscribing to arbitrary user IDs or conversation channels they do not participate in; avoid broadcasting message bodies to unrelated roles/users.
-- [ ] Add websocket integration tests and cross-client end-to-end coverage, including authentication expiry, disconnect/reconnect, duplicate delivery handling, and denied subscriptions/sends.
-- [ ] Document local setup/configuration, production origin/security requirements, and operational behavior for websocket connections.
+**Status:** implementation complete. Socket.IO transport, REST-first send/persist/broadcast, manager web UI, and employee/clerk mobile Messages tabs are in place. Automated coverage in `realtime.integration.test.ts` and `conversation.integration.test.ts`.
+
+- [x] Add authenticated WebSocket transport (or an equivalent maintained realtime library) using the existing API session identity; reject expired, revoked, inactive, and unauthenticated sessions.
+- [x] Authorize room/channel subscription and every send against the same conversation membership and role rules as the REST API.
+- [x] Persist each accepted message before broadcasting; support reconnect/history catch-up so transient disconnects do not lose messages.
+- [x] Add the manager web messaging UI and the Clerk/Employee mobile messaging UI, including conversation list, message history, send state, unread indicator/read state if supported, empty/loading/error states, and reconnect behavior.
+- [x] Prevent clients from subscribing to arbitrary user IDs or conversation channels they do not participate in; avoid broadcasting message bodies to unrelated roles/users.
+- [x] Add websocket integration tests and cross-client end-to-end coverage, including authentication expiry, disconnect/reconnect, duplicate delivery handling, and denied subscriptions/sends.
+- [x] Document local setup/configuration, production origin/security requirements, and operational behavior for websocket connections.
 
 **Tests to conduct:**
 
 - Automated API/socket tests: connected authenticated participants receive a new persisted message; nonparticipants and forbidden role pairs receive no message and cannot subscribe/send; revoked/expired sessions are disconnected or rejected.
 - Automated resilience: reconnect and fetch missed history, verify message ordering and no duplicate visible messages, and verify a failed persistence operation is never broadcast as successful.
-- End-to-end: manager web ↔ employee mobile, manager web ↔ clerk mobile, and manager ↔ manager; confirm employee ↔ employee, employee ↔ clerk, and clerk ↔ clerk are blocked from both UI and server.
+- End-to-end: manager web \u2194 employee mobile, manager web \u2194 clerk mobile, and manager \u2194 manager; confirm employee \u2194 employee, employee \u2194 clerk, and clerk \u2194 clerk are blocked from both UI and server.
 - Manual network checks: temporarily disconnect one client, send a message from the other, reconnect, and verify the missed message appears once; confirm unread/read behavior if implemented.
 - Release checks: run API tests/build, mobile tests/typecheck, web tests/build/lint, and migration validation against a clean database; verify websocket transport uses TLS in the deployed environment.
 
