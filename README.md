@@ -71,15 +71,9 @@ fall back to `index.html`.
 
 ### Run the complete stack with Compose
 
-Create a `.env` file in the repository root (it is ignored by Git):
-
-```dotenv
-POSTGRES_PASSWORD=replace-with-a-url-safe-password
-JWT_SECRET=replace-with-a-long-random-secret
-```
-
-Use only URL-safe characters in `POSTGRES_PASSWORD`, since Compose embeds it in
-the API database URL.
+Copy `.env.example` to `.env` in the repository root and replace the
+placeholders. Keep `POSTGRES_PASSWORD` consistent with an existing Postgres
+volume; URL-encode it in `DATABASE_URL` if it contains special characters.
 
 Build the API first, then the Web image, and start Postgres and both services:
 
