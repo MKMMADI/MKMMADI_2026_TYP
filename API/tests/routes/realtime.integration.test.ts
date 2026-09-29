@@ -3,6 +3,7 @@ import { AddressInfo } from 'net';
 import { io as ioClient, Socket } from 'socket.io-client';
 import request from 'supertest';
 import app from '../../src_ts/app';
+import prisma from '../../src_ts/prisma';
 import { initializeRealtime } from '../../src_ts/services/realtime';
 import {
   authHeader,
@@ -76,6 +77,46 @@ describe('Realtime messaging', () => {
     socket.close();
   });
 
+  it.each(['expired', 'revoked', 'inactive'] as const)(
+    'rejects a socket connection for a %s session or account',
+    async (invalidState) => {
+      if (invalidState === 'expired') {
+        await prisma.session.updateMany({
+          where: { userId: employee.id },
+          data: { expiresAt: new Date(Date.now() - 1000) },
+        });
+      } else if (invalidState === 'revoked') {
+        await prisma.session.updateMany({ where: { userId: employee.id }, data: { revoked: true } });
+      } else {
+        await prisma.user.update({ where: { id: employee.id }, data: { Active: false } });
+      }
+
+      const socket = connectSocket(employee.tokens.accessToken);
+      const error = await waitForEvent<Error>(socket, 'connect_error');
+      expect(error.message).toMatch(/unauthorized/i);
+      socket.close();
+    },
+  );
+
+  it('disconnects sockets on logout and rejects the revoked token afterward', async () => {
+    const socket = connectSocket(employee.tokens.accessToken);
+    await waitForEvent(socket, 'connect');
+    const disconnected = waitForEvent<string>(socket, 'disconnect');
+
+    const logout = await request(app)
+      .post('/api/v1/auth/logout')
+      .set(authHeader(employee.tokens.accessToken))
+      .send({});
+    expect(logout.status).toBe(200);
+    await disconnected;
+    socket.close();
+
+    const reconnect = connectSocket(employee.tokens.accessToken);
+    const error = await waitForEvent<Error>(reconnect, 'connect_error');
+    expect(error.message).toMatch(/unauthorized/i);
+    reconnect.close();
+  });
+
   it('delivers persisted messages only to conversation participants', async () => {
     const start = await request(app)
       .post('/api/v1/conversations')
@@ -106,6 +147,8 @@ describe('Realtime messaging', () => {
     outsiderSocket.on('message:new', () => {
       outsiderReceived = true;
     });
+    outsiderSocket.emit('conversation:join', { conversationId });
+    outsiderSocket.emit('message:send', { conversationId, body: 'Forged socket send' });
 
     const sent = await request(app)
       .post(`/api/v1/conversations/${conversationId}/messages`)
@@ -125,6 +168,41 @@ describe('Realtime messaging', () => {
     managerSocket.close();
     employeeSocket.close();
     outsiderSocket.close();
+  });
+
+  it('does not broadcast when message persistence fails', async () => {
+    const start = await request(app)
+      .post('/api/v1/conversations')
+      .set(authHeader(manager.tokens.accessToken))
+      .send({ participantId: employee.id });
+    const conversationId = start.body.id as number;
+
+    const managerSocket = connectSocket(manager.tokens.accessToken);
+    const employeeSocket = connectSocket(employee.tokens.accessToken);
+    await Promise.all([
+      waitForEvent(managerSocket, 'connect'),
+      waitForEvent(employeeSocket, 'connect'),
+    ]);
+
+    const messageReceived = jest.fn();
+    managerSocket.on('message:new', messageReceived);
+    employeeSocket.on('message:new', messageReceived);
+    const transactionSpy = jest.spyOn(prisma, '$transaction');
+    transactionSpy.mockImplementationOnce(() => Promise.reject(new Error('persistence failure')) as never);
+
+    try {
+      const response = await request(app)
+        .post(`/api/v1/conversations/${conversationId}/messages`)
+        .set(authHeader(manager.tokens.accessToken))
+        .send({ body: 'This must not be broadcast' });
+
+      expect(response.status).toBe(500);
+      expect(messageReceived).not.toHaveBeenCalled();
+    } finally {
+      transactionSpy.mockRestore();
+      managerSocket.close();
+      employeeSocket.close();
+    }
   });
 
   it('emits conversation:read after mark-read', async () => {

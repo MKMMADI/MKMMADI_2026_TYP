@@ -1,7 +1,9 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import api from '../src/api';
+import { FLOATING_TAB_HEIGHT, FLOATING_TAB_MARGIN_BOTTOM } from '../src/navigation/floatingTabBar';
 import { MessagesTabScreen } from '../src/tabs/MessagesTabScreen';
+import { spacing } from '../src/theme/tokens';
 
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) =>
@@ -10,6 +12,7 @@ jest.mock('@react-navigation/native', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: require('react-native').View,
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
@@ -52,6 +55,14 @@ const employee = {
   contactNumber: '',
   role: 'EMPLOYEE' as const,
 };
+const clerk = {
+  id: '30',
+  name: 'Casey Clerk',
+  email: 'casey@example.com',
+  department: 'Operations',
+  contactNumber: '',
+  role: 'CLERK' as const,
+};
 const manager = { id: 10, name: 'Mina Manager', role: 'MANAGER' as const };
 const conversation = {
   id: 4,
@@ -72,17 +83,21 @@ const welcomeMessage = {
   sender: manager,
   recipient: { ...employee, id: 20 },
 };
+const missedMessage = { ...welcomeMessage, id: 32, body: 'Message sent while offline' };
 
 describe('MessagesTabScreen', () => {
+  let includeMissedMessage = false;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    includeMissedMessage = false;
     mockedApi.getConversationContacts.mockResolvedValue([manager] as never);
     mockedApi.getConversations.mockResolvedValue([conversation] as never);
-    mockedApi.getConversationMessages.mockResolvedValue({
+    mockedApi.getConversationMessages.mockImplementation(async () => ({
       conversationId: 4,
-      messages: [welcomeMessage],
+      messages: includeMissedMessage ? [welcomeMessage, missedMessage] : [welcomeMessage],
       nextBeforeId: null,
-    } as never);
+    }) as never);
     mockedApi.sendConversationMessage.mockImplementation(async (_id, body) => ({
       ...welcomeMessage,
       id: 32,
@@ -95,15 +110,21 @@ describe('MessagesTabScreen', () => {
     mockedApi.startConversation.mockResolvedValue(conversation as never);
   });
 
-  it('shows messages, starts a permitted conversation, sends, and receives realtime updates', async () => {
+  it('opens a contact in chat, sends, receives updates, and returns to the inbox', async () => {
     render(<MessagesTabScreen user={employee} />);
 
-    expect(await screen.findByText('Welcome to the team')).toBeTruthy();
-    expect(screen.getAllByText('Mina Manager').length).toBeGreaterThan(0);
+    expect(await screen.findByText('People you can message')).toBeTruthy();
+    expect(screen.queryByLabelText('Write a message')).toBeNull();
 
-    fireEvent.changeText(screen.getByLabelText('Search permitted contacts'), 'Mina');
-    fireEvent.press(screen.getByLabelText('Start conversation with Mina Manager'));
+    fireEvent.changeText(screen.getByLabelText('Filter permitted contacts'), 'Mina');
+    fireEvent.press(screen.getByLabelText('Message Mina Manager'));
     await waitFor(() => expect(mockedApi.startConversation).toHaveBeenCalledWith(10));
+    expect(await screen.findByText('Welcome to the team')).toBeTruthy();
+    expect(screen.getByLabelText('Back to messages')).toBeTruthy();
+    const composerStyle = screen.getByTestId('message-composer').props.style;
+    expect(composerStyle[1].marginBottom).toBe(
+      FLOATING_TAB_HEIGHT + FLOATING_TAB_MARGIN_BOTTOM + spacing.sm,
+    );
 
     fireEvent.changeText(screen.getByLabelText('Write a message'), 'I have received it');
     fireEvent.press(screen.getByLabelText('Send message'));
@@ -119,5 +140,68 @@ describe('MessagesTabScreen', () => {
       });
     });
     expect(await screen.findByText('Live update')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Back to messages'));
+    expect(screen.getByText('People you can message')).toBeTruthy();
+    expect(screen.queryByLabelText('Write a message')).toBeNull();
+  });
+
+  it('shows permitted employee contacts and opens a chat for clerk users', async () => {
+    const employeeConversation = { ...conversation, participant: employee };
+    mockedApi.getConversationContacts.mockResolvedValue([employee] as never);
+    mockedApi.getConversations.mockResolvedValue([employeeConversation] as never);
+    mockedApi.startConversation.mockResolvedValue(employeeConversation as never);
+
+    render(<MessagesTabScreen user={clerk} />);
+
+    expect(await screen.findByLabelText('Message Evan Employee')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Message Evan Employee'));
+    await waitFor(() => expect(mockedApi.startConversation).toHaveBeenCalledWith(20));
+    expect(await screen.findByLabelText('Back to messages')).toBeTruthy();
+    expect(screen.getByText('Evan Employee')).toBeTruthy();
+  });
+
+  it('opens a conversation requested from the clerk queue', async () => {
+    const handled = jest.fn();
+
+    render(
+      <MessagesTabScreen
+        user={clerk}
+        openConversationId={4}
+        onConversationRequestHandled={handled}
+      />,
+    );
+
+    expect(await screen.findByLabelText('Back to messages')).toBeTruthy();
+    expect(await screen.findByText('Welcome to the team')).toBeTruthy();
+    await waitFor(() => expect(handled).toHaveBeenCalledTimes(1));
+    expect(mockedApi.getConversationMessages).toHaveBeenCalledWith(4);
+  });
+
+  it('reloads missed history after reconnect and deduplicates replayed messages', async () => {
+    render(<MessagesTabScreen user={employee} />);
+
+    expect(await screen.findByLabelText('Open conversation with Mina Manager')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Open conversation with Mina Manager'));
+    expect(await screen.findByText('Welcome to the team')).toBeTruthy();
+    const socketIo = require('socket.io-client').io as jest.Mock;
+    const socket = socketIo.mock.results[0].value;
+
+    includeMissedMessage = true;
+    act(() => {
+      socket.listeners.disconnect?.();
+      socket.connect();
+    });
+    expect(await screen.findByText('Message sent while offline')).toBeTruthy();
+    expect(screen.getAllByText(/Welcome to the team|Message sent while offline/).map(({ props }) => props.children)).toEqual([
+      'Welcome to the team',
+      'Message sent while offline',
+    ]);
+
+    act(() => {
+      socket.listeners['message:new']({ conversationId: 4, message: missedMessage });
+      socket.listeners['message:new']({ conversationId: 4, message: missedMessage });
+    });
+    await waitFor(() => expect(screen.getAllByText('Message sent while offline')).toHaveLength(1));
   });
 });

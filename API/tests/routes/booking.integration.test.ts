@@ -13,6 +13,8 @@ describe('Booking Routes Integration Tests', () => {
   let employeeTokens: string;
   let managerTokens: string;
   let clerkTokens: string;
+  let clerkId: number;
+  let secondClerkId: number;
   let roomId: number;
   let secondRoomId: number;
 
@@ -27,6 +29,10 @@ describe('Booking Routes Integration Tests', () => {
 
     const clerk = await createAndLoginUser({ role: 'CLERK' });
     clerkTokens = clerk.tokens.accessToken;
+    clerkId = clerk.user.id;
+
+    const secondClerk = await createAndLoginUser({ role: 'CLERK' });
+    secondClerkId = secondClerk.user.id;
 
     const room = await prisma.room.create({
       data: { name: 'Test Room', capacity: 10, description: 'Floor 1', status: 'AVAILABLE', isActive: true },
@@ -40,6 +46,94 @@ describe('Booking Routes Integration Tests', () => {
 
   afterAll(async () => {
     await cleanupTestData();
+  });
+
+  describe('manager clerk assignments', () => {
+    it('assigns a pending booking, keeps the assignment after approval, and permits reassignment after confirmation', async () => {
+      const startAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+      const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+      const created = await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(employeeTokens))
+        .send({ roomIds: [roomId], purpose: 'Clerk assignment lifecycle', startAt, endAt, capacity: 5 });
+      expect(created.status).toBe(201);
+
+      const assignment = await request(app)
+        .patch(`/api/v1/bookings/${created.body.id}/assignment`)
+        .set(authHeader(managerTokens))
+        .send({ clerkId });
+      expect(assignment.status).toBe(200);
+      expect(assignment.body.assignedClerkId).toBe(clerkId);
+      expect(assignment.body.assignedClerk.id).toBe(clerkId);
+      expect(assignment.body.preparedById).toBeNull();
+
+      const approved = await request(app)
+        .patch(`/api/v1/bookings/${created.body.id}/approve`)
+        .set(authHeader(managerTokens));
+      expect(approved.status).toBe(200);
+      expect(approved.body.status).toBe('CONFIRMED');
+      expect(approved.body.assignedClerkId).toBe(clerkId);
+
+      const reassigned = await request(app)
+        .patch(`/api/v1/bookings/${created.body.id}/assignment`)
+        .set(authHeader(managerTokens))
+        .send({ clerkId: secondClerkId });
+      expect(reassigned.status).toBe(200);
+      expect(reassigned.body.assignedClerkId).toBe(secondClerkId);
+      expect(reassigned.body.assignedClerk.id).toBe(secondClerkId);
+
+      const claimedByAnotherClerk = await request(app)
+        .patch(`/api/v1/bookings/${created.body.id}/status`)
+        .set(authHeader(clerkTokens))
+        .send({ status: 'PREPARING' });
+      expect(claimedByAnotherClerk.status).toBe(200);
+      expect(claimedByAnotherClerk.body.assignedClerkId).toBe(secondClerkId);
+      expect(claimedByAnotherClerk.body.preparedById).toBe(clerkId);
+
+      const unassigned = await request(app)
+        .patch(`/api/v1/bookings/${created.body.id}/assignment`)
+        .set(authHeader(managerTokens))
+        .send({ clerkId: null });
+      expect(unassigned.status).toBe(200);
+      expect(unassigned.body.assignedClerkId).toBeNull();
+      expect(unassigned.body.assignedClerk).toBeNull();
+      expect(unassigned.body.preparedById).toBe(clerkId);
+    });
+
+    it('lists active clerks and rejects assignment by non-managers or to non-clerks', async () => {
+      const clerks = await request(app)
+        .get('/api/v1/bookings/assignable-clerks')
+        .set(authHeader(managerTokens));
+      expect(clerks.status).toBe(200);
+      expect(clerks.body.map((clerk: { id: number }) => clerk.id)).toEqual(
+        expect.arrayContaining([clerkId, secondClerkId]),
+      );
+
+      const startAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+      const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+      const created = await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(employeeTokens))
+        .send({ roomIds: [roomId], purpose: 'Invalid clerk assignment', startAt, endAt, capacity: 5 });
+
+      const employeeAssignment = await request(app)
+        .patch(`/api/v1/bookings/${created.body.id}/assignment`)
+        .set(authHeader(clerkTokens))
+        .send({ clerkId: secondClerkId });
+      expect(employeeAssignment.status).toBe(403);
+
+      const nonClerkAssignment = await request(app)
+        .patch(`/api/v1/bookings/${created.body.id}/assignment`)
+        .set(authHeader(managerTokens))
+        .send({ clerkId: created.body.employeeId });
+      expect(nonClerkAssignment.status).toBe(404);
+
+      const missingAssignment = await request(app)
+        .patch(`/api/v1/bookings/${created.body.id}/assignment`)
+        .set(authHeader(managerTokens))
+        .send({});
+      expect(missingAssignment.status).toBe(400);
+    });
   });
 
   describe('POST /api/v1/bookings', () => {

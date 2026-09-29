@@ -43,8 +43,25 @@ export function ClerkProfileTabScreen({ user, onSignOut }: ClerkProfileTabScreen
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
+      <View testID="profile-header" style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          disabled={signingOut}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+        >
+          {signingOut ? (
+            <ActivityIndicator color={colors.error} />
+          ) : (
+            <>
+              <Ionicons name="log-out-outline" size={18} color={colors.error} />
+              <Text style={styles.logoutText}>Sign out</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.profileCard}>
@@ -80,21 +97,6 @@ export function ClerkProfileTabScreen({ user, onSignOut }: ClerkProfileTabScreen
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={handleLogout}
-        disabled={signingOut}
-        activeOpacity={0.85}
-      >
-        {signingOut ? (
-          <ActivityIndicator color={colors.error} />
-        ) : (
-          <>
-            <Ionicons name="log-out-outline" size={20} color={colors.error} />
-            <Text style={styles.logoutText}>Sign Out</Text>
-          </>
-        )}
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -105,6 +107,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.md,
   },
@@ -168,8 +173,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.lg,
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceSoft,
   },
   logoutText: {
     ...typography.bodyMd,

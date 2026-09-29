@@ -54,6 +54,7 @@ export interface BookingRoom {
 export interface Booking {
   id: string;
   employeeId: string;
+  employeeName?: string;
   startAt: string; // ISO
   endAt: string;
   purpose: string;

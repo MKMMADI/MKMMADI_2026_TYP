@@ -1,3 +1,6 @@
 *.tgz
 *.zip
 *.sh
+.env
+.env.*
+!.env.example

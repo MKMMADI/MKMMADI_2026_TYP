@@ -12,22 +12,25 @@ describe('Conversations API', () => {
   let employee: { id: number; tokens: { accessToken: string } };
   let clerk: { id: number; tokens: { accessToken: string } };
   let employeeB: { id: number; tokens: { accessToken: string } };
+  let clerkB: { id: number; tokens: { accessToken: string } };
 
   beforeEach(async () => {
     await cleanupTestData();
     const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const [mA, mB, emp, clk, empB] = await Promise.all([
+    const [mA, mB, emp, clk, empB, clkB] = await Promise.all([
       createAndLoginUser({ role: 'MANAGER', name: 'Manager A', email: `mgr_a_${suffix}@test.com` }),
       createAndLoginUser({ role: 'MANAGER', name: 'Manager B', email: `mgr_b_${suffix}@test.com` }),
       createAndLoginUser({ role: 'EMPLOYEE', name: 'Employee A', email: `emp_a_${suffix}@test.com` }),
       createAndLoginUser({ role: 'CLERK', name: 'Clerk A', email: `clk_a_${suffix}@test.com` }),
       createAndLoginUser({ role: 'EMPLOYEE', name: 'Employee B', email: `emp_b_${suffix}@test.com` }),
+      createAndLoginUser({ role: 'CLERK', name: 'Clerk B', email: `clk_b_${suffix}@test.com` }),
     ]);
     managerA = { id: mA.user.id, tokens: mA.tokens };
     managerB = { id: mB.user.id, tokens: mB.tokens };
     employee = { id: emp.user.id, tokens: emp.tokens };
     clerk = { id: clk.user.id, tokens: clk.tokens };
     employeeB = { id: empB.user.id, tokens: empB.tokens };
+    clerkB = { id: clkB.user.id, tokens: clkB.tokens };
   });
 
   afterAll(async () => {
@@ -52,11 +55,21 @@ describe('Conversations API', () => {
       }
     });
 
-    it('rejects employee-employee, employee-clerk, and clerk-clerk pairs', async () => {
+    it('allows employee-clerk pairs in either direction', async () => {
+      for (const [from, to] of [[employee, clerk], [clerk, employee]] as const) {
+        const response = await request(app)
+          .post('/api/v1/conversations')
+          .set(authHeader(from.tokens.accessToken))
+          .send({ participantId: to.id });
+        expect([200, 201]).toContain(response.status);
+        expect(response.body.participant.id).toBe(to.id);
+      }
+    });
+
+    it('rejects employee-employee and clerk-clerk pairs', async () => {
       for (const [from, to] of [
         [employee, employeeB],
-        [employee, clerk],
-        [clerk, employee],
+        [clerk, clerkB],
       ] as const) {
         const response = await request(app)
           .post('/api/v1/conversations')
@@ -178,7 +191,15 @@ describe('Conversations API', () => {
       // All active managers are valid contacts for an employee.
       expect(empContactIds).toEqual(expect.arrayContaining([managerA.id, managerB.id]));
       expect(empContactIds).not.toContain(employeeB.id);
-      expect(empContactIds).not.toContain(clerk.id);
+      expect(empContactIds).toContain(clerk.id);
+
+      const clerkContacts = await request(app)
+        .get('/api/v1/conversations/contacts')
+        .set(authHeader(clerk.tokens.accessToken));
+      expect(clerkContacts.status).toBe(200);
+      const clerkContactIds = clerkContacts.body.map((contact: { id: number }) => contact.id);
+      expect(clerkContactIds).toEqual(expect.arrayContaining([managerA.id, managerB.id, employee.id, employeeB.id]));
+      expect(clerkContactIds).not.toContain(clerkB.id);
     });
   });
 });

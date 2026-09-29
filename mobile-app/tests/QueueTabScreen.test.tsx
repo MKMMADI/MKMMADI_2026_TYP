@@ -17,6 +17,7 @@ jest.mock('../src/api', () => ({
   default: {
     getBookings: jest.fn(),
     updateBookingStatus: jest.fn(),
+    startConversation: jest.fn(),
   },
 }));
 
@@ -25,9 +26,11 @@ const mockedApi = api as jest.Mocked<typeof api>;
 const startAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 const endAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
 
-function makeBooking(rooms: unknown[]) {
+function makeBooking(rooms: unknown[], employee?: { id: number; name: string }) {
   return {
     id: 7,
+    employeeId: employee?.id,
+    employee,
     purpose: 'Team planning',
     status: 'CONFIRMED',
     startAt,
@@ -37,8 +40,8 @@ function makeBooking(rooms: unknown[]) {
   };
 }
 
-function renderQueue() {
-  return render(<QueueTabScreen />);
+function renderQueue(onOpenConversation?: (conversationId: number) => void) {
+  return render(<QueueTabScreen onOpenConversation={onOpenConversation} />);
 }
 
 describe('QueueTabScreen room checklist', () => {
@@ -131,5 +134,21 @@ describe('QueueTabScreen room checklist', () => {
     mockedApi.getBookings.mockResolvedValueOnce([] as never);
     fireEvent.press(screen.getByText('Retry'));
     await waitFor(() => expect(screen.getByText('No bookings in this view')).toBeTruthy());
+  });
+
+  it('starts a conversation with the owner of a queued booking', async () => {
+    mockedApi.getBookings.mockResolvedValue([
+      makeBooking([], { id: 42, name: 'Thandi Mokoena' }),
+    ] as never);
+    mockedApi.startConversation.mockResolvedValue({ id: 91 } as never);
+    const onOpenConversation = jest.fn();
+
+    renderQueue(onOpenConversation);
+
+    const messageButton = await screen.findByLabelText('Message booking owner Thandi Mokoena');
+    fireEvent.press(messageButton);
+
+    await waitFor(() => expect(mockedApi.startConversation).toHaveBeenCalledWith(42));
+    expect(onOpenConversation).toHaveBeenCalledWith(91);
   });
 });

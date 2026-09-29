@@ -47,6 +47,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   bookings            Booking[]            @relation("EmployeeBookings")
   preparedBookings    Booking[]            @relation("PreparedBookings")
+  assignedBookings   Booking[]            @relation("AssignedBookings")
   reviewedBookings    Booking[]            @relation("ReviewedBookings")
   stockAdjustments    StockAdjustment[]
   conversationsAsParticipantA Conversation[] @relation("ConversationParticipantA")
@@ -161,6 +162,7 @@ model Booking {
   id                  Int           @id @default(autoincrement())
   employeeId          Int
   preparedById        Int?
+  assignedClerkId     Int?
   reviewedById        Int?
   startAt             DateTime
   endAt               DateTime
@@ -174,9 +176,12 @@ model Booking {
 
   employee   User             @relation("EmployeeBookings", fields: [employeeId], references: [id], onDelete: Cascade)
   preparedBy User?            @relation("PreparedBookings", fields: [preparedById], references: [id])
+  assignedClerk User?         @relation("AssignedBookings", fields: [assignedClerkId], references: [id], onDelete: SetNull)
   reviewedBy User?            @relation("ReviewedBookings", fields: [reviewedById], references: [id])
   rooms      BookingRoom[]
   amenities  BookingAmenity[]
+
+  @@index([assignedClerkId])
 }
 
 model BookingRoom {

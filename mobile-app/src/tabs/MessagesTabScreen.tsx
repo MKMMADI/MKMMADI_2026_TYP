@@ -13,9 +13,10 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { io, Socket } from 'socket.io-client';
+import { FLOATING_TAB_HEIGHT, FLOATING_TAB_MARGIN_BOTTOM } from '../navigation/floatingTabBar';
 import api from '../api';
 import { API_SOCKET_URL } from '../config';
 import { colors, radii, spacing, typography } from '../theme/tokens';
@@ -41,10 +42,21 @@ function formatMessageTime(value: string) {
   return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export function MessagesTabScreen({ user }: { user: User }) {
+export function MessagesTabScreen({
+  user,
+  openConversationId,
+  onConversationRequestHandled,
+}: {
+  user: User;
+  openConversationId?: number;
+  onConversationRequestHandled?: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const floatingTabClearance = FLOATING_TAB_HEIGHT + Math.max(0, FLOATING_TAB_MARGIN_BOTTOM - insets.bottom) + spacing.sm;
   const [contacts, setContacts] = useState<User[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [nextBeforeId, setNextBeforeId] = useState<number | null>(null);
   const [contactSearch, setContactSearch] = useState('');
@@ -73,7 +85,8 @@ export function MessagesTabScreen({ user }: { user: User }) {
     await refreshConversations();
   }, [refreshConversations]);
 
-  const loadInbox = useCallback(async () => {
+  const loadInbox = useCallback(async (requestedConversationId?: number) => {
+    let openedRequestedConversation = false;
     try {
       setError(null);
       const [contactResult, conversationResult] = await Promise.all([
@@ -89,21 +102,32 @@ export function MessagesTabScreen({ user }: { user: User }) {
 
       const activeId = selectedIdRef.current;
       const selectedStillExists = nextConversations.some((conversation) => conversation.id === activeId);
-      const nextId = selectedStillExists ? activeId : nextConversations[0]?.id ?? null;
+      const requestExists = requestedConversationId !== undefined &&
+        nextConversations.some((conversation) => conversation.id === requestedConversationId);
+      const nextId = requestExists ? requestedConversationId : selectedStillExists ? activeId : null;
       selectedIdRef.current = nextId;
       setSelectedConversationId(nextId);
+      if (requestExists) {
+        openedRequestedConversation = true;
+        setChatOpen(true);
+        setMessages([]);
+        setLoadingHistory(true);
+      }
       if (nextId) await refreshHistory(nextId);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Could not load messages.');
     } finally {
+      if (openedRequestedConversation) setLoadingHistory(false);
       setLoading(false);
     }
   }, [refreshHistory]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadInbox();
-    }, [loadInbox]),
+      void loadInbox(openConversationId).finally(() => {
+        if (openConversationId !== undefined) onConversationRequestHandled?.();
+      });
+    }, [loadInbox, openConversationId, onConversationRequestHandled]),
   );
 
   useEffect(() => {
@@ -174,6 +198,7 @@ export function MessagesTabScreen({ user }: { user: User }) {
   async function openConversation(conversationId: number) {
     selectedIdRef.current = conversationId;
     setSelectedConversationId(conversationId);
+    setChatOpen(true);
     setMessages([]);
     setLoadingHistory(true);
     setError(null);
@@ -229,6 +254,11 @@ export function MessagesTabScreen({ user }: { user: User }) {
     }
   }
 
+  function closeChat() {
+    setChatOpen(false);
+    setDraft('');
+  }
+
   const selectedConversation = conversations.find(({ id }) => id === selectedConversationId) ?? null;
   const filteredContacts = contacts.filter((contact) =>
     `${contact.name} ${contact.role}`.toLowerCase().includes(contactSearch.trim().toLowerCase()),
@@ -238,141 +268,158 @@ export function MessagesTabScreen({ user }: { user: User }) {
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.title}>Messages</Text>
-            <Text style={styles.subtitle}>{socketStatus === 'connected' ? 'Live' : socketStatus === 'connecting' ? 'Connecting' : 'Offline'}</Text>
-          </View>
-          <Ionicons name={socketStatus === 'connected' ? 'chatbubbles' : 'chatbubbles-outline'} size={23} color={socketStatus === 'connected' ? colors.success : colors.muted} />
-        </View>
-
-        <View style={styles.contactSection}>
-          <Text style={styles.sectionLabel}>People you can message</Text>
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={17} color={colors.muted} />
-            <TextInput
-              accessibilityLabel="Filter permitted contacts"
-              style={styles.searchInput}
-              value={contactSearch}
-              onChangeText={setContactSearch}
-              placeholder="Filter by name or role"
-              placeholderTextColor={colors.mutedSoft}
-            />
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.contactResults}
-          >
-            {loading ? <ActivityIndicator color={colors.primary} /> : null}
-            {!loading && filteredContacts.map((contact) => (
+        {chatOpen && selectedConversation ? (
+          <>
+            <View style={styles.chatHeader}>
               <TouchableOpacity
-                key={contact.id}
-                style={styles.contactChip}
                 accessibilityRole="button"
-                accessibilityLabel={`Message ${contact.name}`}
-                onPress={() => void beginConversation(Number(contact.id))}
+                accessibilityLabel="Back to messages"
+                style={styles.backButton}
+                onPress={closeChat}
               >
-                <View style={styles.contactAvatar}>
-                  <Text style={styles.contactAvatarText}>{contact.name.slice(0, 1).toUpperCase()}</Text>
-                </View>
-                <Text style={styles.contactName} numberOfLines={1}>{contact.name}</Text>
-                <Text style={styles.contactRole}>{contact.role.toLowerCase()}</Text>
-                <Text style={styles.contactAction}>Message</Text>
+                <Ionicons name="arrow-back" size={22} color={colors.ink} />
               </TouchableOpacity>
-            ))}
-            {!loading && filteredContacts.length === 0 ? (
-              <Text style={styles.emptyInline}>
-                {contactSearch.trim() ? 'No matching contacts' : 'No permitted contacts'}
-              </Text>
-            ) : null}
-          </ScrollView>
-        </View>
-
-        <View style={styles.conversationStrip}>
-          {loading ? <ActivityIndicator color={colors.primary} /> : conversations.map((conversation) => (
-            <TouchableOpacity
-              key={conversation.id}
-              style={[styles.conversationChip, selectedConversationId === conversation.id && styles.conversationChipActive]}
-              onPress={() => void openConversation(conversation.id)}
-            >
-              <View style={styles.conversationChipText}>
-                <Text style={styles.conversationName} numberOfLines={1}>{conversation.participant.name}</Text>
-                {conversation.unreadCount > 0 ? <Text style={styles.unreadCount}>{conversation.unreadCount}</Text> : null}
-              </View>
-              <Text style={styles.conversationPreview} numberOfLines={1}>
-                {conversation.lastMessage?.body ?? conversation.participant.role.toLowerCase()}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {!loading && conversations.length === 0 ? <Text style={styles.emptyInline}>No conversations yet</Text> : null}
-        </View>
-
-        {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
-        {selectedConversation ? (
-          <View style={styles.threadHeader}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>{selectedConversation.participant.name.slice(0, 1).toUpperCase()}</Text></View>
-            <View>
-              <Text style={styles.threadName}>{selectedConversation.participant.name}</Text>
-              <Text style={styles.threadRole}>{selectedConversation.participant.role.toLowerCase()}</Text>
-            </View>
-          </View>
-        ) : null}
-
-        <ScrollView
-          ref={threadRef}
-          style={styles.thread}
-          contentContainerStyle={styles.threadContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {nextBeforeId ? (
-            <TouchableOpacity style={styles.loadOlder} onPress={() => void loadOlderMessages()} disabled={loadingOlder}>
-              <Text style={styles.loadOlderText}>{loadingOlder ? 'Loading…' : 'Load older messages'}</Text>
-            </TouchableOpacity>
-          ) : null}
-          {loadingHistory ? <ActivityIndicator color={colors.primary} /> : null}
-          {messages.map((message) => {
-            const mine = message.senderId === Number(user.id);
-            return (
-              <View key={message.id} style={[styles.messageBubble, mine ? styles.messageMine : styles.messageTheirs]}>
-                <Text style={[styles.messageBody, mine && styles.messageBodyMine]}>{message.body}</Text>
-                <Text style={[styles.messageTime, mine && styles.messageTimeMine]}>
-                  {formatMessageTime(message.createdAt)}{mine && message.readAt ? ' · Read' : ''}
+              <View style={styles.avatar}><Text style={styles.avatarText}>{selectedConversation.participant.name.slice(0, 1).toUpperCase()}</Text></View>
+              <View style={styles.chatIdentity}>
+                <Text style={styles.threadName} numberOfLines={1}>{selectedConversation.participant.name}</Text>
+                <Text style={styles.chatStatus}>
+                  {selectedConversation.participant.role.toLowerCase()} · {socketStatus === 'connected' ? 'Live' : socketStatus === 'connecting' ? 'Connecting' : 'Offline'}
                 </Text>
               </View>
-            );
-          })}
-          {!loadingHistory && selectedConversationId && messages.length === 0 ? (
-            <Text style={styles.emptyThread}>No messages yet. Say hello.</Text>
-          ) : null}
-        </ScrollView>
+            </View>
 
-        {selectedConversation ? (
-          <View style={styles.composer}>
-            <TextInput
-              accessibilityLabel="Write a message"
-              style={styles.composerInput}
-              value={draft}
-              onChangeText={setDraft}
-              placeholder="Write a message…"
-              placeholderTextColor={colors.mutedSoft}
-              multiline
-              maxLength={4000}
-            />
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="Send message"
-              style={[styles.sendButton, (!draft.trim() || sending) && styles.sendButtonDisabled]}
-              onPress={() => void sendMessage()}
-              disabled={!draft.trim() || sending}
+            {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
+            <ScrollView
+              ref={threadRef}
+              style={styles.thread}
+              contentContainerStyle={styles.threadContent}
+              keyboardShouldPersistTaps="handled"
             >
-              {sending ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Ionicons name="send" size={18} color={colors.onPrimary} />}
-            </TouchableOpacity>
-          </View>
+              {nextBeforeId ? (
+                <TouchableOpacity style={styles.loadOlder} onPress={() => void loadOlderMessages()} disabled={loadingOlder}>
+                  <Text style={styles.loadOlderText}>{loadingOlder ? 'Loading…' : 'Load older messages'}</Text>
+                </TouchableOpacity>
+              ) : null}
+              {loadingHistory ? <ActivityIndicator color={colors.primary} /> : null}
+              {messages.map((message) => {
+                const mine = message.senderId === Number(user.id);
+                return (
+                  <View key={message.id} style={[styles.messageBubble, mine ? styles.messageMine : styles.messageTheirs]}>
+                    <Text style={[styles.messageBody, mine && styles.messageBodyMine]}>{message.body}</Text>
+                    <Text style={[styles.messageTime, mine && styles.messageTimeMine]}>
+                      {formatMessageTime(message.createdAt)}{mine && message.readAt ? ' · Read' : ''}
+                    </Text>
+                  </View>
+                );
+              })}
+              {!loadingHistory && messages.length === 0 ? (
+                <Text style={styles.emptyThread}>No messages yet. Say hello.</Text>
+              ) : null}
+            </ScrollView>
+
+            <View testID="message-composer" style={[styles.composer, { marginBottom: floatingTabClearance }]}>
+              <TextInput
+                accessibilityLabel="Write a message"
+                style={styles.composerInput}
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="Write a message…"
+                placeholderTextColor={colors.mutedSoft}
+                multiline
+                maxLength={4000}
+              />
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                style={[styles.sendButton, (!draft.trim() || sending) && styles.sendButtonDisabled]}
+                onPress={() => void sendMessage()}
+                disabled={!draft.trim() || sending}
+              >
+                {sending ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Ionicons name="send" size={18} color={colors.onPrimary} />}
+              </TouchableOpacity>
+            </View>
+          </>
         ) : (
-          <View style={styles.emptyPrompt}>
-            <Text style={styles.emptyPromptText}>Pick someone above to start a conversation.</Text>
-          </View>
+          <>
+            <View style={styles.header}>
+              <View style={styles.headerCopy}>
+                <Text style={styles.title}>Messages</Text>
+                <Text style={styles.subtitle}>{socketStatus === 'connected' ? 'Live' : socketStatus === 'connecting' ? 'Connecting' : 'Offline'}</Text>
+              </View>
+              <Ionicons name={socketStatus === 'connected' ? 'chatbubbles' : 'chatbubbles-outline'} size={23} color={socketStatus === 'connected' ? colors.success : colors.muted} />
+            </View>
+
+            {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
+            <ScrollView
+              style={styles.inbox}
+              contentContainerStyle={[styles.inboxContent, { paddingBottom: floatingTabClearance }]}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.sectionLabel}>People you can message</Text>
+              <View style={styles.searchBox}>
+                <Ionicons name="search" size={17} color={colors.muted} />
+                <TextInput
+                  accessibilityLabel="Filter permitted contacts"
+                  style={styles.searchInput}
+                  value={contactSearch}
+                  onChangeText={setContactSearch}
+                  placeholder="Filter by name or role"
+                  placeholderTextColor={colors.mutedSoft}
+                />
+              </View>
+              {loading ? <ActivityIndicator color={colors.primary} style={styles.loading} /> : null}
+              <View style={styles.contactList}>
+                {!loading && filteredContacts.map((contact) => (
+                  <TouchableOpacity
+                    key={contact.id}
+                    style={styles.contactRow}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Message ${contact.name}`}
+                    onPress={() => void beginConversation(Number(contact.id))}
+                  >
+                    <View style={styles.listAvatar}>
+                      <Text style={styles.contactAvatarText}>{contact.name.slice(0, 1).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.contactCopy}>
+                      <Text style={styles.contactName} numberOfLines={1}>{contact.name}</Text>
+                      <Text style={styles.contactRole}>{contact.role.toLowerCase()}</Text>
+                    </View>
+                    <Text style={styles.contactAction}>Message</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {!loading && filteredContacts.length === 0 ? (
+                <Text style={styles.emptyInline}>
+                  {contactSearch.trim() ? 'No matching contacts' : 'No permitted contacts'}
+                </Text>
+              ) : null}
+
+              <Text style={styles.sectionHeading}>Conversations</Text>
+              {!loading && conversations.length === 0 ? <Text style={styles.emptyInline}>No conversations yet</Text> : null}
+              <View style={styles.conversationList}>
+                {!loading && conversations.map((conversation) => (
+                  <TouchableOpacity
+                    key={conversation.id}
+                    style={styles.conversationRow}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open conversation with ${conversation.participant.name}`}
+                    onPress={() => void openConversation(conversation.id)}
+                  >
+                    <View style={styles.listAvatar}>
+                      <Text style={styles.contactAvatarText}>{conversation.participant.name.slice(0, 1).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.contactCopy}>
+                      <Text style={styles.contactName} numberOfLines={1}>{conversation.participant.name}</Text>
+                      <Text style={styles.conversationPreview} numberOfLines={1}>
+                        {conversation.lastMessage?.body ?? conversation.participant.role.toLowerCase()}
+                      </Text>
+                    </View>
+                    {conversation.unreadCount > 0 ? <Text style={styles.unreadCount}>{conversation.unreadCount}</Text> : null}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -386,31 +433,34 @@ const styles = StyleSheet.create({
   headerCopy: { gap: 2 },
   title: { ...typography.displayMd, color: colors.ink },
   subtitle: { ...typography.captionSm, color: colors.muted, textTransform: 'capitalize' },
-  contactSection: { paddingHorizontal: spacing.base, gap: spacing.xs },
+  inbox: { flex: 1 },
+  inboxContent: { paddingHorizontal: spacing.base, paddingBottom: spacing.base },
   sectionLabel: { ...typography.captionSm, color: colors.muted, fontWeight: '600', marginBottom: 2 },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md, borderRadius: radii.md, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSoft },
   searchInput: { flex: 1, minWidth: 0, paddingVertical: 8, ...typography.bodySm, color: colors.ink },
-  contactResults: { gap: spacing.sm, paddingVertical: spacing.sm, alignItems: 'stretch' },
-  contactChip: { width: 132, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.hairline, borderRadius: radii.md, backgroundColor: colors.canvas, gap: 2 },
-  contactAvatar: { width: 28, height: 28, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.steelLight, marginBottom: 2 },
+  loading: { marginVertical: spacing.md },
+  contactList: { marginTop: spacing.xs },
+  contactRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderColor: colors.hairlineSoft },
+  conversationList: { marginTop: spacing.xs },
+  conversationRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderColor: colors.hairlineSoft },
+  listAvatar: { width: 42, height: 42, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.steelLight },
   contactAvatarText: { ...typography.badge, color: colors.primary, fontWeight: '700' },
-  contactName: { ...typography.captionSm, color: colors.ink, fontWeight: '600' },
+  contactCopy: { flex: 1, minWidth: 0, gap: 2 },
+  contactName: { ...typography.bodySm, color: colors.ink, fontWeight: '600' },
   contactRole: { ...typography.badge, color: colors.muted, textTransform: 'capitalize' },
-  contactAction: { ...typography.badge, color: colors.steel, fontWeight: '700', marginTop: 2 },
+  contactAction: { ...typography.badge, color: colors.steel, fontWeight: '700' },
   emptyInline: { ...typography.captionSm, color: colors.muted, paddingVertical: spacing.md },
-  conversationStrip: { flexDirection: 'row', gap: spacing.sm, minHeight: 60, paddingHorizontal: spacing.base, paddingVertical: spacing.sm },
-  conversationChip: { width: 150, justifyContent: 'center', gap: 3, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.hairlineSoft, borderRadius: radii.md, backgroundColor: colors.canvas },
-  conversationChipActive: { borderColor: colors.steel, backgroundColor: colors.steelLight },
-  conversationChipText: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs },
-  conversationName: { flex: 1, ...typography.captionSm, color: colors.ink, fontWeight: '600' },
+  sectionHeading: { ...typography.captionSm, color: colors.ink, fontWeight: '700', marginTop: spacing.lg, marginBottom: spacing.xs },
   unreadCount: { minWidth: 18, paddingHorizontal: 4, borderRadius: radii.full, backgroundColor: colors.steel, color: colors.white, textAlign: 'center', fontSize: 10, fontWeight: '700' },
-  conversationPreview: { ...typography.badge, color: colors.muted },
+  conversationPreview: { ...typography.captionSm, color: colors.muted },
   error: { paddingHorizontal: spacing.base, color: colors.error, ...typography.captionSm },
-  threadHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.base, paddingVertical: spacing.sm, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.hairlineSoft },
+  chatHeader: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.base, paddingVertical: spacing.sm, borderBottomWidth: 1, borderColor: colors.hairlineSoft },
+  backButton: { width: 36, height: 40, alignItems: 'flex-start', justifyContent: 'center' },
   avatar: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: radii.full, backgroundColor: colors.steelLight },
   avatarText: { ...typography.caption, color: colors.primary, fontWeight: '700' },
+  chatIdentity: { flex: 1, minWidth: 0 },
   threadName: { ...typography.bodySm, color: colors.ink, fontWeight: '700' },
-  threadRole: { ...typography.badge, color: colors.muted, textTransform: 'capitalize' },
+  chatStatus: { ...typography.badge, color: colors.muted, textTransform: 'capitalize' },
   thread: { flex: 1 },
   threadContent: { flexGrow: 1, justifyContent: 'flex-end', gap: spacing.sm, paddingHorizontal: spacing.base, paddingVertical: spacing.md },
   loadOlder: { alignSelf: 'center', padding: spacing.sm },
@@ -427,6 +477,4 @@ const styles = StyleSheet.create({
   composerInput: { flex: 1, maxHeight: 110, minHeight: 42, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.hairline, borderRadius: radii.md, ...typography.bodySm, color: colors.ink, textAlignVertical: 'top' },
   sendButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: radii.full, backgroundColor: colors.primary },
   sendButtonDisabled: { backgroundColor: colors.primaryDisabled },
-  emptyPrompt: { padding: spacing.md, alignItems: 'center' },
-  emptyPromptText: { ...typography.captionSm, color: colors.muted, textAlign: 'center' },
 });

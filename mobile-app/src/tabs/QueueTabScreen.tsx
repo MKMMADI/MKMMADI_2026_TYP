@@ -45,6 +45,7 @@ const NEXT_STATUS: Partial<Record<BookingStatus, BookingStatus>> = {
 
 interface QueueTabScreenProps {
   initialStatus?: BookingStatus | 'ALL';
+  onOpenConversation?: (conversationId: number) => void;
 }
 
 function mapBooking(item: any): Booking {
@@ -84,6 +85,7 @@ function mapBooking(item: any): Booking {
   return {
     id: String(item.id),
     employeeId: String(item.employee?.id ?? item.employeeId ?? ''),
+    employeeName: item.employee?.name ?? '',
     startAt: item.startAt,
     endAt: item.endAt,
     purpose: item.purpose ?? '',
@@ -151,7 +153,7 @@ function formatTimeRange(start: string, end: string) {
   return `${s.toLocaleString([], { ...dayOpts, ...timeOpts })} – ${e.toLocaleString([], { ...dayOpts, ...timeOpts })}`;
 }
 
-export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
+export function QueueTabScreen({ initialStatus = 'ALL', onOpenConversation }: QueueTabScreenProps) {
   const [queue, setQueue] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -165,6 +167,7 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
   const [hidePast, setHidePast] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [startingConversationId, setStartingConversationId] = useState<string | null>(null);
 
   const loadQueue = useCallback(async () => {
     setError(null);
@@ -209,6 +212,25 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
     setRefreshing(false);
   };
 
+  const messageBookingOwner = async (booking: Booking) => {
+    const employeeId = Number(booking.employeeId);
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      Alert.alert('Unable to message booking owner', 'The booking owner is unavailable.');
+      return;
+    }
+
+    setStartingConversationId(booking.id);
+    try {
+      const conversation = await api.startConversation(employeeId) as { id: number };
+      onOpenConversation?.(conversation.id);
+    } catch (caughtError) {
+      const message = caughtError instanceof Error ? caughtError.message : 'Could not start the conversation.';
+      Alert.alert('Unable to message booking owner', message);
+    } finally {
+      setStartingConversationId(null);
+    }
+  };
+
   const filteredQueue = useMemo(() => {
     const now = Date.now();
     const q = searchText.trim().toLowerCase();
@@ -221,7 +243,7 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
         const roomName = booking.rooms.map(({ room }) => room.name.toLowerCase()).join(' ');
         const purpose = (booking.purpose || '').toLowerCase();
         const status = booking.status.toLowerCase();
-        const employee = ''; // employee name may not be on Booking type
+        const employee = (booking.employeeName ?? '').toLowerCase();
         return roomName.includes(q) || purpose.includes(q) || status.includes(q) || employee.includes(q);
       })
       .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
@@ -427,6 +449,31 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
                     </Text>
                   )}
 
+                  {booking.employeeId ? (
+                    <View style={styles.ownerRow}>
+                      <View style={styles.ownerCopy}>
+                        <Text style={styles.ownerLabel}>Booking owner</Text>
+                        <Text style={styles.ownerName} numberOfLines={1}>{booking.employeeName || 'Employee'}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.ownerMessageButton}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Message booking owner ${booking.employeeName || 'employee'}`}
+                        onPress={() => void messageBookingOwner(booking)}
+                        disabled={startingConversationId === booking.id}
+                      >
+                        {startingConversationId === booking.id ? (
+                          <ActivityIndicator size="small" color={colors.primary} />
+                        ) : (
+                          <>
+                            <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.primary} />
+                            <Text style={styles.ownerMessageText}>Message</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+
                   {booking.rooms.length > 0 ? (
                     <View style={styles.roomAmenitiesList}>
                       {booking.rooms.map((bookingRoom) => (
@@ -629,6 +676,12 @@ const styles = StyleSheet.create({
   roomName: { ...typography.titleSm, color: colors.ink },
   when: { ...typography.captionSm, color: colors.muted, marginTop: 2 },
   purpose: { ...typography.bodySm, color: colors.body, marginTop: spacing.sm },
+  ownerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md, padding: spacing.sm, borderRadius: radii.md, backgroundColor: colors.surfaceSoft },
+  ownerCopy: { flex: 1, minWidth: 0, gap: 2 },
+  ownerLabel: { ...typography.badge, color: colors.muted },
+  ownerName: { ...typography.captionSm, color: colors.ink, fontWeight: '600' },
+  ownerMessageButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: colors.white },
+  ownerMessageText: { ...typography.buttonSm, color: colors.primary },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',

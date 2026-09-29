@@ -75,6 +75,7 @@ export function EmployeeTabNavigator({
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarIcon: ({ focused, color }) => (
           <FloatingTabIcon
             name={iconForRoute(route.name, focused)}

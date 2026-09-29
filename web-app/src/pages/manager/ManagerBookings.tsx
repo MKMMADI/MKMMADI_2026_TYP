@@ -17,9 +17,17 @@ interface ApiBooking {
   startAt: string;
   endAt: string;
   status: BookingStatus;
+  assignedClerkId?: number | null;
+  assignedClerk?: { id: number; name: string; email: string } | null;
   employee: { id: number; name: string; email: string };
   rooms: { room: { id: number; name: string; capacity: number } }[];
   amenities?: { amenity: { id: number; name: string } }[];
+}
+
+interface AssignableClerk {
+  id: number;
+  name: string;
+  email: string;
 }
 
 interface RejectionReason {
@@ -104,6 +112,9 @@ function endOfDay(dateStr: string): Date {
 
 export default function ManagerBookings() {
   const [bookings, setBookings] = useState<ApiBooking[]>([]);
+    const [clerks, setClerks] = useState<AssignableClerk[]>([]);
+    const [loadingClerks, setLoadingClerks] = useState(true);
+    const [clerkLoadError, setClerkLoadError] = useState<string | null>(null);
   const [reasons, setReasons] = useState<RejectionReason[]>(FALLBACK_REASONS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,6 +145,10 @@ export default function ManagerBookings() {
 
   useEffect(() => {
     loadBookings();
+    apiFetch<AssignableClerk[]>("/bookings/assignable-clerks")
+      .then((data) => setClerks(Array.isArray(data) ? data : []))
+      .catch((err) => setClerkLoadError(err instanceof Error ? err.message : "Could not load clerks"))
+      .finally(() => setLoadingClerks(false));
     apiFetch<RejectionReason[]>("/bookings/rejection-reasons")
       .then(setReasons)
       .catch(() => setReasons(FALLBACK_REASONS));
@@ -186,6 +201,24 @@ export default function ManagerBookings() {
   function clearDates() {
     setDateFrom("");
     setDateTo("");
+  }
+
+  async function handleAssignClerk(booking: ApiBooking, selectedClerkId: string) {
+    if (actionId) return;
+    setActionId(booking.id);
+    const clerkId = selectedClerkId ? Number(selectedClerkId) : null;
+    try {
+      const updated = await apiFetch<ApiBooking>(`/bookings/${booking.id}/assignment`, {
+        method: "PATCH",
+        body: JSON.stringify({ clerkId }),
+      });
+      setBookings((prev) => prev.map((item) => (item.id === booking.id ? { ...item, ...updated } : item)));
+      setToast(updated.assignedClerk ? `${updated.assignedClerk.name} assigned to booking.` : "Clerk assignment cleared.");
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "Could not update clerk assignment");
+    } finally {
+      setActionId(null);
+    }
   }
 
   async function handleApprove(booking: ApiBooking) {
@@ -351,6 +384,12 @@ export default function ManagerBookings() {
           )}
         </div>
 
+        {clerkLoadError && (
+          <p className="mb-assignment-error" role="alert">
+            Clerk assignments are unavailable: {clerkLoadError}
+          </p>
+        )}
+
         {loading && (
           <div className="mb-state">
             <p>Loading bookings…</p>
@@ -375,6 +414,7 @@ export default function ManagerBookings() {
                   <th>Employee</th>
                   <th>Purpose</th>
                   <th>Room(s)</th>
+                  <th>Assigned clerk</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -382,7 +422,7 @@ export default function ManagerBookings() {
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="mb-empty">
+                    <td colSpan={7} className="mb-empty">
                       No bookings match this filter.
                     </td>
                   </tr>
@@ -401,6 +441,27 @@ export default function ManagerBookings() {
                       {booking.rooms.length
                         ? booking.rooms.map((r) => r.room.name).join(", ")
                         : "—"}
+                    </td>
+                    <td>
+                      {booking.status === "CANCELLED" || booking.status === "COMPLETED" ? (
+                        booking.assignedClerk?.name ?? "—"
+                      ) : (
+                        <select
+                          className="mb-assignee-select"
+                          aria-label={`Assign clerk for ${booking.purpose}`}
+                          value={booking.assignedClerkId ?? ""}
+                          disabled={loadingClerks || Boolean(clerkLoadError) || actionId === booking.id}
+                          onChange={(event) => void handleAssignClerk(booking, event.target.value)}
+                        >
+                          <option value="">Unassigned</option>
+                          {booking.assignedClerk && !clerks.some((clerk) => clerk.id === booking.assignedClerk?.id) && (
+                            <option value={booking.assignedClerk.id}>{booking.assignedClerk.name} (inactive)</option>
+                          )}
+                          {clerks.map((clerk) => (
+                            <option key={clerk.id} value={clerk.id}>{clerk.name}</option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td>
                       <span className={`mb-status mb-status--${statusClass(booking.status)}`}>

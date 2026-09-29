@@ -23,6 +23,22 @@ when the room list is empty or invalid, capacity is not a positive whole
 number, a selected room is unavailable, the combined room capacity is
 insufficient, or a requested amenity is missing from any selected room.
 
+## Assign a booking to a clerk
+
+Managers can list active clerks with `GET /api/v1/bookings/assignable-clerks`
+and assign or change a booking's clerk with `PATCH /api/v1/bookings/:id/assignment`:
+
+```json
+{ "clerkId": 42 }
+```
+
+Send `{ "clerkId": null }` to clear the assignment. Assignment is allowed while
+a booking is pending, confirmed, preparing, or ready; cancelled and completed
+bookings are closed to assignment changes. `assignedClerk` is the manager's
+planning pin and is separate from `preparedBy`, which records the clerk who
+actually starts preparation. Clerks can still claim any eligible booking from
+the preparation queue, regardless of its assigned clerk.
+
 ## Messaging
 
 Messaging is authenticated and one-to-one. Allowed pairs are:
@@ -70,10 +86,9 @@ client uses that URL's origin for Socket.IO as well as its REST API.
 
 ## Build and run the Web and API images
 
-The repository's `main` branch is the source of truth for this setup. The API
-image uses the existing `npm run build` command. Its `prebuild` hook runs the
-Jest tests before TypeScript compilation, so a failing test stops the Docker
-build and no API image is produced.
+The API image generates Prisma Client and compiles TypeScript. Integration
+tests run separately because they require `TEST_DATABASE_URL`, which is not
+available inside the image build.
 
 ### Build the API image first
 
@@ -83,22 +98,21 @@ From the repository root:
 docker build --target production -t mkmmadi-api:main ./API
 ```
 
-The API build runs:
+The API image build runs:
 
 1. `npm ci`
-2. `npm test` through the existing `prebuild` hook
-3. `tsc`
+2. Prisma Client generation
+3. TypeScript compilation
 4. production dependency pruning
 
-If step 2 fails, Docker stops immediately and the API is not compiled or
-started.
+Run `npm test` separately with `TEST_DATABASE_URL` configured before deploying.
 
 Run the API image directly by providing the same database and secret settings
 that the application requires:
 
 ```sh
 docker run --rm --name mkmmadi-api \\
-  -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/typ \\
+  -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/2026_TYP_Conference_Bookings_v1 \\
   -e JWT_SECRET=replace-with-a-long-random-secret \\
   -p 4000:4000 \\
   mkmmadi-api:main
@@ -124,15 +138,19 @@ fall back to `index.html`.
 Create a `.env` file in the repository root (it is ignored by Git):
 
 ```dotenv
+POSTGRES_PASSWORD=replace-with-a-url-safe-password
 JWT_SECRET=replace-with-a-long-random-secret
 ```
+
+Use only URL-safe characters in `POSTGRES_PASSWORD`, since Compose embeds it in
+the API database URL.
 
 Build the API first, then the Web image, and start Postgres and both services:
 
 ```sh
-docker compose build api
-docker compose build web
-docker compose up
+docker compose -f docker-compose.yml build api
+docker compose -f docker-compose.yml build web
+docker compose -f docker-compose.yml up
 ```
 
 The API waits for the Postgres health check. The API is available at

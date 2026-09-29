@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ManagerMessages from "./ManagerMessages";
@@ -53,17 +53,22 @@ const firstMessage = {
   sender: employee,
   recipient: { ...currentUser },
 };
+const missedMessage = { ...firstMessage, id: 32, body: "Message sent while offline" };
 
 describe("ManagerMessages", () => {
+  let includeMissedMessage = false;
+
   beforeEach(() => {
+    cleanup();
     vi.clearAllMocks();
+    includeMissedMessage = false;
     delete (globalThis as typeof globalThis & { __managerMessageSocket?: unknown }).__managerMessageSocket;
     mockedApiFetch.mockImplementation(async (path: string) => {
       if (path === "/me") return currentUser as never;
       if (path === "/conversations/contacts") return [employee] as never;
       if (path === "/conversations") return [conversation] as never;
       if (path === "/conversations/4/messages?limit=50") {
-        return { messages: [firstMessage], nextBeforeId: null } as never;
+        return { messages: includeMissedMessage ? [firstMessage, missedMessage] : [firstMessage], nextBeforeId: null } as never;
       }
       if (path === "/conversations/4/read") return { markedRead: 1 } as never;
       if (path === "/conversations" && mockedApiFetch.mock.calls.length > 0) return [conversation] as never;
@@ -81,7 +86,9 @@ describe("ManagerMessages", () => {
     );
 
     expect(await screen.findByText("Please approve the room setup")).toBeTruthy();
-    expect(screen.getAllByText("Employee Evan")).toHaveLength(2);
+    expect(screen.getByRole("heading", { name: "People you can message" })).toBeTruthy();
+    expect(screen.getByText("Message")).toBeTruthy();
+    expect(screen.getAllByText("Employee Evan")).toHaveLength(3);
     expect(screen.getAllByText("1").length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByLabelText("Write a message"), { target: { value: "I will check it" } });
@@ -100,5 +107,36 @@ describe("ManagerMessages", () => {
       message: { ...firstMessage, id: 33, body: "Live manager update" },
     });
     expect(await screen.findByText("Live manager update")).toBeTruthy();
+  });
+
+  it("reloads missed history after reconnect and deduplicates replayed messages", async () => {
+    render(
+      <MemoryRouter>
+        <ManagerMessages />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Please approve the room setup")).toBeTruthy();
+    const socket = (globalThis as typeof globalThis & {
+      __managerMessageSocket?: {
+        listeners: Record<string, (event?: any) => void>;
+        connect: () => void;
+      };
+    }).__managerMessageSocket;
+    expect(socket).toBeTruthy();
+
+    includeMissedMessage = true;
+    socket?.listeners.disconnect?.();
+    socket?.connect();
+    expect(await screen.findByText("Message sent while offline")).toBeTruthy();
+    expect(screen.getAllByRole("article").map((article) => article.querySelector("p")?.textContent)).toEqual([
+      firstMessage.body,
+      missedMessage.body,
+    ]);
+
+    const replay = { conversationId: 4, message: missedMessage };
+    socket?.listeners["message:new"]?.(replay);
+    socket?.listeners["message:new"]?.(replay);
+    await waitFor(() => expect(screen.getAllByText("Message sent while offline")).toHaveLength(1));
   });
 });

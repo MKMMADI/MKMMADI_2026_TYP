@@ -259,6 +259,28 @@
   max-width: 220px;
 }
 
+.mb-assignee-select {
+  min-width: 150px;
+  max-width: 190px;
+  padding: 7px 28px 7px 9px;
+  border: 1px solid var(--m-line, #e7edeb);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--m-ink, #253539);
+  font: inherit;
+  font-size: 12px;
+}
+
+.mb-assignee-select:focus {
+  outline: 2px solid var(--m-teal, #2a9d8f);
+  outline-offset: 1px;
+}
+
+.mb-assignment-error {
+  color: #b84a3a;
+  font-size: 13px;
+}
+
 .mb-empty {
   text-align: center;
   color: var(--m-muted, #738184);

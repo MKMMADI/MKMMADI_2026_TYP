@@ -1,6 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
-import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DashboardTabScreen } from '../tabs/DashboardTabScreen';
 import { QueueTabScreen } from '../tabs/QueueTabScreen';
@@ -20,9 +19,8 @@ export type ClerkTabParamList = {
   DashboardTab: undefined;
   QueueTab: { statusFilter?: BookingStatus | 'ALL' } | undefined;
   RoomsTab: undefined;
-  MessagesTab: undefined;
+  MessagesTab: { conversationId?: number } | undefined;
   ProfileTab: undefined;
-  SignOutTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<ClerkTabParamList>();
@@ -33,7 +31,6 @@ const TAB_LABELS: Record<keyof ClerkTabParamList, string> = {
   RoomsTab: 'Rooms',
   MessagesTab: 'Messages',
   ProfileTab: 'Profile',
-  SignOutTab: 'Sign out',
 };
 
 function iconForRoute(name: keyof ClerkTabParamList, focused: boolean): TabIconName {
@@ -48,15 +45,9 @@ function iconForRoute(name: keyof ClerkTabParamList, focused: boolean): TabIconN
       return focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
     case 'ProfileTab':
       return focused ? 'person-circle' : 'person-circle-outline';
-    case 'SignOutTab':
-      return 'log-out-outline';
     default:
       return 'ellipse-outline';
   }
-}
-
-function SignOutTabScreen() {
-  return null;
 }
 
 interface ClerkTabNavigatorProps {
@@ -71,6 +62,7 @@ export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarIcon: ({ focused, color }) => (
           <FloatingTabIcon
             name={iconForRoute(route.name, focused)}
@@ -102,32 +94,28 @@ export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
         )}
       </Tab.Screen>
       <Tab.Screen name="QueueTab">
-        {({ route }) => (
-          <QueueTabScreen initialStatus={route.params?.statusFilter ?? 'ALL'} />
+        {({ route, navigation }) => (
+          <QueueTabScreen
+            initialStatus={route.params?.statusFilter ?? 'ALL'}
+            onOpenConversation={(conversationId) => navigation.navigate('MessagesTab', { conversationId })}
+          />
         )}
       </Tab.Screen>
       <Tab.Screen name="RoomsTab">
         {() => <RoomsTabScreen />}
       </Tab.Screen>
       <Tab.Screen name="MessagesTab">
-        {() => <MessagesTabScreen user={user} />}
+        {({ navigation, route }) => (
+          <MessagesTabScreen
+            user={user}
+            openConversationId={route.params?.conversationId}
+            onConversationRequestHandled={() => navigation.setParams({ conversationId: undefined })}
+          />
+        )}
       </Tab.Screen>
       <Tab.Screen name="ProfileTab">
         {() => <ClerkProfileTabScreen user={user} onSignOut={onSignOut} />}
       </Tab.Screen>
-      <Tab.Screen
-        name="SignOutTab"
-        component={SignOutTabScreen}
-        listeners={{
-          tabPress: (event) => {
-            event.preventDefault();
-            Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Sign out', style: 'destructive', onPress: onSignOut },
-            ]);
-          },
-        }}
-      />
     </Tab.Navigator>
   );
 }

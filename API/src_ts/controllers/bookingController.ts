@@ -15,6 +15,7 @@ const bookingInclude = {
   },
   amenities: { include: { amenity: true } },
   employee: { select: { id: true, name: true, email: true } },
+  assignedClerk: { select: { id: true, name: true, email: true } },
   preparedBy: { select: { id: true, name: true, email: true } },
   reviewedBy: { select: { id: true, name: true, email: true } },
 } as const;
@@ -77,6 +78,61 @@ export async function listBookings(req: AuthRequest, res: Response, next: NextFu
     });
 
     res.json(bookings);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listAssignableClerks(_req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const clerks = await prisma.user.findMany({
+      where: { role: 'CLERK', Active: true },
+      select: { id: true, name: true, email: true },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+    res.json(clerks);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function assignBookingClerk(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const id = parseBookingId(req.params.id);
+    if (id == null) return next(createHttpError('Invalid booking id', 400));
+    if (!req.body || !Object.prototype.hasOwnProperty.call(req.body, 'clerkId')) {
+      return next(createHttpError('clerkId is required; use null to unassign', 400));
+    }
+
+    const rawClerkId: unknown = req.body.clerkId;
+    const clerkId = rawClerkId === null ? null : Number(rawClerkId);
+    if (clerkId !== null && (!Number.isInteger(clerkId) || clerkId <= 0)) {
+      return next(createHttpError('clerkId must be a positive integer or null', 400));
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
+    if (!booking) return next(createHttpError('Booking not found', 404));
+    if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
+      return next(createHttpError('Closed bookings cannot be assigned', 400));
+    }
+
+    if (clerkId !== null) {
+      const clerk = await prisma.user.findFirst({
+        where: { id: clerkId, role: 'CLERK', Active: true },
+        select: { id: true },
+      });
+      if (!clerk) return next(createHttpError('Active clerk not found', 404));
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id },
+      data: { assignedClerkId: clerkId },
+      include: bookingInclude,
+    });
+    res.json(updated);
   } catch (error) {
     next(error);
   }
