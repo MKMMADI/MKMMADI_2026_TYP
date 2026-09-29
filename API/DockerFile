@@ -11,9 +11,10 @@ FROM dependencies AS build
 
 COPY . .
 
-RUN DATABASE_URL=postgresql://postgres:postgres@localhost:5432/typ_test_1 npx prisma generate
+RUN DATABASE_URL=postgresql://postgres:postgres@localhost:5432/typ_test npx prisma generate
 
-# Integration tests require TEST_DATABASE_URL and run outside the image build.
+# npm run build invokes the prebuild hook, which runs the test suite first.
+# Database-backed Jest tests run separately with TEST_DATABASE_URL configured.
 RUN ./node_modules/.bin/tsc --project tsconfig.json
 
 FROM node:22-bookworm-slim AS production

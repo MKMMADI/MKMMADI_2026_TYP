@@ -135,20 +135,21 @@ fall back to `index.html`.
 
 ### Run the complete stack with Compose
 
-Copy `.env.example` to `.env` in the repository root and replace the
-placeholders. Keep `POSTGRES_PASSWORD` consistent with an existing Postgres
-volume; URL-encode it in `DATABASE_URL` if it contains special characters.
+Compose reads `.env` from the repository root; it does not automatically read
+`API/.env`. Copy `.env.example` to root `.env`, set `DATABASE_URL` to your
+existing database at `host.docker.internal:5432/2026_TYP_Conference_Bookings_v1`,
+and set `JWT_SECRET`. URL-encode special characters in the password portion.
 
-Build the API first, then the Web image, and start Postgres and both services:
+Make sure PostgreSQL is running on the Windows host. Compose starts only the
+API and Web services:
 
 ```sh
 docker compose -f docker-compose.yml build api
 docker compose -f docker-compose.yml build web
-docker compose -f docker-compose.yml up
+docker compose -f docker-compose.yml up -d --build
 ```
 
-The API waits for the Postgres health check. The API is available at
-`http://localhost:4000` and the web application at `http://localhost:8080`.
-Stop the stack with `Ctrl+C`, or use `docker compose down`. Add `-v` to
-`docker compose down` only when the local Postgres volume should also be
-deleted.
+The API is available at `http://localhost:4000` and the web application at
+`http://localhost:8081`. Stop the Compose services with
+`docker compose -f docker-compose.yml down`; this does not delete the host
+PostgreSQL database.

@@ -1,43 +1,25 @@
 services:
-  db:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_DB: 2026_TYP_Conference_Bookings_v1
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set_POSTGRES_PASSWORD_in_.env}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d 2026_TYP_Conference_Bookings_v1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   api:
     build:
       context: ./API
+      dockerfile: Dockerfile
       target: production
     environment:
-      DATABASE_URL: ${DATABASE_URL:?Set_DATABASE_URL_in_.env}
-      JWT_SECRET: ${JWT_SECRET:?Set_JWT_SECRET_in_.env}
+      DATABASE_URL: postgresql://postgres:Zt.s.HqFUN39%40F@host.docker.internal:5432/2026_TYP_Conference_Bookings_v1
+      JWT_SECRET: 06051255a67bd0442ccc2e31fb440ffa8648d96721d62230104cab144eac1272bb546396c03288aabdb3278f274b60e5b036b8681656d2ec4bfc531ab9a362e7
       NODE_ENV: production
       PORT: 4000
-      SOCKET_ALLOWED_ORIGINS: ${SOCKET_ALLOWED_ORIGINS:-http://localhost:8080}
-    depends_on:
-      db:
-        condition: service_healthy
+      SOCKET_ALLOWED_ORIGINS: http://localhost:8081
     ports:
       - "4000:4000"
 
   web:
     build:
       context: ./web-app
+      dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000/api/v1}
+        VITE_API_URL: http://localhost:4000/api/v1
     depends_on:
       - api
     ports:
-      - "8080:80"
-
-volumes:
-  postgres-data:
+      - "8081:80"

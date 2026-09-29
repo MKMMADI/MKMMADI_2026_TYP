@@ -8,6 +8,7 @@ import {
 import prisma from '../../src_ts/prisma';
 import jwt from 'jsonwebtoken';
 import config from '../../src_ts/config';
+import logger from '../../src_ts/utils/logger';
 
 function reportRange() {
   const startDate = new Date();
@@ -25,6 +26,24 @@ describe('Authentication Middleware Integration Tests', () => {
   });
 
   describe('Authorization Header Validation', () => {
+    it('redacts login request bodies from error logs', async () => {
+      const errorLog = jest.spyOn(logger, 'error');
+      const fakePassword = 'NeverLogThisFakePassword';
+
+      try {
+        const response = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: 'missing-user@example.com', password: fakePassword });
+
+        expect(response.status).toBe(400);
+        expect(errorLog).toHaveBeenCalled();
+        expect(JSON.stringify(errorLog.mock.calls)).not.toContain(fakePassword);
+        expect(JSON.stringify(errorLog.mock.calls)).toContain('[redacted]');
+      } finally {
+        errorLog.mockRestore();
+      }
+    });
+
     it('should reject requests without Authorization header', async () => {
       const response = await request(app).get('/api/v1/rooms');
 
