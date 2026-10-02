@@ -1,5 +1,14 @@
 ﻿import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
 import LottieView from 'lottie-react-native';
 import { Button } from '../components/Button';
 import api from '../api';
@@ -35,50 +44,61 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
   }
 
   return (
-    <View style={styles.container}>
-      <LottieView
-        source={problemSolvingTeam}
-        style={styles.animation}
-        autoPlay
-        loop
-      />
-      <Text style={styles.title}>Sign in</Text>
-      <Text style={styles.subtitle}>Welcome back — sign in to continue</Text>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <LottieView
+          source={problemSolvingTeam}
+          style={styles.animation}
+          autoPlay
+          loop
+        />
+        <Text style={styles.title}>Sign in</Text>
+        <Text style={styles.subtitle}>Welcome back — sign in to continue</Text>
 
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-        placeholder="name@company.com"
-      />
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          placeholder="name@company.com"
+        />
 
-      <Text style={[styles.label, { marginTop: spacing.md }]}>Password</Text>
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholder="••••••••"
-      />
+        <Text style={[styles.label, { marginTop: spacing.md }]}>Password</Text>
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholder="••••••••"
+        />
 
-      <Button title="Sign in" onPress={handleLogin} loading={loading} style={{ marginTop: spacing.lg }} />
+        <Button title="Sign in" onPress={handleLogin} loading={loading} style={{ marginTop: spacing.lg }} />
 
-      {onNavigateToRegister && (
-        <TouchableOpacity style={styles.switchLink} onPress={onNavigateToRegister}>
-          <Text style={styles.switchText}>Need an account? Register</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+        {onNavigateToRegister && (
+          <TouchableOpacity style={styles.switchLink} onPress={onNavigateToRegister}>
+            <Text style={styles.switchText}>Need an account? Register</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
+  },
+  container: {
+    flexGrow: 1,
     padding: spacing.base,
     justifyContent: 'center',
     backgroundColor: colors.canvas,

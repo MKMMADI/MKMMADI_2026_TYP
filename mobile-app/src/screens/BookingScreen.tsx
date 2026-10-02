@@ -7,8 +7,10 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -244,6 +246,10 @@ export function BookingScreen({ rooms, onBack, onConfirm }: BookingScreenProps) 
   }
 
   return (
+    <KeyboardAvoidingView
+      style={styles.safe}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
     <SafeAreaView style={styles.safe}>
       <View style={styles.body}>
       <View style={styles.topBar}>
@@ -454,6 +460,7 @@ export function BookingScreen({ rooms, onBack, onConfirm }: BookingScreenProps) 
         </View>
       </Modal>
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
