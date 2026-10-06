@@ -6,6 +6,7 @@ import crypto from 'crypto';
 
 export interface TestUser {
   id: number;
+  employeeId: string;
   email: string;
   password: string;
   name: string;
@@ -23,7 +24,7 @@ export interface AuthTokens {
  * Create a test user in the database
  */
 export async function createUser(userData: Partial<TestUser>): Promise<TestUser> {
-  const user: Omit<TestUser, 'id'> & { id?: number } = {
+  const user: Omit<TestUser, 'id' | 'employeeId'> & { id?: number } = {
     id: undefined,
     email: userData.email || `test_${Date.now()}@example.com`,
     password: userData.password || 'TestPassword123!',
@@ -49,6 +50,7 @@ export async function createUser(userData: Partial<TestUser>): Promise<TestUser>
   return {
     ...user,
     id: created.id,
+    employeeId: created.employeeId,
   } as TestUser;
 }
 

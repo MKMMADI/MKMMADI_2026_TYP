@@ -329,6 +329,11 @@
   color: #b84a3a;
 }
 
+.mb-status--reschedule-required {
+  background: #fff0d9;
+  color: #9a5b00;
+}
+
 /* Actions */
 .mb-actions {
   display: flex;

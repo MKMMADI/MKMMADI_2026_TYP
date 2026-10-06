@@ -1,6 +1,7 @@
 import prisma from '../prisma';
 import { createHttpError } from '../utils/httpError';
 import { Prisma, BookingStatus } from '@prisma/client';
+import { publishBookingDisplacement } from './realtime';
 
 //used to validate input
 export interface CreateBookingInput {
@@ -12,6 +13,35 @@ export interface CreateBookingInput {
   amenityIds?: number[];
   capacity: number;
 }
+
+const bookingInclude = {
+  rooms: { include: { room: true } },
+  amenities: { include: { amenity: true } },
+  employee: {
+    select: {
+      id: true,
+      employeeId: true,
+      name: true,
+      email: true,
+      role: true,
+      officialRole: true,
+      department: true,
+      contactNumber: true,
+    },
+  },
+  displacedBookings: {
+    select: {
+      id: true,
+      employeeId: true,
+      purpose: true,
+      startAt: true,
+      endAt: true,
+      status: true,
+      suggestedStartAt: true,
+      suggestedEndAt: true,
+    },
+  },
+};
 
 function parseDate(value: string | Date, fieldName: string) {
   const parsed = value instanceof Date ? value : new Date(value);
@@ -40,6 +70,47 @@ function normalizeCapacity(capacity: unknown) {
   }
 
   return Number(capacity);
+}
+
+async function findSuggestedSlot(
+  tx: Prisma.TransactionClient,
+  roomIds: number[],
+  originalStartAt: Date,
+  durationMs: number,
+  excludedBookingIds: number[],
+) {
+  const firstCandidateDay = new Date(originalStartAt);
+  firstCandidateDay.setUTCDate(firstCandidateDay.getUTCDate() + 1);
+  firstCandidateDay.setUTCHours(0, 0, 0, 0);
+  const bookings = await tx.booking.findMany({
+    where: {
+      id: { notIn: excludedBookingIds },
+      status: { notIn: ['CANCELLED', 'COMPLETED', 'RESCHEDULE_REQUIRED'] },
+      rooms: { some: { roomId: { in: roomIds } } },
+      startAt: { lt: new Date(firstCandidateDay.getTime() + 90 * 24 * 60 * 60 * 1000) },
+      endAt: { gt: firstCandidateDay },
+    },
+    select: { startAt: true, endAt: true, rooms: { select: { roomId: true } } },
+  });
+
+  for (let dayOffset = 1; dayOffset <= 90; dayOffset += 1) {
+    const dayStart = new Date(originalStartAt);
+    dayStart.setUTCDate(dayStart.getUTCDate() + dayOffset);
+    dayStart.setUTCHours(originalStartAt.getUTCHours(), originalStartAt.getUTCMinutes(), 0, 0);
+
+    for (let halfHour = 0; halfHour < 48; halfHour += 1) {
+      const candidateStart = new Date(dayStart.getTime() + halfHour * 30 * 60 * 1000);
+      const candidateEnd = new Date(candidateStart.getTime() + durationMs);
+      const conflict = bookings.some((booking) =>
+        booking.startAt < candidateEnd &&
+        booking.endAt > candidateStart &&
+        booking.rooms.some((link) => roomIds.includes(link.roomId)),
+      );
+      if (!conflict) return { startAt: candidateStart, endAt: candidateEnd };
+    }
+  }
+
+  throw createHttpError('No future replacement time is available for the displaced booking', 409);
 }
 
 async function validateRequestedAmenities(amenityIds: number[] | undefined, tx: Prisma.TransactionClient) {
@@ -71,8 +142,13 @@ export async function createBooking(input: CreateBookingInput) {
   const roomIds = normalizeRoomIds(input.roomIds);
   const capacity = normalizeCapacity(input.capacity);
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const normalizedAmenityIds = await validateRequestedAmenities(input.amenityIds, tx);
+    const user = await tx.user.findUnique({
+      where: { id: input.employeeId },
+      select: { id: true, role: true, officialRole: true },
+    });
+    if (!user) throw createHttpError('Booking user not found', 404);
 
     const rooms = await tx.room.findMany({
       where: { id: { in: roomIds }, isActive: true },
@@ -99,19 +175,37 @@ export async function createBooking(input: CreateBookingInput) {
           throw createHttpError(`Room ${room.name} does not support all requested amenities`, 400);
         }
       }
+    }
 
-      const overlappingBookings = await tx.booking.findMany({
-        where: {
-          status: { notIn: ['CANCELLED', 'COMPLETED'] },
-          rooms: { some: { roomId: room.id } },
-          AND: [{ startAt: { lt: endAt } }, { endAt: { gt: startAt } }],
-        },
-        select: { id: true },
-      });
+    const overlappingBookings = await tx.booking.findMany({
+      where: {
+        status: { notIn: ['CANCELLED', 'COMPLETED', 'RESCHEDULE_REQUIRED'] },
+        rooms: { some: { roomId: { in: roomIds } } },
+        startAt: { lt: endAt },
+        endAt: { gt: startAt },
+      },
+      include: {
+        employee: { select: { officialRole: true } },
+        rooms: { select: { roomId: true } },
+      },
+    });
 
-      if (overlappingBookings.length > 0) {
-        throw createHttpError(`Room ${room.name} is not available during the selected time`, 400);
-      }
+    const displacedBookings = overlappingBookings.filter(
+      (booking) => booking.employeeId !== user.id && booking.employee.officialRole == null,
+    );
+    const nonDisplaceableBookings = overlappingBookings.filter(
+      (booking) => !displacedBookings.some((displaced) => displaced.id === booking.id),
+    );
+
+    if (nonDisplaceableBookings.length > 0 || (overlappingBookings.length > 0 && user.officialRole == null)) {
+      const conflictingRoomId = overlappingBookings
+        .flatMap((booking) => booking.rooms.map((link) => link.roomId))
+        .find((conflictingRoomId) => roomIds.includes(conflictingRoomId));
+      const conflictingRoom = rooms.find((room) => room.id === conflictingRoomId);
+      throw createHttpError(
+        `Room ${conflictingRoom?.name ?? 'selected room'} is not available during the selected time`,
+        400,
+      );
     }
 
     const booking = await tx.booking.create({
@@ -120,7 +214,7 @@ export async function createBooking(input: CreateBookingInput) {
         purpose: input.purpose,
         startAt,
         endAt,
-        status: BookingStatus.PENDING,
+        status: user.officialRole == null ? BookingStatus.PENDING : BookingStatus.CONFIRMED,
         rooms: {
           create: roomIds.map((roomId) => ({ roomId, roomStatus: 'BOOKED' })),
         },
@@ -128,13 +222,114 @@ export async function createBooking(input: CreateBookingInput) {
           create: normalizedAmenityIds.map((amenityId) => ({ amenityId })),
         },
       },
-      include: {
-        rooms: { include: { room: true } },
-        amenities: { include: { amenity: true } },
+      include: bookingInclude,
+    });
+
+    const displacedIds = displacedBookings.map((displaced) => displaced.id);
+    for (const displaced of displacedBookings) {
+      const displacedRoomIds = displaced.rooms.map((link) => link.roomId);
+      const suggestion = await findSuggestedSlot(
+        tx,
+        displacedRoomIds,
+        displaced.startAt,
+        displaced.endAt.getTime() - displaced.startAt.getTime(),
+        displacedIds,
+      );
+      await tx.booking.update({
+        where: { id: displaced.id },
+        data: {
+          status: BookingStatus.RESCHEDULE_REQUIRED,
+          statusBeforeDisplacement: displaced.status,
+          suggestedStartAt: suggestion.startAt,
+          suggestedEndAt: suggestion.endAt,
+          displacedByBookingId: booking.id,
+          preparedById: null,
+        },
+      });
+    }
+
+    return tx.booking.findUniqueOrThrow({ where: { id: booking.id }, include: bookingInclude });
+  });
+
+  for (const displaced of result.displacedBookings) {
+    publishBookingDisplacement(displaced.employeeId, {
+      bookingId: displaced.id,
+      displacedByBookingId: result.id,
+      suggestedStartAt: displaced.suggestedStartAt,
+      suggestedEndAt: displaced.suggestedEndAt,
+    });
+  }
+
+  return result;
+}
+
+export async function rescheduleDisplacedBooking(input: {
+  bookingId: number;
+  employeeId: number;
+  acceptSuggestion: boolean;
+  startAt?: string | Date;
+  endAt?: string | Date;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.findUnique({
+      where: { id: input.bookingId },
+      include: { rooms: { select: { roomId: true } } },
+    });
+    if (!booking) throw createHttpError('Booking not found', 404);
+    if (booking.employeeId !== input.employeeId) throw createHttpError('Forbidden', 403);
+    if (booking.status !== BookingStatus.RESCHEDULE_REQUIRED) {
+      throw createHttpError('This booking does not need rescheduling', 400);
+    }
+
+    const startAt = input.acceptSuggestion
+      ? booking.suggestedStartAt
+      : input.startAt !== undefined
+        ? parseDate(input.startAt, 'startAt')
+        : null;
+    const endAt = input.acceptSuggestion
+      ? booking.suggestedEndAt
+      : input.endAt !== undefined
+        ? parseDate(input.endAt, 'endAt')
+        : startAt
+          ? new Date(startAt.getTime() + booking.endAt.getTime() - booking.startAt.getTime())
+          : null;
+    if (!startAt || !endAt) {
+      throw createHttpError('A valid replacement startAt is required', 400);
+    }
+    if (endAt <= startAt) throw createHttpError('Meeting end time must be after the start time', 400);
+    if (startAt < new Date()) throw createHttpError('Bookings cannot start in the past', 400);
+    if (endAt.getTime() - startAt.getTime() !== booking.endAt.getTime() - booking.startAt.getTime()) {
+      throw createHttpError('A replacement booking must keep the original duration', 400);
+    }
+
+    const roomIds = booking.rooms.map((link) => link.roomId);
+    const conflict = await tx.booking.findFirst({
+      where: {
+        id: { not: booking.id },
+        status: { notIn: ['CANCELLED', 'COMPLETED', 'RESCHEDULE_REQUIRED'] },
+        rooms: { some: { roomId: { in: roomIds } } },
+        startAt: { lt: endAt },
+        endAt: { gt: startAt },
+      },
+      select: { id: true },
+    });
+    if (conflict) {
+      throw createHttpError('The selected replacement time is no longer available', 409);
+    }
+
+    await tx.booking.update({
+      where: { id: booking.id },
+      data: {
+        startAt,
+        endAt,
+        status: booking.statusBeforeDisplacement ?? BookingStatus.PENDING,
+        statusBeforeDisplacement: null,
+        suggestedStartAt: null,
+        suggestedEndAt: null,
       },
     });
 
-    return booking;
+    return tx.booking.findUniqueOrThrow({ where: { id: booking.id }, include: bookingInclude });
   });
 }
 
@@ -177,7 +372,7 @@ export async function listAvailableRooms(options: {
     if (startAt && endAt) {
       const conflictingBookings = await prisma.booking.findMany({
         where: {
-          status: { notIn: ['CANCELLED', 'COMPLETED'] },
+          status: { notIn: ['CANCELLED', 'COMPLETED', 'RESCHEDULE_REQUIRED'] },
           rooms: { some: { roomId: room.id } },
           AND: [{ startAt: { lt: endAt } }, { endAt: { gt: startAt } }],
         },

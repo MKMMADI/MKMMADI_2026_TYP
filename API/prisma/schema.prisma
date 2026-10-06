@@ -15,6 +15,18 @@ enum Role {
   MANAGER
 }
 
+enum OfficialRole {
+  CHAIRMAN_OF_THE_BOARD
+  CHIEF_OF_STAFF
+  FINANCIAL_CONTROL_OFFICER
+  DIRECTOR
+  PRESIDENT
+  COMPANY_SECRETARY
+  TREASURER
+  PARTNER
+  VICE_CHAIRMAN
+}
+
 enum RoomStatus {
   AVAILABLE
   MAINTENANCE
@@ -26,16 +38,19 @@ enum BookingStatus {
   CONFIRMED
   PREPARING
   READY
+  RESCHEDULE_REQUIRED
   COMPLETED
   CANCELLED
 }
 
 model User {
   id            Int       @id @default(autoincrement())
+  employeeId    String    @unique @default(dbgenerated("('EMP-ID-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 8)))"))
   name          String
   email         String    @unique
   passwordHash  String
   role          Role      @default(EMPLOYEE)
+  officialRole  OfficialRole?
   department    String?
   contactNumber String?
   createdAt     DateTime  @default(now())
@@ -170,6 +185,10 @@ model Booking {
   status              BookingStatus @default(PENDING)
   rejectionReasonCode String?
   rejectionNote       String?
+  suggestedStartAt    DateTime?
+  suggestedEndAt      DateTime?
+  statusBeforeDisplacement BookingStatus?
+  displacedByBookingId Int?
   reviewedAt          DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
@@ -178,10 +197,14 @@ model Booking {
   preparedBy User?            @relation("PreparedBookings", fields: [preparedById], references: [id])
   assignedClerk User?         @relation("AssignedBookings", fields: [assignedClerkId], references: [id], onDelete: SetNull)
   reviewedBy User?            @relation("ReviewedBookings", fields: [reviewedById], references: [id])
+  displacedBy Booking?        @relation("BookingDisplacement", fields: [displacedByBookingId], references: [id], onDelete: SetNull)
+  displacedBookings Booking[] @relation("BookingDisplacement")
   rooms      BookingRoom[]
   amenities  BookingAmenity[]
 
   @@index([assignedClerkId])
+  @@index([displacedByBookingId])
+  @@index([status, startAt, endAt])
 }
 
 model BookingRoom {

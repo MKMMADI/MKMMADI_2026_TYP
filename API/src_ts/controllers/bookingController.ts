@@ -1,6 +1,6 @@
 import { NextFunction, Response } from 'express';
 import prisma from '../prisma';
-import { createBooking } from '../services/bookingService';
+import { createBooking, rescheduleDisplacedBooking } from '../services/bookingService';
 import { createHttpError } from '../utils/httpError';
 import { AuthRequest } from '../middleware/auth';
 import { isValidRejectionCode, REJECTION_REASONS } from '../constants/rejectionReasons';
@@ -14,10 +14,34 @@ const bookingInclude = {
     },
   },
   amenities: { include: { amenity: true } },
-  employee: { select: { id: true, name: true, email: true } },
+  employee: {
+    select: {
+      id: true,
+      employeeId: true,
+      name: true,
+      email: true,
+      role: true,
+      department: true,
+      contactNumber: true,
+      officialRole: true,
+    },
+  },
   assignedClerk: { select: { id: true, name: true, email: true } },
   preparedBy: { select: { id: true, name: true, email: true } },
   reviewedBy: { select: { id: true, name: true, email: true } },
+  displacedBy: { select: { id: true, purpose: true } },
+  displacedBookings: {
+    select: {
+      id: true,
+      employeeId: true,
+      purpose: true,
+      startAt: true,
+      endAt: true,
+      status: true,
+      suggestedStartAt: true,
+      suggestedEndAt: true,
+    },
+  },
 } as const;
 
 /** Statuses clerks may set on the preparation queue (including moving backwards). */
@@ -52,6 +76,32 @@ export async function createBookingHandler(req: AuthRequest, res: Response, next
     });
 
     res.status(201).json(booking);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function rescheduleBooking(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const id = parseBookingId(req.params.id);
+    if (id == null) return next(createHttpError('Invalid booking id', 400));
+
+    const acceptSuggestion = req.body?.acceptSuggestion === true;
+    if (acceptSuggestion && (req.body?.startAt !== undefined || req.body?.endAt !== undefined)) {
+      return next(createHttpError('Accept the suggested time or provide a replacement startAt', 400));
+    }
+    if (!acceptSuggestion && req.body?.startAt === undefined) {
+      return next(createHttpError('Provide acceptSuggestion: true or a replacement startAt', 400));
+    }
+
+    const booking = await rescheduleDisplacedBooking({
+      bookingId: id,
+      employeeId: req.user.id,
+      acceptSuggestion,
+      startAt: req.body.startAt,
+      endAt: req.body.endAt,
+    });
+    res.json(booking);
   } catch (error) {
     next(error);
   }
@@ -388,7 +438,7 @@ export async function listOccupancy(req: AuthRequest, res: Response, next: NextF
 
     const bookings = await prisma.booking.findMany({
       where: {
-        status: { notIn: ['CANCELLED', 'COMPLETED'] },
+        status: { notIn: ['CANCELLED', 'COMPLETED', 'RESCHEDULE_REQUIRED'] },
         startAt: { lt: to },
         endAt: { gt: from },
       },

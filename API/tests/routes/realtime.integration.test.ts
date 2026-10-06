@@ -170,6 +170,46 @@ describe('Realtime messaging', () => {
     outsiderSocket.close();
   });
 
+  it('notifies a booking owner in realtime after an official displaces their reservation', async () => {
+    await prisma.user.update({
+      where: { id: manager.id },
+      data: { officialRole: 'PRESIDENT' },
+    });
+    const room = await prisma.room.create({
+      data: { name: 'Priority Room', capacity: 10, status: 'AVAILABLE', isActive: true },
+    });
+    const employeeSocket = connectSocket(employee.tokens.accessToken);
+    await waitForEvent(employeeSocket, 'connect');
+
+    const startAt = new Date(Date.now() + 5 * 60 * 60 * 1000);
+    const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+    const regularBooking = await request(app)
+      .post('/api/v1/bookings')
+      .set(authHeader(employee.tokens.accessToken))
+      .send({ roomIds: [room.id], purpose: 'Employee meeting', startAt, endAt, capacity: 5 });
+    expect(regularBooking.status).toBe(201);
+
+    const displacementEvent = waitForEvent<{
+      bookingId: number;
+      displacedByBookingId: number;
+      suggestedStartAt: string;
+      suggestedEndAt: string;
+    }>(employeeSocket, 'booking:displaced');
+    const officialBooking = await request(app)
+      .post('/api/v1/bookings')
+      .set(authHeader(manager.tokens.accessToken))
+      .send({ roomIds: [room.id], purpose: 'Board meeting', startAt, endAt, capacity: 5 });
+    expect(officialBooking.status).toBe(201);
+
+    const notification = await displacementEvent;
+    expect(notification).toMatchObject({
+      bookingId: regularBooking.body.id,
+      displacedByBookingId: officialBooking.body.id,
+    });
+    expect(new Date(notification.suggestedStartAt).getTime()).toBeGreaterThan(startAt.getTime());
+    employeeSocket.close();
+  });
+
   it('does not broadcast when message persistence fails', async () => {
     const start = await request(app)
       .post('/api/v1/conversations')

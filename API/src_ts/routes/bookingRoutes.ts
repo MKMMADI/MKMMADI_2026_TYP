@@ -11,12 +11,13 @@ import {
   listOccupancy,
   listRejectionReasons,
   rejectBooking,
+  rescheduleBooking,
   updateBookingStatus,
 } from '../controllers/bookingController';
 
 const router = Router();
 
-router.post('/', authenticate, requireRoles(['EMPLOYEE']), createBookingHandler);
+router.post('/', authenticate, requireRoles(['EMPLOYEE', 'MANAGER']), createBookingHandler);
 router.get('/', authenticate, listBookings);
 router.get('/assignable-clerks', authenticate, requireRoles(['MANAGER']), listAssignableClerks);
 router.get('/occupancy', authenticate, listOccupancy);
@@ -29,5 +30,6 @@ router.patch('/:id/assignment', authenticate, requireRoles(['MANAGER']), assignB
 // Preparation status (CONFIRMED / PREPARING / READY / COMPLETED) — clerk operational workflow only
 router.patch('/:id/status', authenticate, requireRoles(['CLERK']), updateBookingStatus);
 router.patch('/:id/cancel', authenticate, cancelBooking);
+router.patch('/:id/reschedule', authenticate, rescheduleBooking);
 
 export default router;

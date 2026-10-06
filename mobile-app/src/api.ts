@@ -257,6 +257,16 @@ export async function cancelBooking(id: number | string) {
   });
 }
 
+export async function rescheduleBooking(
+  id: number | string,
+  payload: { acceptSuggestion: true } | { startAt: string },
+) {
+  return request(`/api/v1/bookings/${id}/reschedule`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function updateRoomStatus(roomId: string, status: string) {
   return request(`/api/v1/rooms/${roomId}/status`, {
     method: 'PATCH',
@@ -288,6 +298,7 @@ export default {
   toggleFavorite,
   updateRoomStatus,
   cancelBooking,
+  rescheduleBooking,
   getOccupancy,
   searchAvailability,
 };

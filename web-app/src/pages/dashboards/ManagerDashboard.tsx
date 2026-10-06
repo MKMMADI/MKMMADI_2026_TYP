@@ -136,7 +136,7 @@ function Icon({
 }
 
 // ===== Types matching the API =====
-type BookingStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "COMPLETED" | "CANCELLED";
+type BookingStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "RESCHEDULE_REQUIRED" | "COMPLETED" | "CANCELLED";
 
 interface ApiBooking {
   id: number;
@@ -170,6 +170,7 @@ function statusToColor(status: BookingStatus): string {
     CONFIRMED: "teal",
     PREPARING: "blue",
     READY: "amber",
+    RESCHEDULE_REQUIRED: "amber",
     COMPLETED: "green",
     CANCELLED: "red",
   };
@@ -182,6 +183,7 @@ function statusLabel(status: BookingStatus): string {
     CONFIRMED: "Confirmed",
     PREPARING: "Preparing",
     READY: "Ready",
+    RESCHEDULE_REQUIRED: "Needs rescheduling",
     COMPLETED: "Completed",
     CANCELLED: "Cancelled",
   };

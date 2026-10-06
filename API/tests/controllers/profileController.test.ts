@@ -23,9 +23,11 @@ jest.mock('../../src_ts/prisma', () => ({
 
 const mockUser = {
   id: 1,
+  employeeId: 'EMP-ID-1A2B3C4D',
   email: 'test@example.com',
   name: 'Test User',
   role: 'EMPLOYEE',
+  officialRole: null,
   department: 'IT',
   contactNumber: '1234567890',
   Active: true,
@@ -50,6 +52,13 @@ describe('profileController - getProfile', () => {
       select: expect.any(Object),
     });
     expect(res.json).toHaveBeenCalledWith(mockUser);
+    const profileSelection = (prisma.user.findUnique as jest.Mock).mock.calls[0][0].select;
+    expect(profileSelection).toMatchObject({
+      employeeId: true,
+      department: true,
+      contactNumber: true,
+      officialRole: true,
+    });
   });
 
   it('returns 404 when user does not exist', async () => {
@@ -111,6 +120,26 @@ describe('profileController - updateProfile', () => {
       data: { department: 'HR' },
       select: expect.any(Object),
     });
+  });
+
+  it('does not allow a user to assign an official role through profile updates', async () => {
+    (prisma.user.update as jest.Mock).mockResolvedValue(mockUser);
+
+    const req = {
+      user: { id: 1 },
+      body: { officialRole: 'PRESIDENT' },
+    } as any;
+    const res = { json: jest.fn() } as any;
+    const next = jest.fn();
+
+    await updateProfile(req, res, next);
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: {},
+      select: expect.any(Object),
+    });
+    expect(res.json).toHaveBeenCalledWith(mockUser);
   });
 });
 

@@ -38,6 +38,24 @@ describe('Profile Routes Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body.name).toBe('Profile Test User');
       expect(response.body.email).toContain('@test.com');
+      expect(response.body.employeeId).toMatch(/^EMP-ID-[A-Z0-9]{1,9}$/);
+      expect(response.body.department).toBe('Engineering');
+      expect(response.body.contactNumber).toBe('+1234567890');
+      expect(response.body.officialRole).toBeNull();
+    });
+
+    it('should generate a unique employee ID for each user', async () => {
+      const secondEmployee = await createAndLoginUser({
+        name: 'Another Profile User',
+        email: `profile_second_${Date.now()}@test.com`,
+      });
+
+      const response = await request(app)
+        .get('/api/v1/profile/me')
+        .set(authHeader(employeeTokens));
+
+      expect(response.status).toBe(200);
+      expect(response.body.employeeId).not.toBe(secondEmployee.user.employeeId);
     });
 
     it('should reject unauthenticated access', async () => {
@@ -102,6 +120,16 @@ describe('Profile Routes Integration Tests', () => {
       if (response.status === 200) {
         expect(response.body.role).toBe('EMPLOYEE');
       }
+    });
+
+    it('should prevent users from assigning themselves an official role', async () => {
+      const response = await request(app)
+        .patch('/api/v1/profile/user')
+        .set(authHeader(employeeTokens))
+        .send({ officialRole: 'PRESIDENT' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.officialRole).toBeNull();
     });
 
     it('should reject unauthenticated update', async () => {

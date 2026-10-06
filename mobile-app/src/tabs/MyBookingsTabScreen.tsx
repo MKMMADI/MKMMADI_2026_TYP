@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +26,7 @@ const statusMeta: Record<
   CONFIRMED: { label: 'Confirmed', tone: '#F8E7C7', tint: '#B76A00', icon: 'time-outline' },
   PREPARING: { label: 'Preparing', tone: '#D9EBFF', tint: '#0056A8', icon: 'sparkles-outline' },
   READY: { label: 'Ready', tone: '#DDF5E5', tint: '#0A7A3F', icon: 'checkmark-circle-outline' },
+  RESCHEDULE_REQUIRED: { label: 'Schedule changed', tone: '#FFF0D9', tint: '#9A5B00', icon: 'calendar-outline' },
   COMPLETED: { label: 'Completed', tone: '#E8E9F7', tint: '#3E49A6', icon: 'checkbox-outline' },
   CANCELLED: { label: 'Cancelled', tone: '#F9E1E1', tint: '#A32323', icon: 'close-circle-outline' },
 };
@@ -61,6 +63,8 @@ function mapBooking(item: any): Booking {
     purpose: item.purpose ?? '',
     status: (item.status as BookingStatus) ?? 'PENDING',
     createdAt: item.createdAt ?? new Date().toISOString(),
+    suggestedStartAt: item.suggestedStartAt ?? null,
+    suggestedEndAt: item.suggestedEndAt ?? null,
     rooms:
       item.rooms?.map((r: any) => ({
         id: String(r.id ?? `${item.id}-room`),
@@ -110,6 +114,10 @@ export function MyBookingsTabScreen({
   const [tabFilter, setTabFilter] = useState<TabFilter>('UPCOMING');
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [savingRescheduleId, setSavingRescheduleId] = useState<string | null>(null);
 
   const loadBookings = useCallback(async () => {
     setLoading(true);
@@ -193,6 +201,42 @@ export function MyBookingsTabScreen({
     );
   };
 
+  const localDate = (value: string) => {
+    const date = new Date(value);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const localTime = (value: string) => {
+    const date = new Date(value);
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const applyReschedule = async (
+    booking: Booking,
+    payload: { acceptSuggestion: true } | { startAt: string },
+  ) => {
+    setSavingRescheduleId(booking.id);
+    try {
+      const updated = await api.rescheduleBooking(booking.id, payload);
+      const nextBooking = mapBooking(updated);
+      setBookings((previous) => previous.map((item) => item.id === booking.id ? nextBooking : item));
+      setRescheduleId(null);
+    } catch (err: any) {
+      Alert.alert('Could not reschedule', err?.message || 'Please choose another time and try again.');
+    } finally {
+      setSavingRescheduleId(null);
+    }
+  };
+
+  const handleChooseTime = (booking: Booking) => {
+    const startAt = new Date(`${rescheduleDate}T${rescheduleTime}:00`);
+    if (!rescheduleDate || !rescheduleTime || Number.isNaN(startAt.getTime()) || startAt <= new Date()) {
+      Alert.alert('Choose a future time', 'Enter a valid date and start time in the future.');
+      return;
+    }
+    void applyReschedule(booking, { startAt: startAt.toISOString() });
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
@@ -250,6 +294,7 @@ export function MyBookingsTabScreen({
             const meta = statusMeta[booking.status] ?? fallbackMeta;
             const canCancel = canCancelBooking(booking);
             const isCancelling = cancellingId === booking.id;
+            const isRescheduling = savingRescheduleId === booking.id;
 
             return (
               <View key={booking.id} style={styles.card}>
@@ -269,6 +314,71 @@ export function MyBookingsTabScreen({
                     </View>
                   </View>
                 </TouchableOpacity>
+
+                {booking.status === 'RESCHEDULE_REQUIRED' && (
+                  <View style={styles.reschedulePanel}>
+                    <Text style={styles.rescheduleTitle}>A higher-priority booking changed this time.</Text>
+                    {booking.suggestedStartAt && booking.suggestedEndAt && (
+                      <Text style={styles.rescheduleSuggestion}>
+                        Suggested: {formatDate(booking.suggestedStartAt, booking.suggestedEndAt)}
+                      </Text>
+                    )}
+                    <View style={styles.rescheduleActions}>
+                      <TouchableOpacity
+                        style={styles.acceptSuggestionButton}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Accept suggested time for ${booking.purpose}`}
+                        disabled={isRescheduling || !booking.suggestedStartAt}
+                        onPress={() => void applyReschedule(booking, { acceptSuggestion: true })}
+                      >
+                        {isRescheduling ? <ActivityIndicator size="small" color={colors.white} /> : (
+                          <Text style={styles.acceptSuggestionText}>Accept suggested time</Text>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.chooseTimeButton}
+                        accessibilityRole="button"
+                        onPress={() => {
+                          setRescheduleId(booking.id);
+                          if (booking.suggestedStartAt) {
+                            setRescheduleDate(localDate(booking.suggestedStartAt));
+                            setRescheduleTime(localTime(booking.suggestedStartAt));
+                          }
+                        }}
+                      >
+                        <Text style={styles.chooseTimeText}>Choose another time</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {rescheduleId === booking.id && (
+                      <View style={styles.rescheduleForm}>
+                        <TextInput
+                          style={styles.rescheduleInput}
+                          accessibilityLabel="Replacement date"
+                          placeholder="YYYY-MM-DD"
+                          value={rescheduleDate}
+                          onChangeText={setRescheduleDate}
+                          keyboardType="numbers-and-punctuation"
+                        />
+                        <TextInput
+                          style={styles.rescheduleInput}
+                          accessibilityLabel="Replacement start time"
+                          placeholder="HH:mm"
+                          value={rescheduleTime}
+                          onChangeText={setRescheduleTime}
+                          keyboardType="numbers-and-punctuation"
+                        />
+                        <TouchableOpacity
+                          style={styles.saveTimeButton}
+                          accessibilityRole="button"
+                          onPress={() => handleChooseTime(booking)}
+                          disabled={isRescheduling}
+                        >
+                          <Text style={styles.acceptSuggestionText}>Save new time</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                )}
 
                 {canCancel && (
                   <TouchableOpacity
@@ -433,5 +543,66 @@ const styles = StyleSheet.create({
   cancelText: {
     ...typography.buttonSm,
     color: colors.error,
+  },
+  reschedulePanel: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.sm,
+    backgroundColor: '#FFF8EC',
+  },
+  rescheduleTitle: {
+    ...typography.bodySm,
+    color: '#7A4A00',
+    fontWeight: '700',
+  },
+  rescheduleSuggestion: {
+    ...typography.bodySm,
+    color: colors.ink,
+    marginTop: spacing.xs,
+  },
+  rescheduleActions: {
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  acceptSuggestionButton: {
+    alignItems: 'center',
+    padding: spacing.sm,
+    borderRadius: radii.sm,
+    backgroundColor: colors.primary,
+  },
+  acceptSuggestionText: {
+    ...typography.buttonSm,
+    color: colors.white,
+  },
+  chooseTimeButton: {
+    alignItems: 'center',
+    padding: spacing.sm,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  chooseTimeText: {
+    ...typography.buttonSm,
+    color: colors.primary,
+  },
+  rescheduleForm: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  rescheduleInput: {
+    ...typography.bodyMd,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    color: colors.ink,
+    backgroundColor: colors.white,
+  },
+  saveTimeButton: {
+    alignItems: 'center',
+    padding: spacing.sm,
+    borderRadius: radii.sm,
+    backgroundColor: colors.ink,
   },
 });

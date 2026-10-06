@@ -7,6 +7,7 @@ export type BookingStatus =
   | 'CONFIRMED'
   | 'PREPARING'
   | 'READY'
+  | 'RESCHEDULE_REQUIRED'
   | 'COMPLETED'
   | 'CANCELLED';
 
@@ -62,6 +63,8 @@ export interface Booking {
   createdAt: string;
   rooms: BookingRoom[];
   requestedAmenities: Amenity[];
+  suggestedStartAt?: string | null;
+  suggestedEndAt?: string | null;
 }
 
 export interface ConversationParticipant {

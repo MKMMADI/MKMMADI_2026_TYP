@@ -305,7 +305,7 @@ describe('Booking Routes Integration Tests', () => {
       ).toBeNull();
     });
 
-    it('should reject booking creation by manager', async () => {
+    it('should allow a manager to create a booking', async () => {
       const startDate = new Date(new Date().getTime() + 2 * 60 * 60 * 1000);
       const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
 
@@ -320,7 +320,8 @@ describe('Booking Routes Integration Tests', () => {
           capacity: 5,
         });
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(201);
+      expect(response.body.employeeId).toBeDefined();
     });
 
     it('should approve and prepare a multi-room booking as one parent booking', async () => {
@@ -661,6 +662,182 @@ describe('Booking Routes Integration Tests', () => {
         .set(authHeader(employeeTokens));
 
       expect(response.status).toBe(403);
+    });
+  });
+
+  describe('Priority booking displacement', () => {
+    it('should let an official override lower-priority bookings and propose a future replacement', async () => {
+      const official = await createAndLoginUser({ role: 'EMPLOYEE', name: 'Board Chair' });
+      await prisma.user.update({
+        where: { id: official.user.id },
+        data: { officialRole: 'CHAIRMAN_OF_THE_BOARD' },
+      });
+      const startAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+      const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+
+      const displaced = await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(employeeTokens))
+        .send({ roomIds: [roomId], purpose: 'Original team meeting', startAt, endAt, capacity: 5 })
+        .expect(201);
+      const priorityBooking = await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(official.tokens.accessToken))
+        .send({ roomIds: [roomId], purpose: 'Board meeting', startAt, endAt, capacity: 5 })
+        .expect(201);
+
+      expect(priorityBooking.body.status).toBe('CONFIRMED');
+      expect(priorityBooking.body.employee.officialRole).toBe('CHAIRMAN_OF_THE_BOARD');
+      expect(priorityBooking.body.displacedBookings).toHaveLength(1);
+      expect(priorityBooking.body.displacedBookings[0]).toMatchObject({
+        id: displaced.body.id,
+        status: 'RESCHEDULE_REQUIRED',
+        suggestedStartAt: expect.any(String),
+        suggestedEndAt: expect.any(String),
+      });
+      expect(new Date(priorityBooking.body.displacedBookings[0].suggestedStartAt).getTime())
+        .toBeGreaterThan(startAt.getTime());
+      const persistedDisplacement = await prisma.booking.findUnique({ where: { id: displaced.body.id } });
+      expect(persistedDisplacement?.status).toBe('RESCHEDULE_REQUIRED');
+      expect(persistedDisplacement?.startAt).toEqual(startAt);
+    });
+
+    it('should not displace a booking belonging to another official', async () => {
+      const firstOfficial = await createAndLoginUser({ role: 'EMPLOYEE', name: 'Director One' });
+      const secondOfficial = await createAndLoginUser({ role: 'EMPLOYEE', name: 'Director Two' });
+      await prisma.user.update({
+        where: { id: firstOfficial.user.id },
+        data: { officialRole: 'DIRECTOR' },
+      });
+      await prisma.user.update({
+        where: { id: secondOfficial.user.id },
+        data: { officialRole: 'PRESIDENT' },
+      });
+      const startAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+      const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+
+      await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(firstOfficial.tokens.accessToken))
+        .send({ roomIds: [roomId], purpose: 'First official meeting', startAt, endAt, capacity: 5 })
+        .expect(201);
+      const conflict = await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(secondOfficial.tokens.accessToken))
+        .send({ roomIds: [roomId], purpose: 'Second official meeting', startAt, endAt, capacity: 5 })
+        .expect(400);
+
+      expect(conflict.body.message).toContain('not available');
+      expect(await prisma.booking.count({ where: { purpose: 'First official meeting', status: 'CONFIRMED' } })).toBe(1);
+    });
+  });
+
+  describe('PATCH /api/v1/bookings/:id/reschedule', () => {
+    it('lets only the displaced booker accept the proposal or select another time', async () => {
+      const official = await createAndLoginUser({ role: 'EMPLOYEE' });
+      await prisma.user.update({
+        where: { id: official.user.id },
+        data: { officialRole: 'PRESIDENT' },
+      });
+      const startAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+      const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+      const displaced = await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(employeeTokens))
+        .send({ roomIds: [roomId], purpose: 'Displaced employee meeting', startAt, endAt, capacity: 5 })
+        .expect(201);
+      const officialBooking = await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(official.tokens.accessToken))
+        .send({ roomIds: [roomId], purpose: 'Official meeting', startAt, endAt, capacity: 5 })
+        .expect(201);
+
+      const forbidden = await request(app)
+        .patch(`/api/v1/bookings/${displaced.body.id}/reschedule`)
+        .set(authHeader(official.tokens.accessToken))
+        .send({ acceptSuggestion: true });
+      expect(forbidden.status).toBe(403);
+
+      const suggestion = officialBooking.body.displacedBookings[0];
+      const accepted = await request(app)
+        .patch(`/api/v1/bookings/${displaced.body.id}/reschedule`)
+        .set(authHeader(employeeTokens))
+        .send({ acceptSuggestion: true });
+      expect(accepted.status).toBe(200);
+      expect(accepted.body.status).toBe('PENDING');
+      expect(accepted.body.startAt).toBe(suggestion.suggestedStartAt);
+      expect(accepted.body.endAt).toBe(suggestion.suggestedEndAt);
+      expect(accepted.body.suggestedStartAt).toBeNull();
+    });
+
+    it('lets the displaced booker choose another available time', async () => {
+      const official = await createAndLoginUser({ role: 'EMPLOYEE' });
+      await prisma.user.update({
+        where: { id: official.user.id },
+        data: { officialRole: 'TREASURER' },
+      });
+      const startAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+      const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+      const displaced = await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(employeeTokens))
+        .send({ roomIds: [roomId], purpose: 'Reschedule by preference', startAt, endAt, capacity: 5 })
+        .expect(201);
+      await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(official.tokens.accessToken))
+        .send({ roomIds: [roomId], purpose: 'Treasury meeting', startAt, endAt, capacity: 5 })
+        .expect(201);
+
+      const desiredStart = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+      const desiredEnd = new Date(desiredStart.getTime() + 60 * 60 * 1000);
+      const rescheduled = await request(app)
+        .patch(`/api/v1/bookings/${displaced.body.id}/reschedule`)
+        .set(authHeader(employeeTokens))
+        .send({ startAt: desiredStart.toISOString() });
+
+      expect(rescheduled.status).toBe(200);
+      expect(rescheduled.body.startAt).toBe(desiredStart.toISOString());
+      expect(rescheduled.body.status).toBe('PENDING');
+    });
+
+    it('rejects accepting a proposal after its suggested slot has been taken', async () => {
+      const official = await createAndLoginUser({ role: 'EMPLOYEE' });
+      await prisma.user.update({
+        where: { id: official.user.id },
+        data: { officialRole: 'VICE_CHAIRMAN' },
+      });
+      const startAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+      const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+      const displaced = await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(employeeTokens))
+        .send({ roomIds: [roomId], purpose: 'Proposal becomes unavailable', startAt, endAt, capacity: 5 })
+        .expect(201);
+      const officialBooking = await request(app)
+        .post('/api/v1/bookings')
+        .set(authHeader(official.tokens.accessToken))
+        .send({ roomIds: [roomId], purpose: 'Vice chair meeting', startAt, endAt, capacity: 5 })
+        .expect(201);
+      const suggestedStart = new Date(officialBooking.body.displacedBookings[0].suggestedStartAt);
+      const suggestedEnd = new Date(officialBooking.body.displacedBookings[0].suggestedEndAt);
+
+      await prisma.booking.create({
+        data: {
+          employeeId: official.user.id,
+          purpose: 'Another booking takes proposed slot',
+          startAt: suggestedStart,
+          endAt: suggestedEnd,
+          status: 'CONFIRMED',
+          rooms: { create: { roomId } },
+        },
+      });
+      const response = await request(app)
+        .patch(`/api/v1/bookings/${displaced.body.id}/reschedule`)
+        .set(authHeader(employeeTokens))
+        .send({ acceptSuggestion: true });
+
+      expect(response.status).toBe(409);
     });
   });
 

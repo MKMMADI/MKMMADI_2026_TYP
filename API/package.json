@@ -10,7 +10,9 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --runInBand",
     "build": "tsc",
-    "prebuild": "npm test"
+    "prebuild": "npm test",
+    "seed": "tsx prisma/seed.ts",
+    "compile": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

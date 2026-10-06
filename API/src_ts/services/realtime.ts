@@ -103,6 +103,18 @@ export function publishReadReceipt(
     .emit('conversation:read', { conversationId: receipt.conversationId, readerId, readAt: receipt.readAt });
 }
 
+export function publishBookingDisplacement(
+  employeeId: number,
+  displacement: {
+    bookingId: number;
+    displacedByBookingId: number;
+    suggestedStartAt: Date | null;
+    suggestedEndAt: Date | null;
+  },
+) {
+  realtimeServer?.to(userRoom(employeeId)).emit('booking:displaced', displacement);
+}
+
 export function disconnectUserSockets(userId: number) {
   realtimeServer?.in(userRoom(userId)).disconnectSockets(true);
 }

@@ -6,7 +6,7 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, Role, RoomStatus, BookingStatus } from "@prisma/client";
+import { PrismaClient, Role, OfficialRole, RoomStatus, BookingStatus } from "@prisma/client";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -172,6 +172,77 @@ async function main() {
       },
     }),
   ]);
+
+  const departments = [
+    "Engineering",
+    "Finance",
+    "Human Resources",
+    "Marketing",
+    "Operations",
+    "Product",
+    "Research",
+    "Sales",
+    "Strategy",
+  ];
+  const additionalEmployees = await Promise.all(
+    Array.from({ length: 33 }, (_, index) =>
+      prisma.user.create({
+        data: {
+          name: `Employee ${String(index + 1).padStart(2, "0")}`,
+          email: `employee${String(index + 1).padStart(2, "0")}@bookspace.co.za`,
+          passwordHash,
+          role: Role.EMPLOYEE,
+          department: departments[index % departments.length],
+          contactNumber: `+27 60 ${String(100 + index).padStart(3, "0")} ${String(1000 + index).padStart(4, "0")}`,
+          Active: true,
+        },
+      }),
+    ),
+  );
+
+  const officialRoles = [
+    OfficialRole.CHAIRMAN_OF_THE_BOARD,
+    OfficialRole.CHIEF_OF_STAFF,
+    OfficialRole.FINANCIAL_CONTROL_OFFICER,
+    OfficialRole.DIRECTOR,
+    OfficialRole.PRESIDENT,
+    OfficialRole.COMPANY_SECRETARY,
+    OfficialRole.TREASURER,
+    OfficialRole.PARTNER,
+    OfficialRole.VICE_CHAIRMAN,
+  ];
+  const officials = await Promise.all(
+    officialRoles.map((officialRole, index) =>
+      prisma.user.create({
+        data: {
+          name: `Official ${String(index + 1).padStart(2, "0")}`,
+          email: `official${String(index + 1).padStart(2, "0")}@bookspace.co.za`,
+          passwordHash,
+          role: Role.EMPLOYEE,
+          officialRole,
+          department: "Executive Office",
+          contactNumber: `+27 61 ${String(200 + index).padStart(3, "0")} ${String(2000 + index).padStart(4, "0")}`,
+          Active: true,
+        },
+      }),
+    ),
+  );
+
+  const additionalClerks = await Promise.all(
+    Array.from({ length: 18 }, (_, index) =>
+      prisma.user.create({
+        data: {
+          name: `Clerk ${String(index + 3).padStart(2, "0")}`,
+          email: `clerk${String(index + 3).padStart(2, "0")}@bookspace.co.za`,
+          passwordHash,
+          role: Role.CLERK,
+          department: "Facilities & Operations",
+          contactNumber: `+27 62 ${String(300 + index).padStart(3, "0")} ${String(3000 + index).padStart(4, "0")}`,
+          Active: true,
+        },
+      }),
+    ),
+  );
 
   // ─── Amenities ───────────────────────────────────────────
   console.log("Seeding amenities…");
@@ -680,7 +751,7 @@ async function main() {
   console.log("  Manager : lerato.mokoena@bookspace.co.za");
   console.log("  Clerk   : sipho.dlamini@bookspace.co.za");
   console.log("  Employee: thandi.mokoena@bookspace.co.za");
-  console.log(`\nRooms: 7 | Amenities: ${amenities.length} | Employees: ${employees.length + 3}`);
+  console.log(`\nRooms: 7 | Amenities: ${amenities.length} | Employees: ${employees.length + additionalEmployees.length + officials.length} | Clerks: ${additionalClerks.length + 2}`);
   console.log(`Bookings: ${bookingSeeds.length} | Consumables: 6`);
 }
 

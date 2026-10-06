@@ -173,6 +173,41 @@ describe('Report Routes Integration Tests', () => {
       expect(response.body).toHaveProperty('summary');
     });
 
+    it('does not count displaced bookings against the room availability report', async () => {
+      const room = await prisma.room.findFirst({ where: { name: 'Report Test Room' } });
+      const employee = await prisma.user.findFirst({ where: { role: 'EMPLOYEE' } });
+      const startAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+      const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+      await prisma.booking.create({
+        data: {
+          employeeId: employee!.id,
+          purpose: 'Active report booking',
+          startAt,
+          endAt,
+          status: 'CONFIRMED',
+          rooms: { create: { roomId: room!.id } },
+        },
+      });
+      await prisma.booking.create({
+        data: {
+          employeeId: employee!.id,
+          purpose: 'Displaced report booking',
+          startAt,
+          endAt,
+          status: 'RESCHEDULE_REQUIRED',
+          rooms: { create: { roomId: room!.id } },
+        },
+      });
+
+      const response = await request(app)
+        .get('/api/v1/reports/availability')
+        .set(authHeader(managerTokens))
+        .query({ startDate: startAt.toISOString(), endDate: endAt.toISOString() });
+
+      expect(response.status).toBe(200);
+      expect(response.body.summary.totalBookingsInPeriod).toBe(1);
+    });
+
     it('should handle empty date range gracefully', async () => {
       const response = await request(app)
         .get('/api/v1/reports/availability')

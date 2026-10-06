@@ -38,7 +38,7 @@ export async function getAvailabilityReport(req: AuthRequest, res: Response, nex
     // Get bookings within date range
     const bookings = await prisma.booking.findMany({
       where: {
-        status: { notIn: ['CANCELLED'] },
+        status: { notIn: ['CANCELLED', 'RESCHEDULE_REQUIRED'] },
         OR: [
           { startAt: { gte: start, lte: end } },
           { endAt: { gte: start, lte: end } },

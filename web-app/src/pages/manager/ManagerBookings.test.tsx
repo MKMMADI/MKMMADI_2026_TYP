@@ -22,7 +22,16 @@ interface BookingFixture {
   status: "PENDING" | "CONFIRMED";
   assignedClerkId?: number | null;
   assignedClerk?: (typeof availableClerks)[number] | null;
-  employee: { id: number; name: string; email: string };
+  employee: {
+    id: number;
+    employeeId: string;
+    name: string;
+    email: string;
+    role: "EMPLOYEE" | "CLERK" | "MANAGER";
+    officialRole: string | null;
+    department: string | null;
+    contactNumber: string | null;
+  };
   rooms: { room: { id: number; name: string; capacity: number } }[];
   amenities: never[];
 }
@@ -34,7 +43,16 @@ function makeBooking(status: "PENDING" | "CONFIRMED"): BookingFixture {
     startAt: "2026-09-29T09:00:00.000Z",
     endAt: "2026-09-29T10:00:00.000Z",
     status,
-    employee: { id: 3, name: "Taylor Employee", email: "taylor@example.com" },
+    employee: {
+      id: 3,
+      employeeId: "EMP-ID-1A2B3C4D",
+      name: "Taylor Employee",
+      email: "taylor@example.com",
+      role: "EMPLOYEE",
+      officialRole: null,
+      department: "Engineering",
+      contactNumber: "+27 81 000 0000",
+    },
     rooms: [{ room: { id: 1, name: "Boardroom", capacity: 10 } }],
     amenities: [],
   };
@@ -63,6 +81,9 @@ describe("ManagerBookings clerk assignment", () => {
 
   it("allows a manager to assign a clerk before approving a booking", async () => {
     render(<ManagerBookings />);
+
+    expect(await screen.findByText("EMP-ID-1A2B3C4D · Engineering")).toBeTruthy();
+    expect(screen.getByText("+27 81 000 0000 · EMPLOYEE")).toBeTruthy();
 
     const assignment = await screen.findByRole("combobox", { name: "Assign clerk for Facilities review" });
     fireEvent.change(assignment, { target: { value: "12" } });

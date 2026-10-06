@@ -8,6 +8,7 @@ type BookingStatus =
   | "CONFIRMED"
   | "PREPARING"
   | "READY"
+  | "RESCHEDULE_REQUIRED"
   | "COMPLETED"
   | "CANCELLED";
 
@@ -19,7 +20,16 @@ interface ApiBooking {
   status: BookingStatus;
   assignedClerkId?: number | null;
   assignedClerk?: { id: number; name: string; email: string } | null;
-  employee: { id: number; name: string; email: string };
+  employee: {
+    id: number;
+    employeeId: string;
+    name: string;
+    email: string;
+    role: "EMPLOYEE" | "CLERK" | "MANAGER";
+    officialRole: string | null;
+    department: string | null;
+    contactNumber: string | null;
+  };
   rooms: { room: { id: number; name: string; capacity: number } }[];
   amenities?: { amenity: { id: number; name: string } }[];
 }
@@ -52,6 +62,7 @@ const STATUS_FILTERS: { value: "ALL" | BookingStatus; label: string }[] = [
   { value: "CONFIRMED", label: "Confirmed" },
   { value: "PREPARING", label: "Preparing" },
   { value: "READY", label: "Ready" },
+  { value: "RESCHEDULE_REQUIRED", label: "Needs rescheduling" },
   { value: "COMPLETED", label: "Completed" },
   { value: "CANCELLED", label: "Cancelled" },
 ];
@@ -80,6 +91,7 @@ function statusLabel(status: BookingStatus) {
     CONFIRMED: "Confirmed",
     PREPARING: "Preparing",
     READY: "Ready",
+    RESCHEDULE_REQUIRED: "Needs rescheduling",
     COMPLETED: "Completed",
     CANCELLED: "Cancelled",
   };
@@ -92,6 +104,7 @@ function statusClass(status: BookingStatus) {
     CONFIRMED: "confirmed",
     PREPARING: "preparing",
     READY: "ready",
+    RESCHEDULE_REQUIRED: "reschedule-required",
     COMPLETED: "completed",
     CANCELLED: "cancelled",
   };
@@ -434,6 +447,13 @@ export default function ManagerBookings() {
                       <div className="mb-employee">
                         <strong>{booking.employee.name}</strong>
                         <span>{booking.employee.email}</span>
+                        <span>
+                          {booking.employee.employeeId} · {booking.employee.department || "No department"}
+                        </span>
+                        <span>
+                          {booking.employee.contactNumber || "No contact number"} ·{" "}
+                          {booking.employee.officialRole?.replaceAll("_", " ") || booking.employee.role}
+                        </span>
                       </div>
                     </td>
                     <td className="mb-purpose">{booking.purpose}</td>

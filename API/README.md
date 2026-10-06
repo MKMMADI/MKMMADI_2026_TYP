@@ -39,6 +39,34 @@ planning pin and is separate from `preparedBy`, which records the clerk who
 actually starts preparation. Clerks can still claim any eligible booking from
 the preparation queue, regardless of its assigned clerk.
 
+## Priority bookings and displaced bookings
+
+Employees and managers can create bookings with `POST /api/v1/bookings`.
+Bookings owned by users with a high-ranking `officialRole` are confirmed
+immediately. If such a booking overlaps ordinary bookings, those bookings are
+preserved with status `RESCHEDULE_REQUIRED`; the response includes each
+displaced booking and its proposed replacement start/end time. A conflict with
+another official booking or the official's own booking is rejected rather than
+silently displacing it.
+
+The displaced booker can accept the proposal:
+
+```json
+{ "acceptSuggestion": true }
+```
+
+Or choose a different future start time (the original duration is retained):
+
+```json
+{ "startAt": "2026-10-08T09:00:00.000Z" }
+```
+
+Both options use `PATCH /api/v1/bookings/:id/reschedule`. Only the booking owner
+may accept or reschedule it. Replacement times are checked again when accepted;
+if another booking has taken the slot, the API returns `409` and the booker can
+choose another time. When a booking is displaced, the API emits a
+`booking:displaced` Socket.IO event to that booker's authenticated user room.
+
 ## Messaging
 
 Messaging is authenticated and one-to-one. Allowed pairs are:

@@ -30,6 +30,7 @@ const statusMeta: Record<
   CONFIRMED: { label: 'Awaiting prep', tone: '#F8E7C7', tint: '#B76A00', icon: 'time-outline' },
   PREPARING: { label: 'Preparing', tone: '#D9EBFF', tint: '#0056A8', icon: 'sparkles-outline' },
   READY: { label: 'Ready', tone: '#DDF5E5', tint: '#0A7A3F', icon: 'checkmark-circle-outline' },
+  RESCHEDULE_REQUIRED: { label: 'Needs rescheduling', tone: '#FFF0D9', tint: '#9A5B00', icon: 'calendar-outline' },
   COMPLETED: { label: 'Completed', tone: '#E8E9F7', tint: '#3E49A6', icon: 'checkbox-outline' },
   CANCELLED: { label: 'Cancelled', tone: '#F9E1E1', tint: '#A32323', icon: 'close-circle-outline' },
 };
@@ -41,6 +42,7 @@ const tabLabels: Record<StatusFilter, string> = {
   CONFIRMED: 'Queued',
   PREPARING: 'Prep',
   READY: 'Ready',
+  RESCHEDULE_REQUIRED: 'Needs rescheduling',
   COMPLETED: 'Done',
   CANCELLED: 'Cancelled',
 };
