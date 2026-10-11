@@ -1,8 +1,19 @@
-﻿import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
 import { Button } from '../components/Button';
 import api from '../api';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 interface RegisterScreenProps {
   onRegister: (user: any) => void;
@@ -10,6 +21,8 @@ interface RegisterScreenProps {
 }
 
 export function RegisterScreen({ onRegister, onNavigateToLogin }: RegisterScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const [name, setName] = useState('Alex Rivera');
   const [email, setEmail] = useState('alex.rivera@company.com');
   const [password, setPassword] = useState('password');
@@ -44,47 +57,87 @@ export function RegisterScreen({ onRegister, onNavigateToLogin }: RegisterScreen
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create account</Text>
-      <Text style={styles.subtitle}>Set up your employee workspace access</Text>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
+        <Text style={styles.title}>Create account</Text>
+        <Text style={styles.subtitle}>Set up your employee workspace access</Text>
 
-      <Text style={styles.label}>Full name</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Jane Doe" />
+        <Text style={styles.label}>Full name</Text>
+        <TextInput
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+          placeholder="Jane Doe"
+          placeholderTextColor={colors.mutedSoft}
+        />
 
-      <Text style={[styles.label, { marginTop: spacing.md }]}>Email</Text>
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-        placeholder="name@company.com"
-      />
+        <Text style={[styles.label, { marginTop: spacing.md }]}>Email</Text>
+        <TextInput
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          placeholder="name@company.com"
+          placeholderTextColor={colors.mutedSoft}
+        />
 
-      <Text style={[styles.label, { marginTop: spacing.md }]}>Password</Text>
-      <TextInput style={styles.input} value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
+        <Text style={[styles.label, { marginTop: spacing.md }]}>Password</Text>
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholder="••••••••"
+          placeholderTextColor={colors.mutedSoft}
+        />
 
-      <Text style={[styles.label, { marginTop: spacing.md }]}>Department</Text>
-      <TextInput style={styles.input} value={department} onChangeText={setDepartment} placeholder="Engineering" />
+        <Text style={[styles.label, { marginTop: spacing.md }]}>Department</Text>
+        <TextInput
+          style={styles.input}
+          value={department}
+          onChangeText={setDepartment}
+          placeholder="Engineering"
+          placeholderTextColor={colors.mutedSoft}
+        />
 
-      <Text style={[styles.label, { marginTop: spacing.md }]}>Contact number</Text>
-      <TextInput style={styles.input} value={contactNumber} onChangeText={setContactNumber} placeholder="+27 82 555 0192" />
+        <Text style={[styles.label, { marginTop: spacing.md }]}>Contact number</Text>
+        <TextInput
+          style={styles.input}
+          value={contactNumber}
+          onChangeText={setContactNumber}
+          placeholder="+27 82 555 0192"
+          placeholderTextColor={colors.mutedSoft}
+          keyboardType="phone-pad"
+        />
 
-      <Button title="Register" onPress={handleRegister} loading={loading} style={{ marginTop: spacing.lg }} />
+        <Button title="Register" onPress={handleRegister} loading={loading} style={{ marginTop: spacing.lg }} />
 
-      {onNavigateToLogin && (
-        <TouchableOpacity style={styles.switchLink} onPress={onNavigateToLogin}>
-          <Text style={styles.switchText}>Already have an account? Sign in</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+        {onNavigateToLogin && (
+          <TouchableOpacity style={styles.switchLink} onPress={onNavigateToLogin}>
+            <Text style={styles.switchText}>Already have an account? Sign in</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
+  screen: {
     flex: 1,
+  },
+  container: {
+    flexGrow: 1,
     padding: spacing.base,
     justifyContent: 'center',
     backgroundColor: colors.canvas,
@@ -106,8 +159,9 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E6E9EE',
-    backgroundColor: '#FFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceCard,
+    color: colors.ink,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: radii.md,
@@ -122,5 +176,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 });
+};
 
 export default RegisterScreen;

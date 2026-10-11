@@ -21,11 +21,37 @@ npx expo start
 
 Scan the QR with Expo Go, or press `a` / `i` for emulator.
 
+## Build an Android APK with EAS
+
+The `preview` EAS profile creates an installable APK for a physical Android
+phone. In the Expo dashboard, add `EXPO_PUBLIC_API_URL` to the project's
+**Preview** environment variables before building. Use the API's reachable
+HTTPS base URL, without `/api/v1`. Android blocks unencrypted HTTP requests by
+default, and emulator-only addresses such as `10.0.2.2` are not reachable from
+a physical phone. The app configuration fails instead of silently embedding
+the emulator address when this variable is missing.
+
+From this folder:
+
+```bash
+npx eas-cli login
+npx eas-cli build --platform android --profile preview
+```
+
+The first build may ask to create or configure Android signing credentials;
+allow EAS to manage them. When the build finishes, open the build link on the
+phone and download/install the APK. Android may ask you to allow installing
+apps from that browser.
+
+For a Google Play release, use the `production` profile instead; it produces
+an Android App Bundle (AAB), which is not a direct-install APK.
+
 ## Structure
 
 ```
 mobile-app/
   app/                 # Expo Router screens (if using file-based routing)
+  assets/              # BookSpace app icon, Android adaptive icon, and splash screen
   src/
     components/        # Button, RoomCard, SearchBar, ...
     theme/             # Airbnb design tokens
@@ -34,6 +60,10 @@ mobile-app/
   package.json
   app.json
 ```
+
+The native branding uses the same BookSpace mark as `web-app/src/components/Logo.tsx`.
+`assets/splash.png` is composed from the app icon mark; update it alongside the
+icon if the web brand changes.
 
 ## Connecting to the API
 

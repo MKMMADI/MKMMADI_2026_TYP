@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  RefreshControl,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +21,8 @@ import { FLOATING_TAB_HEIGHT, FLOATING_TAB_MARGIN_BOTTOM } from '../navigation/f
 import api from '../api';
 import { API_SOCKET_URL } from '../config';
 import { colors, radii, spacing, typography } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 import { ConversationSummary, DirectMessage, User } from '../types';
 
 interface MessagePage {
@@ -51,6 +54,8 @@ export function MessagesTabScreen({
   openConversationId?: number;
   onConversationRequestHandled?: () => void;
 }) {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const insets = useSafeAreaInsets();
   const floatingTabClearance = FLOATING_TAB_HEIGHT + Math.max(0, FLOATING_TAB_MARGIN_BOTTOM - insets.bottom) + spacing.sm;
   const [contacts, setContacts] = useState<User[]>([]);
@@ -62,6 +67,7 @@ export function MessagesTabScreen({
   const [contactSearch, setContactSearch] = useState('');
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [sending, setSending] = useState(false);
@@ -121,6 +127,21 @@ export function MessagesTabScreen({
       setLoading(false);
     }
   }, [refreshHistory]);
+
+  const refreshMessages = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (chatOpen && selectedIdRef.current !== null) {
+        await refreshHistory(selectedIdRef.current);
+      } else {
+        await loadInbox();
+      }
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Could not refresh messages.');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [chatOpen, loadInbox, refreshHistory]);
 
   useFocusEffect(
     useCallback(() => {
@@ -266,8 +287,8 @@ export function MessagesTabScreen({
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {chatOpen && selectedConversation ? (
           <>
             <View style={styles.chatHeader}>
@@ -290,10 +311,18 @@ export function MessagesTabScreen({
 
             {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
             <ScrollView
+              testID="messages-thread-scroll-view"
               ref={threadRef}
               style={styles.thread}
               contentContainerStyle={styles.threadContent}
               keyboardShouldPersistTaps="handled"
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => void refreshMessages()}
+                  tintColor={colors.primary}
+                />
+              }
             >
               {nextBeforeId ? (
                 <TouchableOpacity style={styles.loadOlder} onPress={() => void loadOlderMessages()} disabled={loadingOlder}>
@@ -351,9 +380,17 @@ export function MessagesTabScreen({
 
             {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
             <ScrollView
+              testID="messages-inbox-scroll-view"
               style={styles.inbox}
               contentContainerStyle={[styles.inboxContent, { paddingBottom: floatingTabClearance }]}
               keyboardShouldPersistTaps="handled"
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => void refreshMessages()}
+                  tintColor={colors.primary}
+                />
+              }
             >
               <Text style={styles.sectionLabel}>People you can message</Text>
               <View style={styles.searchBox}>
@@ -426,7 +463,8 @@ export function MessagesTabScreen({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.base, paddingVertical: spacing.sm },
@@ -478,3 +516,4 @@ const styles = StyleSheet.create({
   sendButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: radii.full, backgroundColor: colors.primary },
   sendButtonDisabled: { backgroundColor: colors.primaryDisabled },
 });
+};

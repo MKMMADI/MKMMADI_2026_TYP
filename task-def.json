@@ -1,0 +1,56 @@
+{
+    "runtimePlatform":  {
+                            "operatingSystemFamily":  "LINUX",
+                            "cpuArchitecture":  "X86_64"
+                        },
+    "networkMode":  "awsvpc",
+    "cpu":  "512",
+    "requiresCompatibilities":  [
+                                    "FARGATE"
+                                ],
+    "containerDefinitions":  [
+                                 {
+                                     "name":  "api",
+                                     "logConfiguration":  {
+                                                              "logDriver":  "awslogs",
+                                                              "options":  {
+                                                                              "awslogs-region":  "af-south-1",
+                                                                              "awslogs-stream-prefix":  "ecs",
+                                                                              "awslogs-create-group":  "true",
+                                                                              "awslogs-group":  "/ecs/conference-bookings-api"
+                                                                          }
+                                                          },
+                                     "environment":  [
+                                                         {
+                                                             "value":  "production",
+                                                             "name":  "NODE_ENV"
+                                                         },
+                                                         {
+                                                             "value":  "4000",
+                                                             "name":  "PORT"
+                                                         }
+                                                     ],
+                                     "essential":  true,
+                                     "secrets":  [
+                                                     {
+                                                         "valueFrom":  "arn:aws:ssm:af-south-1:764678966746:parameter/conference-bookings/production/DATABASE_URL",
+                                                         "name":  "DATABASE_URL"
+                                                     },
+                                                     {
+                                                         "valueFrom":  "arn:aws:ssm:af-south-1:764678966746:parameter/conference-bookings/production/JWT_SECRET",
+                                                         "name":  "JWT_SECRET"
+                                                     }
+                                                 ],
+                                     "image":  "764678966746.dkr.ecr.af-south-1.amazonaws.com/mkmmadi-api@sha256:e7562b87dc1067091b825d5a45eba164b387954c018b10de8fc79de4a16e8d8c",
+                                     "portMappings":  [
+                                                          {
+                                                              "protocol":  "tcp",
+                                                              "containerPort":  4000
+                                                          }
+                                                      ]
+                                 }
+                             ],
+    "family":  "conference-bookings-api",
+    "executionRoleArn":  "arn:aws:iam::764678966746:role/conference-api-task-execution-role",
+    "memory":  "1024"
+}

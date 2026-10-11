@@ -15,6 +15,8 @@ import ManagerInventory from "@/pages/manager/ManagerInventory";
 import ManagerReports from "@/pages/manager/ManagerReports";
 import ManagerProfile from "@/pages/manager/ManagerProfile";
 import ManagerMessages from "@/pages/manager/ManagerMessages";
+import ManagerNotifications from "@/pages/manager/ManagerNotifications";
+import ManagerNewBooking from "@/pages/manager/ManagerNewBooking";
 
 function App() {
   return (
@@ -30,6 +32,7 @@ function App() {
       <Route path="/operations/dashboard" element={<ClerkDashboard />} />
       <Route path="/manager/dashboard" element={<ManagerDashboard />} />
       <Route path="/manager/bookings" element={<ManagerBookings />} />
+      <Route path="/manager/bookings/new" element={<ManagerNewBooking />} />
       <Route path="/manager/queue" element={<ManagerQueue />} />
       <Route path="/manager/spaces" element={<ManagerSpaces />} />
       <Route path="/manager/spaces/create" element={<ManagerSpaceCreate />} />
@@ -38,6 +41,7 @@ function App() {
       <Route path="/manager/reports" element={<ManagerReports />} />
       <Route path="/manager/profile" element={<ManagerProfile />} />
       <Route path="/manager/messages" element={<ManagerMessages />} />
+      <Route path="/manager/notifications" element={<ManagerNotifications />} />
     </Routes>
   );
 }

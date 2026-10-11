@@ -12,6 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Room } from '../types';
 import { Button } from '../components/Button';
 import { colors, radii, spacing, typography } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 import api from '../api';
 
 interface RoomDetailScreenProps {
@@ -38,6 +40,8 @@ function formatSlot(start: string, end: string) {
 }
 
 export function RoomDetailScreen({ room, onBack, onBook }: RoomDetailScreenProps) {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const [upcoming, setUpcoming] = useState<UpcomingSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(true);
   const [isFavorite, setIsFavorite] = useState(Boolean(room?.isFavorite));
@@ -98,7 +102,7 @@ export function RoomDetailScreen({ room, onBack, onBook }: RoomDetailScreenProps
           <Text style={styles.headerTitle}>Room details</Text>
           <View style={{ flex: 1 }} />
           <TouchableOpacity
-            style={styles.heartBtn}
+            style={[styles.heartBtn, mode === 'dark' && styles.heartBtnDark]}
             onPress={async () => {
               try {
                 const result = await api.toggleFavorite(room.id);
@@ -112,7 +116,7 @@ export function RoomDetailScreen({ room, onBack, onBook }: RoomDetailScreenProps
             <Ionicons
               name={isFavorite ? 'heart' : 'heart-outline'}
               size={22}
-              color={isFavorite ? '#E11D48' : colors.ink}
+              color={isFavorite ? (mode === 'dark' ? '#FB7185' : '#E11D48') : colors.ink}
             />
           </TouchableOpacity>
         </View>
@@ -212,7 +216,8 @@ export function RoomDetailScreen({ room, onBack, onBook }: RoomDetailScreenProps
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   body: { flex: 1 },
   scroll: { flex: 1 },
@@ -241,8 +246,14 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  heartBtnDark: {
+    backgroundColor: 'rgba(17,24,32,0.9)',
+    borderColor: colors.borderStrong,
   },
   imageWrap: {
     marginHorizontal: spacing.base,
@@ -269,7 +280,7 @@ const styles = StyleSheet.create({
   card: {
     marginTop: spacing.base,
     marginHorizontal: spacing.base,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radii.lg,
     padding: spacing.base,
   },
@@ -337,5 +348,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
 });
+};
 
 export default RoomDetailScreen;

@@ -1,0 +1,13 @@
+*.tgz
+*.zip
+*.sh
+.env
+.env.*
+!.env.example
+**/.git/
+**/node_modules/
+**/.expo/
+/API/
+**/.agents/
+**/.claude/
+**/.windsurf/

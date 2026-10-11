@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 import { Booking, BookingStatus } from '../types';
 import { colors, radii, spacing, typography } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 interface ClerkDashboardScreenProps {
   onOpenProfile?: () => void;
@@ -141,6 +143,8 @@ function inventoryChecklistForRoom(booking: Booking): string[] {
 }
 
 export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDashboardScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const [queue, setQueue] = useState<Booking[]>([]);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
@@ -491,7 +495,8 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -874,5 +879,6 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
 });
+};
 
 export default ClerkDashboardScreen;

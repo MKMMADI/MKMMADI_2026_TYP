@@ -8,18 +8,45 @@ import { initializeRealtime } from './services/realtime';
 const PORT = config.PORT;
 const server = createServer(app);
 
-initializeRealtime(server);
-
-server.listen(PORT, async () => {
-  logger.info(`Server listening on ${PORT}`);
-  console.log(`Server listening on ${PORT}`);
-
+async function startServer() {
   try {
     await prisma.$connect();
     logger.info('Prisma connected');
     console.log('Prisma connected');
+
+    initializeRealtime(server);
+    server.listen(PORT, () => {
+      logger.info(`Server listening on ${PORT}`);
+      console.log(`Server listening on ${PORT}`);
+    });
   } catch (err) {
     logger.error('Prisma connection error', err);
     console.error('Prisma connection error', err);
+    process.exit(1);
   }
-});
+}
+
+const shutdown = async (signal: string) => {
+  logger.info(`Received ${signal}; shutting down gracefully`);
+  server.close(async (error) => {
+    if (error) {
+      logger.error('Error while closing HTTP server', error);
+      process.exitCode = 1;
+    }
+
+    try {
+      await prisma.$disconnect();
+      logger.info('Prisma disconnected');
+    } catch (disconnectError) {
+      logger.error('Error while disconnecting Prisma', disconnectError);
+      process.exitCode = 1;
+    } finally {
+      process.exit();
+    }
+  });
+};
+
+process.on('SIGINT', () => void shutdown('SIGINT'));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+
+startServer();

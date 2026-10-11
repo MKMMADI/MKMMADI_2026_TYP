@@ -1,16 +1,23 @@
 
 import rateLimit from 'express-rate-limit';
+import config from '../config';
 
-
-// Rate limiter (10 requests per 15 minutes per IP)
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  message: { error: "Too many requests, please try again later." },
+  windowMs: config.RATE_LIMIT_WINDOW_MS,
+  max: config.RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later.' },
+  skipSuccessfulRequests: false,
 });
 
+export const authLimiter = rateLimit({
+  windowMs: config.AUTH_RATE_LIMIT_WINDOW_MS,
+  max: config.AUTH_RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many authentication attempts, please try again later.' },
+  skipSuccessfulRequests: false,
+});
 
-
-export  default apiLimiter;
+export default apiLimiter;

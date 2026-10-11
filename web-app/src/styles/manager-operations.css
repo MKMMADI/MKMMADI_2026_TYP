@@ -327,6 +327,13 @@
   margin-top: 0;
 }
 
+.mo-chart-description {
+  margin: -4px 0 16px;
+  color: var(--m-muted, #738184);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .mo-chart-empty {
   margin: 0;
   color: var(--m-muted, #738184);

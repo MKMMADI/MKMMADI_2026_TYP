@@ -9,20 +9,20 @@
  * After changing .env, restart Expo with a clear cache:
  *   npx expo start -c
  */
-const apiUrl = (process.env.EXPO_PUBLIC_API_URL || '').trim() || 'http://10.0.2.2:4000';
+const apiUrl = (process.env.EXPO_PUBLIC_API_URL || '').trim();
 
-if (!process.env.EXPO_PUBLIC_API_URL) {
-  console.warn(
-    '[app.config] EXPO_PUBLIC_API_URL is not set. Using fallback',
-    apiUrl,
-    '- create mobile-app/.env with EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:4000 and run: npx expo start -c',
+if (!apiUrl) {
+  throw new Error(
+    'EXPO_PUBLIC_API_URL is required. Set it in mobile-app/.env for local development ' +
+      'or in the EAS build environment. Use a reachable HTTPS URL for a device build.',
   );
-} else {
-  console.log('[app.config] Using EXPO_PUBLIC_API_URL =', apiUrl);
 }
+
+console.log('[app.config] Using configured EXPO_PUBLIC_API_URL');
 
 module.exports = ({ config }) => ({
   ...config,
+  plugins: [...(config.plugins || []), '@react-native-community/datetimepicker'],
   extra: {
     ...(config.extra || {}),
     apiUrl,

@@ -1,694 +1,106 @@
 import {
-  createBookingHandler,
-  listBookings,
-  getBooking,
-  approveBooking,
-  rejectBooking,
-  updateBookingStatus,
-  cancelBooking,
-  listRejectionReasons,
-  listOccupancy,
+  createBookingHandler, rescheduleBooking, listBookings, listAssignableClerks, assignBookingClerk,
+  getBooking, approveBooking, rejectBooking, updateBookingStatus, cancelBooking, listOccupancy,
 } from '../../src_ts/controllers/bookingController';
-import prisma from '../../src_ts/prisma';
 import * as bookingService from '../../src_ts/services/bookingService';
-
-jest.mock('../../src_ts/prisma', () => ({
-  __esModule: true,
-  default: {
-    booking: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      findUniqueOrThrow: jest.fn(),
-      update: jest.fn(),
-    },
-  },
-}));
+import { publishBookingUpdate } from '../../src_ts/services/realtime';
 
 jest.mock('../../src_ts/services/bookingService', () => ({
   createBooking: jest.fn(),
+  rescheduleDisplacedBooking: jest.fn(),
+  listBookings: jest.fn(),
+  listAssignableClerks: jest.fn(),
+  assignBookingClerk: jest.fn(),
+  getBooking: jest.fn(),
+  approveBooking: jest.fn(),
+  rejectBooking: jest.fn(),
+  updateBookingStatus: jest.fn(),
+  cancelBooking: jest.fn(),
+  listOccupancy: jest.fn(),
   listAvailableRooms: jest.fn(),
 }));
 
-const mockUser = { id: 1, email: 'test@example.com', role: 'EMPLOYEE' };
-const mockManagerUser = { id: 2, email: 'manager@example.com', role: 'MANAGER' };
-const mockClerkUser = { id: 3, email: 'clerk@example.com', role: 'CLERK' };
+jest.mock('../../src_ts/services/realtime', () => ({ publishBookingUpdate: jest.fn() }));
 
-const mockBooking = {
-  id: 1,
-  employeeId: 1,
-  status: 'PENDING',
-  purpose: 'Team meeting',
-  startAt: new Date('2025-01-15T10:00:00Z'),
-  endAt: new Date('2025-01-15T11:00:00Z'),
-  rooms: [],
-  amenities: [],
-};
+const user = { id: 1, role: 'EMPLOYEE' };
+const booking = { id: 12, employeeId: 1, status: 'CONFIRMED' };
+const response = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn() }) as any;
 
-describe('bookingController - createBookingHandler', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+describe('bookingController service delegation', () => {
+  beforeEach(() => jest.clearAllMocks());
 
-  it('creates a booking successfully', async () => {
-    const createdBooking = { ...mockBooking, id: 1 };
-    (bookingService.createBooking as jest.Mock).mockResolvedValue(createdBooking);
-
-    const req = {
-      body: { roomIds: [1, 2], amenityIds: [1, 2], purpose: 'Meeting', capacity: 5 },
-      user: mockUser,
-    } as any;
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await createBookingHandler(req, res, next);
-
+  it('normalizes booking IDs and passes creation data to the service', async () => {
+    (bookingService.createBooking as jest.Mock).mockResolvedValue(booking);
+    const res = response();
+    await createBookingHandler({
+      user, body: { purpose: 'Meet', startAt: 'start', endAt: 'end', roomIds: ['2'], amenityIds: ['3'], capacity: '8' },
+    } as any, res, jest.fn());
     expect(bookingService.createBooking).toHaveBeenCalledWith({
-      employeeId: 1,
-      purpose: 'Meeting',
-      roomIds: [1, 2],
-      amenityIds: [1, 2],
-      capacity: 5,
+      employeeId: 1, purpose: 'Meet', startAt: 'start', endAt: 'end', roomIds: [2], amenityIds: [3], capacity: 8,
     });
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith(createdBooking);
+    expect(res.json).toHaveBeenCalledWith(booking);
   });
 
-  it('passes errors to the error handler', async () => {
-    const error = new Error('Booking creation failed');
-    (bookingService.createBooking as jest.Mock).mockRejectedValue(error);
-
-    const req = { body: {}, user: mockUser } as any;
-    const res = {} as any;
+  it('keeps reschedule request validation at the HTTP boundary', async () => {
     const next = jest.fn();
-
-    await createBookingHandler(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(error);
+    await rescheduleBooking({ user, params: { id: '12' }, body: {} } as any, response(), next);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'Provide acceptSuggestion: true or a replacement startAt' }));
+    expect(bookingService.rescheduleDisplacedBooking).not.toHaveBeenCalled();
   });
 
-  it('normalizes numeric room IDs from the request body', async () => {
-    (bookingService.createBooking as jest.Mock).mockResolvedValue(mockBooking);
-
-    const req = {
-      body: { roomIds: ['4', '5'], purpose: 'Planning', capacity: 8 },
-      user: mockUser,
-    } as any;
-    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
-
-    await createBookingHandler(req, res, jest.fn());
-
-    expect(bookingService.createBooking).toHaveBeenCalledWith(expect.objectContaining({
-      roomIds: [4, 5],
-    }));
+  it('delegates list filters and returns the service result', async () => {
+    (bookingService.listBookings as jest.Mock).mockResolvedValue([booking]);
+    const res = response();
+    await listBookings({ user: { id: 1, role: 'MANAGER' }, query: { status: 'PENDING,CONFIRMED' } } as any, res, jest.fn());
+    expect(bookingService.listBookings).toHaveBeenCalledWith('MANAGER', 1, 'PENDING,CONFIRMED');
+    expect(res.json).toHaveBeenCalledWith([booking]);
   });
 
-  it('forwards duplicate room IDs for service-level deduplication', async () => {
-    (bookingService.createBooking as jest.Mock).mockResolvedValue(mockBooking);
-
-    const req = {
-      body: { roomIds: [4, 4, 5], purpose: 'Planning', capacity: 8 },
-      user: mockUser,
-    } as any;
-
-    await createBookingHandler(req, {} as any, jest.fn());
-
-    expect(bookingService.createBooking).toHaveBeenCalledWith(expect.objectContaining({
-      roomIds: [4, 4, 5],
-    }));
+  it('delegates clerk assignment after parsing the route values', async () => {
+    (bookingService.assignBookingClerk as jest.Mock).mockResolvedValue(booking);
+    const res = response();
+    await assignBookingClerk({ user, params: { id: '12' }, body: { clerkId: '5' } } as any, res, jest.fn());
+    expect(bookingService.assignBookingClerk).toHaveBeenCalledWith(12, 5);
+    expect(res.json).toHaveBeenCalledWith(booking);
   });
 
-  it('converts invalid room IDs to numbers for service-level validation', async () => {
-    (bookingService.createBooking as jest.Mock).mockResolvedValue(mockBooking);
-
-    const req = {
-      body: { roomIds: ['invalid', '-2'], purpose: 'Planning', capacity: 8 },
-      user: mockUser,
-    } as any;
-
-    await createBookingHandler(req, {} as any, jest.fn());
-
-    expect(bookingService.createBooking).toHaveBeenCalledWith(expect.objectContaining({
-      roomIds: [NaN, -2],
-    }));
+  it('delegates read, reject, preparation, and cancel operations', async () => {
+    (bookingService.getBooking as jest.Mock).mockResolvedValue(booking);
+    (bookingService.rejectBooking as jest.Mock).mockResolvedValue(booking);
+    (bookingService.updateBookingStatus as jest.Mock).mockResolvedValue(booking);
+    (bookingService.cancelBooking as jest.Mock).mockResolvedValue(booking);
+    const res = response();
+    await getBooking({ user, params: { id: '12' } } as any, res, jest.fn());
+    await rejectBooking({ user, params: { id: '12' }, body: { reasonCode: 'OTHER', note: 'note' } } as any, res, jest.fn());
+    await updateBookingStatus({ user, params: { id: '12' }, body: { status: 'PREPARING' } } as any, res, jest.fn());
+    await cancelBooking({ user, params: { id: '12' } } as any, res, jest.fn());
+    expect(bookingService.getBooking).toHaveBeenCalledWith(12, 1, 'EMPLOYEE');
+    expect(bookingService.rejectBooking).toHaveBeenCalledWith(12, 1, 'OTHER', 'note');
+    expect(bookingService.updateBookingStatus).toHaveBeenCalledWith(12, 'PREPARING', 1);
+    expect(bookingService.cancelBooking).toHaveBeenCalledWith(12, 1, 'EMPLOYEE');
+    expect(res.json).toHaveBeenCalledTimes(4);
   });
 
-  it('converts a non-array roomIds value to an empty list', async () => {
-    (bookingService.createBooking as jest.Mock).mockResolvedValue(mockBooking);
-
-    const req = {
-      body: { roomIds: '4', purpose: 'Planning', capacity: 8 },
-      user: mockUser,
-    } as any;
-
-    await createBookingHandler(req, {} as any, jest.fn());
-
-    expect(bookingService.createBooking).toHaveBeenCalledWith(expect.objectContaining({
-      roomIds: [],
-    }));
-  });
-
-  it('passes an empty room list to the service for service-level validation', async () => {
-    const error = new Error('At least one room is required');
-    (bookingService.createBooking as jest.Mock).mockRejectedValue(error);
-
-    const req = { body: { roomIds: [], purpose: 'Planning' }, user: mockUser } as any;
-    const next = jest.fn();
-
-    await createBookingHandler(req, {} as any, next);
-
-    expect(bookingService.createBooking).toHaveBeenCalledWith(expect.objectContaining({ roomIds: [] }));
-    expect(next).toHaveBeenCalledWith(error);
-  });
-
-  it('passes service errors for an unavailable selected room to the error handler', async () => {
-    const error = Object.assign(new Error('Room Boardroom is not available during the selected time'), {
-      status: 400,
-    });
-    (bookingService.createBooking as jest.Mock).mockRejectedValue(error);
-
-    const req = {
-      body: { roomIds: [1, 2], purpose: 'Planning', capacity: 8 },
-      user: mockUser,
-    } as any;
-    const next = jest.fn();
-
-    await createBookingHandler(req, {} as any, next);
-
-    expect(next).toHaveBeenCalledWith(error);
-  });
-});
-
-describe('bookingController - room amenity response', () => {
-  it('includes each room amenity when listing bookings', async () => {
-    (prisma.booking.findMany as jest.Mock).mockResolvedValue([]);
-    const req = { query: {}, user: mockClerkUser } as any;
-    const res = { json: jest.fn() } as any;
-
-    await listBookings(req, res, jest.fn());
-
-    expect(prisma.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      include: expect.objectContaining({
-        rooms: {
-          include: {
-            room: {
-              include: {
-                amenities: { include: { amenity: true } },
-              },
-            },
-          },
-        },
-      }),
-    }));
-  });
-});
-
-describe('bookingController - listBookings', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('returns all bookings for an employee when role is EMPLOYEE', async () => {
-    const bookings = [mockBooking];
-    (prisma.booking.findMany as jest.Mock).mockResolvedValue(bookings);
-
-    const req = { user: mockUser, query: {} } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await listBookings(req, res, next);
-
-    expect(prisma.booking.findMany).toHaveBeenCalledWith({
-      where: { employeeId: 1 },
-      include: expect.any(Object),
-      orderBy: { createdAt: 'desc' },
-    });
-    expect(res.json).toHaveBeenCalledWith(bookings);
-  });
-
-  it('returns all bookings when role is MANAGER', async () => {
-    const bookings = [mockBooking];
-    (prisma.booking.findMany as jest.Mock).mockResolvedValue(bookings);
-
-    const req = { user: mockManagerUser, query: {} } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await listBookings(req, res, next);
-
-    expect(prisma.booking.findMany).toHaveBeenCalledWith({
-      where: {},
-      include: expect.any(Object),
-      orderBy: { createdAt: 'desc' },
-    });
-  });
-
-  it('filters by status when status query param is provided', async () => {
-    const bookings = [mockBooking];
-    (prisma.booking.findMany as jest.Mock).mockResolvedValue(bookings);
-
-    const req = { user: mockManagerUser, query: { status: 'PENDING' } } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await listBookings(req, res, next);
-
-    expect(prisma.booking.findMany).toHaveBeenCalledWith({
-      where: { status: 'PENDING' },
-      include: expect.any(Object),
-      orderBy: { createdAt: 'desc' },
-    });
-  });
-});
-
-describe('bookingController - getBooking', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('returns a booking when user is the owner', async () => {
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(mockBooking);
-
-    const req = { params: { id: '1' }, user: mockUser } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await getBooking(req, res, next);
-
-    expect(res.json).toHaveBeenCalledWith(mockBooking);
-  });
-
-  it('allows manager to view any booking', async () => {
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(mockBooking);
-
-    const req = { params: { id: '1' }, user: mockManagerUser } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await getBooking(req, res, next);
-
-    expect(res.json).toHaveBeenCalledWith(mockBooking);
-  });
-
-  it('returns 404 when booking does not exist', async () => {
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(null);
-
-    const req = { params: { id: '999' }, user: mockUser } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await getBooking(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Booking not found', status: 404 })
-    );
-  });
-
-  it('returns 403 when employee tries to view another employees booking', async () => {
-    const otherBooking = { ...mockBooking, employeeId: 999 };
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(otherBooking);
-
-    const req = { params: { id: '1' }, user: mockUser } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await getBooking(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Forbidden', status: 403 })
-    );
-  });
-
-  it('returns 400 when invalid booking id is provided', async () => {
-    const req = { params: { id: 'invalid' }, user: mockUser } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await getBooking(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Invalid booking id', status: 400 })
-    );
-  });
-});
-
-describe('bookingController - approveBooking', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('approves a pending booking successfully', async () => {
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(mockBooking);
-    const approvedBooking = {
-      ...mockBooking,
+  it('publishes the approved booking update after the service succeeds', async () => {
+    (bookingService.approveBooking as jest.Mock).mockResolvedValue(booking);
+    const res = response();
+    await approveBooking({ user, params: { id: '12' } } as any, res, jest.fn());
+    expect(bookingService.approveBooking).toHaveBeenCalledWith(12, 1);
+    expect(publishBookingUpdate).toHaveBeenCalledWith(booking.employeeId, {
+      bookingId: booking.id,
       status: 'CONFIRMED',
-    };
-    (prisma.booking.findUniqueOrThrow as jest.Mock).mockResolvedValue(approvedBooking);
-
-    const req = { params: { id: '1' }, user: mockManagerUser } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await approveBooking(req, res, next);
-
-    expect(prisma.booking.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: expect.objectContaining({ status: 'CONFIRMED' }),
     });
-    expect(prisma.booking.findUniqueOrThrow).toHaveBeenCalledWith({
-      where: { id: 1 },
-      include: expect.any(Object),
-    });
-    expect(res.json).toHaveBeenCalledWith(approvedBooking);
+    expect(res.json).toHaveBeenCalledWith(booking);
   });
 
-  it('returns 400 when booking is not in PENDING status', async () => {
-    const confirmedBooking = { ...mockBooking, status: 'CONFIRMED' };
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(confirmedBooking);
-
-    const req = { params: { id: '1' }, user: mockManagerUser } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await approveBooking(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Only pending bookings can be approved', status: 400 })
-    );
-  });
-
-  it('returns 404 when booking does not exist', async () => {
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(null);
-
-    const req = { params: { id: '999' }, user: mockManagerUser } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await approveBooking(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Booking not found', status: 404 })
-    );
-  });
-});
-
-describe('bookingController - rejectBooking', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('rejects a pending booking with valid reason code', async () => {
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(mockBooking);
-    const rejectedBooking = {
-      ...mockBooking,
-      status: 'CANCELLED',
-      rejectionReasonCode: 'DUPLICATE',
-    };
-    (prisma.booking.findUniqueOrThrow as jest.Mock).mockResolvedValue(rejectedBooking);
-
-    const req = {
-      params: { id: '1' },
-      user: mockManagerUser,
-      body: { reasonCode: 'ROOM_UNAVAILABLE', note: 'Duplicate request' },
-    } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await rejectBooking(req, res, next);
-
-    expect(prisma.booking.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: expect.objectContaining({
-        status: 'CANCELLED',
-        rejectionReasonCode: 'ROOM_UNAVAILABLE',
-      }),
-    });
-    expect(prisma.booking.findUniqueOrThrow).toHaveBeenCalledWith({
-      where: { id: 1 },
-      include: expect.any(Object),
-    });
-    expect(res.json).toHaveBeenCalledWith(rejectedBooking);
-  });
-
-  it('returns 400 when reason code is missing', async () => {
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(mockBooking);
-
-    const req = {
-      params: { id: '1' },
-      user: mockManagerUser,
-      body: {},
-    } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await rejectBooking(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'A valid rejection reasonCode is required', status: 400 })
-    );
-  });
-
-  it('returns 400 when reason is OTHER but note is missing', async () => {
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(mockBooking);
-
-    const req = {
-      params: { id: '1' },
-      user: mockManagerUser,
-      body: { reasonCode: 'OTHER' },
-    } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await rejectBooking(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'A note is required when reason is OTHER', status: 400 })
-    );
-  });
-});
-
-describe('bookingController - updateBookingStatus', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('updates booking status to PREPARING and sets preparedBy', async () => {
-    const confirmedBooking = { ...mockBooking, status: 'CONFIRMED' };
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(confirmedBooking);
-    const preparingBooking = {
-      ...confirmedBooking,
-      status: 'PREPARING',
-      preparedById: mockClerkUser.id,
-    };
-    (prisma.booking.findUniqueOrThrow as jest.Mock).mockResolvedValue(preparingBooking);
-
-    const req = {
-      params: { id: '1' },
-      user: mockClerkUser,
-      body: { status: 'PREPARING' },
-    } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await updateBookingStatus(req, res, next);
-
-    expect(prisma.booking.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: expect.objectContaining({ status: 'PREPARING', preparedById: mockClerkUser.id }),
-    });
-    expect(prisma.booking.findUniqueOrThrow).toHaveBeenCalledWith({
-      where: { id: 1 },
-      include: expect.any(Object),
-    });
-    expect(res.json).toHaveBeenCalledWith(preparingBooking);
-  });
-
-  it('returns 400 when invalid status is provided', async () => {
-    const confirmedBooking = { ...mockBooking, status: 'CONFIRMED' };
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(confirmedBooking);
-
-    const req = {
-      params: { id: '1' },
-      user: mockClerkUser,
-      body: { status: 'INVALID_STATUS' },
-    } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await updateBookingStatus(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: expect.stringContaining('Invalid preparation status'),
-        status: 400,
-      })
-    );
-  });
-
-  it('returns 400 when trying to update status of a PENDING booking', async () => {
-    const pendingBooking = { ...mockBooking, status: 'PENDING' };
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(pendingBooking);
-
-    const req = {
-      params: { id: '1' },
-      user: mockClerkUser,
-      body: { status: 'PREPARING' },
-    } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await updateBookingStatus(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: expect.stringContaining('Only confirmed or in-preparation'),
-        status: 400,
-      })
-    );
-  });
-});
-
-describe('bookingController - cancelBooking', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('cancels a pending booking successfully', async () => {
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(mockBooking);
-    const cancelledBooking = {
-      ...mockBooking,
-      status: 'CANCELLED',
-    };
-    (prisma.booking.findUniqueOrThrow as jest.Mock).mockResolvedValue(cancelledBooking);
-
-    const req = { params: { id: '1' }, user: mockUser } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await cancelBooking(req, res, next);
-
-    expect(prisma.booking.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: { status: 'CANCELLED' },
-    });
-    expect(prisma.booking.findUniqueOrThrow).toHaveBeenCalledWith({
-      where: { id: 1 },
-      include: expect.any(Object),
-    });
-    expect(res.json).toHaveBeenCalledWith(cancelledBooking);
-  });
-
-  it('allows manager to cancel any booking', async () => {
-    const otherBooking = { ...mockBooking, employeeId: 999, status: 'CONFIRMED' };
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(otherBooking);
-    const cancelledBooking = {
-      ...otherBooking,
-      status: 'CANCELLED',
-    };
-    (prisma.booking.findUniqueOrThrow as jest.Mock).mockResolvedValue(cancelledBooking);
-
-    const req = { params: { id: '1' }, user: mockManagerUser } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await cancelBooking(req, res, next);
-
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'CANCELLED' }));
-  });
-
-  it('returns 400 when employee tries to cancel completed booking', async () => {
-    const completedBooking = { ...mockBooking, status: 'COMPLETED' };
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(completedBooking);
-
-    const req = { params: { id: '1' }, user: mockUser } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await cancelBooking(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'This booking can no longer be cancelled', status: 400 })
-    );
-  });
-
-  it('returns 403 when employee tries to view another employees booking', async () => {
-    const otherBooking = { ...mockBooking, employeeId: 999 };
-    (prisma.booking.findUnique as jest.Mock).mockResolvedValue(otherBooking);
-
-    const req = { params: { id: '1' }, user: mockUser } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await cancelBooking(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Forbidden', status: 403 })
-    );
-  });
-});
-
-describe('bookingController - listRejectionReasons', () => {
-  it('returns rejection reasons list', async () => {
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await listRejectionReasons({} as any, res, next);
-
-    expect(res.json).toHaveBeenCalled();
-  });
-});
-
-describe('bookingController - listOccupancy', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('returns occupancy slots within date range', async () => {
-    const mockSlots = [
-      {
-        bookingId: 1,
-        roomId: 1,
-        startAt: new Date('2025-01-15T10:00:00Z'),
-        endAt: new Date('2025-01-15T11:00:00Z'),
-        status: 'CONFIRMED',
-      },
-    ];
-    (prisma.booking.findMany as jest.Mock).mockResolvedValue([
-      {
-        id: 1,
-        startAt: new Date('2025-01-15T10:00:00Z'),
-        endAt: new Date('2025-01-15T11:00:00Z'),
-        status: 'CONFIRMED',
-        rooms: [{ roomId: 1 }],
-      },
-    ]);
-
-    const req = {
-      query: {
-        from: '2025-01-01',
-        to: '2025-12-31',
-      },
-      user: mockUser,
-    } as any;
-    const res = { json: jest.fn() } as any;
-    const next = jest.fn();
-
-    await listOccupancy(req, res, next);
-
-    expect(res.json).toHaveBeenCalled();
-  });
-
-  it('returns 400 when invalid date range is provided', async () => {
-    const req = {
-      query: { from: 'invalid', to: 'also-invalid' },
-      user: mockUser,
-    } as any;
-    const res = {} as any;
-    const next = jest.fn();
-
-    await listOccupancy(req, res, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Invalid from/to range', status: 400 })
-    );
+  it('delegates occupancy range and available clerk listing', async () => {
+    (bookingService.listOccupancy as jest.Mock).mockResolvedValue([]);
+    (bookingService.listAssignableClerks as jest.Mock).mockResolvedValue([]);
+    const res = response();
+    await listOccupancy({ query: { from: '2025-01-01', to: '2025-01-02' } } as any, res, jest.fn());
+    await listAssignableClerks({} as any, res, jest.fn());
+    expect(bookingService.listOccupancy).toHaveBeenCalledWith('2025-01-01', '2025-01-02');
+    expect(bookingService.listAssignableClerks).toHaveBeenCalledWith();
   });
 });

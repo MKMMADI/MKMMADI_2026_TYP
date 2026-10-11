@@ -210,6 +210,36 @@ describe('Realtime messaging', () => {
     employeeSocket.close();
   });
 
+  it('notifies the booking owner when a manager confirms their request', async () => {
+    const room = await prisma.room.create({
+      data: { name: 'Confirmation Room', capacity: 10, status: 'AVAILABLE', isActive: true },
+    });
+    const employeeSocket = connectSocket(employee.tokens.accessToken);
+    await waitForEvent(employeeSocket, 'connect');
+
+    const startAt = new Date(Date.now() + 5 * 60 * 60 * 1000);
+    const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+    const pendingBooking = await request(app)
+      .post('/api/v1/bookings')
+      .set(authHeader(employee.tokens.accessToken))
+      .send({ roomIds: [room.id], purpose: 'Planning meeting', startAt, endAt, capacity: 5 });
+    expect(pendingBooking.status).toBe(201);
+
+    const confirmationEvent = waitForEvent<{ bookingId: number; status: string }>(
+      employeeSocket,
+      'booking:updated',
+    );
+    const approval = await request(app)
+      .patch(`/api/v1/bookings/${pendingBooking.body.id}/approve`)
+      .set(authHeader(manager.tokens.accessToken));
+    expect(approval.status).toBe(200);
+    await expect(confirmationEvent).resolves.toEqual({
+      bookingId: pendingBooking.body.id,
+      status: 'CONFIRMED',
+    });
+    employeeSocket.close();
+  });
+
   it('does not broadcast when message persistence fails', async () => {
     const start = await request(app)
       .post('/api/v1/conversations')

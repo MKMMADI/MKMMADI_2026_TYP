@@ -6,11 +6,14 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { User } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 export interface ClerkProfileTabScreenProps {
   user: User;
@@ -18,6 +21,8 @@ export interface ClerkProfileTabScreenProps {
 }
 
 export function ClerkProfileTabScreen({ user, onSignOut }: ClerkProfileTabScreenProps) {
+  const { colors, mode, toggleTheme } = useAppTheme();
+  const styles = createStyles(colors);
   const [signingOut, setSigningOut] = useState(false);
 
   const handleLogout = () => {
@@ -42,7 +47,7 @@ export function ClerkProfileTabScreen({ user, onSignOut }: ClerkProfileTabScreen
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView testID="clerk-profile-root" style={styles.safe}>
       <View testID="profile-header" style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity
@@ -75,10 +80,25 @@ export function ClerkProfileTabScreen({ user, onSignOut }: ClerkProfileTabScreen
 
       <View style={styles.menuSection}>
         <Text style={styles.sectionTitle}>Account</Text>
-        <TouchableOpacity style={styles.menuItem}>
-          <Ionicons name="settings-outline" size={20} color={colors.ink} />
-          <Text style={styles.menuText}>Settings</Text>
-        </TouchableOpacity>
+        <View style={styles.menuItem}>
+          <View style={styles.menuItemLeft}>
+            <Ionicons name={mode === 'dark' ? 'moon-outline' : 'sunny-outline'} size={20} color={colors.ink} />
+            <Text style={styles.menuText}>Dark mode</Text>
+          </View>
+          <Switch
+            accessibilityLabel="Dark mode"
+            accessibilityRole="switch"
+            accessibilityState={{ checked: mode === 'dark' }}
+            value={mode === 'dark'}
+            onValueChange={() => {
+              void toggleTheme().catch((error: unknown) => {
+                Alert.alert('Theme unavailable', error instanceof Error ? error.message : 'Could not save theme preference.');
+              });
+            }}
+            trackColor={{ false: colors.hairline, true: colors.steel }}
+            thumbColor={colors.white}
+          />
+        </View>
         <TouchableOpacity style={styles.menuItem}>
           <Ionicons name="time-outline" size={20} color={colors.ink} />
           <Text style={styles.menuText}>Work History</Text>
@@ -101,7 +121,8 @@ export function ClerkProfileTabScreen({ user, onSignOut }: ClerkProfileTabScreen
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -165,6 +186,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.sm,
   },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
   menuText: {
     ...typography.bodyMd,
     color: colors.ink,
@@ -184,3 +211,4 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
 });
+};

@@ -4,11 +4,36 @@
  * (or: npx ts-node prisma/seed.ts)
  */
 import "dotenv/config";
+import { readFileSync } from "node:fs";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, Role, OfficialRole, RoomStatus, BookingStatus } from "@prisma/client";
+import { Pool } from "pg";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error("DATABASE_URL must be set");
+
+const isProduction = process.env.NODE_ENV === "production";
+let poolConnectionString = connectionString;
+if (isProduction) {
+  const databaseUrl = new URL(connectionString);
+  databaseUrl.searchParams.delete("sslmode");
+  databaseUrl.searchParams.delete("sslrootcert");
+  poolConnectionString = databaseUrl.toString();
+}
+
+const pool = new Pool({
+  connectionString: poolConnectionString,
+  ...(isProduction
+    ? {
+        ssl: {
+          ca: readFileSync("/app/certs/rds-global-bundle.pem", "utf8"),
+          rejectUnauthorized: true,
+        },
+      }
+    : {}),
+});
+const adapter = new PrismaPg(pool, { disposeExternalPool: true });
 const prisma = new PrismaClient({ adapter });
 
 const PASSWORD = "Password123!"; // shared demo password for all seed users
@@ -184,12 +209,47 @@ async function main() {
     "Sales",
     "Strategy",
   ];
+  const additionalEmployeeNames = [
+    "Thando Maseko",
+    "Amina Patel",
+    "Oliver Smith",
+    "Zanele Khumalo",
+    "James Williams",
+    "Nomsa Dlamini",
+    "Ethan Brown",
+    "Naledi Nkosi",
+    "Liam Johnson",
+    "Ayanda Ndlovu",
+    "Grace Adams",
+    "Kabelo Molefe",
+    "Noah Taylor",
+    "Amahle Zulu",
+    "Daniel Martin",
+    "Lindiwe Mkhize",
+    "Joshua Wilson",
+    "Nandi Cele",
+    "Matthew Davis",
+    "Refilwe Modise",
+    "Benjamin Clarke",
+    "Karabo Mokoena",
+    "Charlotte Green",
+    "Siphesihle Nene",
+    "Samuel White",
+    "Palesa Radebe",
+    "Luke Thompson",
+    "Busisiwe Nkomo",
+    "Henry Scott",
+    "Mpho Tshabalala",
+    "Isabella Moore",
+    "Themba Mthembu",
+    "Chloe Bennett",
+  ];
   const additionalEmployees = await Promise.all(
-    Array.from({ length: 33 }, (_, index) =>
+    additionalEmployeeNames.map((name, index) =>
       prisma.user.create({
         data: {
-          name: `Employee ${String(index + 1).padStart(2, "0")}`,
-          email: `employee${String(index + 1).padStart(2, "0")}@bookspace.co.za`,
+          name,
+          email: `${name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, "").toLowerCase().trim().replace(/\s+/g, ".")}@bookspace.co.za`,
           passwordHash,
           role: Role.EMPLOYEE,
           department: departments[index % departments.length],
@@ -211,12 +271,23 @@ async function main() {
     OfficialRole.PARTNER,
     OfficialRole.VICE_CHAIRMAN,
   ];
+  const officialNames = [
+    "Michael Dube",
+    "Thandiwe Nxumalo",
+    "Andrew Cooper",
+    "Nomvula Sithole",
+    "David van Wyk",
+    "Bongani Msimang",
+    "Elizabeth Naicker",
+    "Sipho Mokoena",
+    "Graham Petersen",
+  ];
   const officials = await Promise.all(
     officialRoles.map((officialRole, index) =>
       prisma.user.create({
         data: {
-          name: `Official ${String(index + 1).padStart(2, "0")}`,
-          email: `official${String(index + 1).padStart(2, "0")}@bookspace.co.za`,
+          name: officialNames[index],
+          email: `${officialNames[index].toLowerCase().replace(/\s+/g, ".")}@bookspace.co.za`,
           passwordHash,
           role: Role.EMPLOYEE,
           officialRole,
@@ -228,12 +299,32 @@ async function main() {
     ),
   );
 
+  const additionalClerkNames = [
+    "Busi Nkomo",
+    "Vusi Sithole",
+    "Lerato Maseko",
+    "Peter Adams",
+    "Thulani Mthethwa",
+    "Carol Williams",
+    "Nomsa Zondi",
+    "Mark Jacobs",
+    "Palesa Molefe",
+    "Sizwe Khumalo",
+    "Janet Dlamini",
+    "Mandla Mokoena",
+    "Ayesha Ismail",
+    "Nkosinathi Cele",
+    "Helen Smith",
+    "Musa Ndlovu",
+    "Zinhle Mkhize",
+    "Richard Brown",
+  ];
   const additionalClerks = await Promise.all(
-    Array.from({ length: 18 }, (_, index) =>
+    additionalClerkNames.map((name, index) =>
       prisma.user.create({
         data: {
-          name: `Clerk ${String(index + 3).padStart(2, "0")}`,
-          email: `clerk${String(index + 3).padStart(2, "0")}@bookspace.co.za`,
+          name,
+          email: `${name.toLowerCase().replace(/\s+/g, ".")}@bookspace.co.za`,
           passwordHash,
           role: Role.CLERK,
           department: "Facilities & Operations",

@@ -14,10 +14,11 @@ import {
   rescheduleBooking,
   updateBookingStatus,
 } from '../controllers/bookingController';
+import { validateCreateBooking, validateRescheduleBooking } from '../middleware/validation';
 
 const router = Router();
 
-router.post('/', authenticate, requireRoles(['EMPLOYEE', 'MANAGER']), createBookingHandler);
+router.post('/', authenticate, requireRoles(['EMPLOYEE', 'MANAGER']), validateCreateBooking, createBookingHandler);
 router.get('/', authenticate, listBookings);
 router.get('/assignable-clerks', authenticate, requireRoles(['MANAGER']), listAssignableClerks);
 router.get('/occupancy', authenticate, listOccupancy);
@@ -30,6 +31,6 @@ router.patch('/:id/assignment', authenticate, requireRoles(['MANAGER']), assignB
 // Preparation status (CONFIRMED / PREPARING / READY / COMPLETED) — clerk operational workflow only
 router.patch('/:id/status', authenticate, requireRoles(['CLERK']), updateBookingStatus);
 router.patch('/:id/cancel', authenticate, cancelBooking);
-router.patch('/:id/reschedule', authenticate, rescheduleBooking);
+router.patch('/:id/reschedule', authenticate, validateRescheduleBooking, rescheduleBooking);
 
 export default router;

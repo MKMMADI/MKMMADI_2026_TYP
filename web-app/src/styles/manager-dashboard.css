@@ -308,6 +308,7 @@
   display: flex; 
   align-items: center; 
   gap: 18px; 
+  position: relative;
 }
 
 .manager-search-mobile {
@@ -361,23 +362,75 @@
   background: var(--m-surface);
 }
 
-.manager-notifications i { 
+.manager-notification-count {
   position: absolute; 
-  top: 6px; 
-  right: 6px; 
-  width: 8px; 
-  height: 8px; 
-  border: 1.5px solid #fff; 
-  border-radius: 50%; 
+  top: -3px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  border-radius: 999px;
   background: var(--m-teal); 
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
 }
 
 .manager-notice { 
   position: absolute; 
-  z-index: 2; 
+  z-index: 20;
   top: 58px; 
   right: 190px; 
-  width: 220px; 
+  width: min(320px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 16px;
+  border: 1px solid var(--m-line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--m-shadow);
+  color: var(--m-ink);
+}
+
+.manager-notice > strong {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.manager-notice-message {
+  display: block;
+  padding: 10px 0;
+  border-top: 1px solid var(--m-line);
+  color: inherit;
+  text-decoration: none;
+}
+
+.manager-notice-message strong,
+.manager-notice-message span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manager-notice-message span {
+  margin-top: 4px;
+  color: var(--m-muted);
+  font-size: 12px;
+}
+
+.manager-notice-all {
+  display: block;
+  padding-top: 10px;
+  border-top: 1px solid var(--m-line);
+  color: var(--m-teal);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
   padding: 12px; 
   border: 1px solid var(--m-line); 
   border-radius: 12px; 

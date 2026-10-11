@@ -9,14 +9,18 @@ import {
   TouchableOpacity,
   TextInput,
   Pressable,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Room, SearchFilters } from '../types';
 import { RoomCard } from '../components/RoomCard';
 import { SearchBar } from '../components/SearchBar';
 import { Button } from '../components/Button';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 import api from '../api';
 import { applyFavoriteFlags, getFavoriteRoomIds } from '../lib/preferences';
 import { FLOATING_TAB_HEIGHT, FLOATING_TAB_MARGIN_BOTTOM } from '../navigation/floatingTabBar';
@@ -35,6 +39,7 @@ interface HomeTabScreenProps {
 }
 
 const HOUR_MS = 60 * 60 * 1000;
+const HOME_REFRESH_INTERVAL_MS = 30_000;
 const SELECTION_BAR_TAB_CLEARANCE = FLOATING_TAB_HEIGHT + FLOATING_TAB_MARGIN_BOTTOM + spacing.sm;
 
 function mapRoom(item: any): Room {
@@ -82,9 +87,12 @@ function isBusyNow(roomId: string, slots: OccupancySlot[], now = new Date()): bo
 }
 
 export function HomeTabScreen({ onOpenRoom, onBookRooms }: HomeTabScreenProps) {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [occupancy, setOccupancy] = useState<OccupancySlot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({
     startAt: null,
     endAt: null,
@@ -92,6 +100,7 @@ export function HomeTabScreen({ onOpenRoom, onBookRooms }: HomeTabScreenProps) {
     amenityIds: [],
   });
   const [draft, setDraft] = useState<SearchFilters>(filters);
+  const [capacityInput, setCapacityInput] = useState(String(filters.capacity));
   const [filterOpen, setFilterOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
@@ -109,8 +118,8 @@ export function HomeTabScreen({ onOpenRoom, onBookRooms }: HomeTabScreenProps) {
     );
   }
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const from = new Date().toISOString();
       const to = new Date(Date.now() + 14 * 24 * HOUR_MS).toISOString();
@@ -126,12 +135,30 @@ export function HomeTabScreen({ onOpenRoom, onBookRooms }: HomeTabScreenProps) {
     } catch (err) {
       console.warn('Failed to load home data', err);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    load();
+    void load();
+  }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const interval = setInterval(() => {
+        void load(false);
+      }, HOME_REFRESH_INTERVAL_MS);
+      return () => clearInterval(interval);
+    }, [load]),
+  );
+
+  const refreshRooms = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load(false);
+    } finally {
+      setRefreshing(false);
+    }
   }, [load]);
 
   const displayedRooms = useMemo(() => {
@@ -195,17 +222,38 @@ export function HomeTabScreen({ onOpenRoom, onBookRooms }: HomeTabScreenProps) {
 
   const openFilters = () => {
     setDraft(filters);
+    setCapacityInput(String(filters.capacity));
     setFilterOpen(true);
   };
 
+  const setDraftCapacity = (capacity: number) => {
+    const nextCapacity = Math.max(1, capacity);
+    setCapacityInput(String(nextCapacity));
+    setDraft((current) => ({ ...current, capacity: nextCapacity }));
+  };
+
+  const updateCapacityInput = (value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    setCapacityInput(value);
+    const capacity = Number(value);
+    if (Number.isSafeInteger(capacity) && capacity >= 1) {
+      setDraft((current) => ({ ...current, capacity }));
+    }
+  };
+
   const applyFilters = () => {
-    setFilters(draft);
+    const capacity = Number(capacityInput);
+    setFilters({
+      ...draft,
+      capacity: Number.isSafeInteger(capacity) && capacity >= 1 ? capacity : 1,
+    });
     setFilterOpen(false);
   };
 
   const clearFilters = () => {
     const empty: SearchFilters = { startAt: null, endAt: null, capacity: 1, amenityIds: [] };
     setDraft(empty);
+    setCapacityInput('1');
     setFilters(empty);
     setQuery('');
     setFilterOpen(false);
@@ -213,7 +261,7 @@ export function HomeTabScreen({ onOpenRoom, onBookRooms }: HomeTabScreenProps) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
       <View style={styles.headerRow}>
         <View style={styles.headerTextWrap}>
           <Text style={styles.greeting}>Where to meet?</Text>
@@ -240,7 +288,17 @@ export function HomeTabScreen({ onOpenRoom, onBookRooms }: HomeTabScreenProps) {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void refreshRooms()}
+            tintColor={colors.primary}
+          />
+        }
+      >
         <Text style={styles.sectionTitle}>
           {filters.startAt || filters.capacity > 1 || filters.amenityIds.length || query
             ? 'Matching rooms'
@@ -359,14 +417,29 @@ export function HomeTabScreen({ onOpenRoom, onBookRooms }: HomeTabScreenProps) {
           <View style={styles.stepper}>
             <TouchableOpacity
               style={styles.stepBtn}
-              onPress={() => setDraft((d) => ({ ...d, capacity: Math.max(1, d.capacity - 1) }))}
+              onPress={() => setDraftCapacity(draft.capacity - 1)}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease minimum capacity"
             >
               <Ionicons name="remove" size={18} color={colors.ink} />
             </TouchableOpacity>
-            <Text style={styles.stepValue}>{draft.capacity}+ people</Text>
+            <TextInput
+              style={styles.capacityInput}
+              value={capacityInput}
+              onChangeText={updateCapacityInput}
+              onBlur={() => {
+                if (!capacityInput || Number(capacityInput) < 1) setDraftCapacity(1);
+              }}
+              keyboardType="number-pad"
+              selectTextOnFocus
+              accessibilityLabel="Minimum capacity"
+            />
+            <Text style={styles.stepValue}>people</Text>
             <TouchableOpacity
               style={styles.stepBtn}
-              onPress={() => setDraft((d) => ({ ...d, capacity: d.capacity + 1 }))}
+              onPress={() => setDraftCapacity(draft.capacity + 1)}
+              accessibilityRole="button"
+              accessibilityLabel="Increase minimum capacity"
             >
               <Ionicons name="add" size={18} color={colors.ink} />
             </TouchableOpacity>
@@ -416,7 +489,8 @@ export function HomeTabScreen({ onOpenRoom, onBookRooms }: HomeTabScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   headerRow: {
     flexDirection: 'row',
@@ -525,7 +599,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepValue: { ...typography.titleSm, color: colors.ink, minWidth: 100, textAlign: 'center' },
+  capacityInput: {
+    width: 68,
+    height: 40,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceSoft,
+    ...typography.titleSm,
+    color: colors.ink,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 0,
+  },
+  stepValue: { ...typography.bodySm, color: colors.ink },
   amenityWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     paddingHorizontal: 12,
@@ -545,3 +632,4 @@ const styles = StyleSheet.create({
   },
   clearText: { ...typography.buttonSm, color: colors.steel },
 });
+};

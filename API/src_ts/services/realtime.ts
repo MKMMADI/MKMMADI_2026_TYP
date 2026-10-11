@@ -115,6 +115,13 @@ export function publishBookingDisplacement(
   realtimeServer?.to(userRoom(employeeId)).emit('booking:displaced', displacement);
 }
 
+export function publishBookingUpdate(
+  employeeId: number,
+  update: { bookingId: number; status: string },
+) {
+  realtimeServer?.to(userRoom(employeeId)).emit('booking:updated', update);
+}
+
 export function disconnectUserSockets(userId: number) {
   realtimeServer?.in(userRoom(userId)).disconnectSockets(true);
 }

@@ -19,7 +19,12 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     if (parts.length !== 2 || parts[0] !== 'Bearer') return res.status(401).json({ message: 'Invalid Authorization header' });
 
     const token = parts[1];
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as any;
+    } catch (error) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
 
     const jti = decoded.jti || decoded?.jwtid || null;
     if (!jti) return res.status(401).json({ message: 'Token missing jti' });
@@ -35,8 +40,8 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     req.user = { id: user.id, email: user.email, role: user.role };
     req.tokenJti = jti;
     next();
-  } catch (err) {
-    return res.status(401).json({ message: 'Invalid token' });
+  } catch (error) {
+    return next(error);
   }
 }
 

@@ -8,12 +8,15 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  TextInput,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { NativeDateTimePicker } from '../components/NativeDateTimePicker';
 import { Booking, BookingStatus } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 import api from '../api';
 
 type TabFilter = 'UPCOMING' | 'PAST';
@@ -110,17 +113,20 @@ export function MyBookingsTabScreen({
   showBackToProfile = false,
   onBackToProfile,
 }: MyBookingsTabScreenProps) {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [tabFilter, setTabFilter] = useState<TabFilter>('UPCOMING');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [savingRescheduleId, setSavingRescheduleId] = useState<string | null>(null);
 
-  const loadBookings = useCallback(async () => {
-    setLoading(true);
+  const loadBookings = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       // Backend listBookings already scopes EMPLOYEE to their own employeeId
       const response = await api.getBookings();
@@ -133,9 +139,18 @@ export function MyBookingsTabScreen({
       console.warn('Failed to load bookings', err);
       setBookings([]);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, []);
+
+  const refreshBookings = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadBookings(false);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadBookings]);
 
   useEffect(() => {
     let mounted = true;
@@ -239,7 +254,7 @@ export function MyBookingsTabScreen({
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
 
       <View style={styles.header}>
         {showBackToProfile && onBackToProfile ? (
@@ -272,7 +287,18 @@ export function MyBookingsTabScreen({
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        testID="bookings-scroll-view"
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void refreshBookings()}
+            tintColor={colors.primary}
+          />
+        }
+      >
         {loading ? (
           <View style={styles.stateWrap}>
             <ActivityIndicator color={colors.primary} />
@@ -351,21 +377,25 @@ export function MyBookingsTabScreen({
                     </View>
                     {rescheduleId === booking.id && (
                       <View style={styles.rescheduleForm}>
-                        <TextInput
-                          style={styles.rescheduleInput}
-                          accessibilityLabel="Replacement date"
-                          placeholder="YYYY-MM-DD"
-                          value={rescheduleDate}
-                          onChangeText={setRescheduleDate}
-                          keyboardType="numbers-and-punctuation"
+                        <NativeDateTimePicker
+                          label="Replacement date"
+                          value={rescheduleDate
+                            ? new Date(`${rescheduleDate}T00:00:00`)
+                            : new Date()}
+                          mode="date"
+                          minimumDate={new Date(new Date().setHours(0, 0, 0, 0))}
+                          onChange={(date) => setRescheduleDate(localDate(date.toISOString()))}
                         />
-                        <TextInput
-                          style={styles.rescheduleInput}
-                          accessibilityLabel="Replacement start time"
-                          placeholder="HH:mm"
-                          value={rescheduleTime}
-                          onChangeText={setRescheduleTime}
-                          keyboardType="numbers-and-punctuation"
+                        <NativeDateTimePicker
+                          label="Replacement start time"
+                          value={(() => {
+                            const date = new Date();
+                            const [hour = '9', minute = '00'] = rescheduleTime.split(':');
+                            date.setHours(Number(hour), Number(minute), 0, 0);
+                            return date;
+                          })()}
+                          mode="time"
+                          onChange={(date) => setRescheduleTime(localTime(date.toISOString()))}
                         />
                         <TouchableOpacity
                           style={styles.saveTimeButton}
@@ -406,7 +436,8 @@ export function MyBookingsTabScreen({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -483,7 +514,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radii.md,
     padding: spacing.base,
     marginBottom: spacing.md,
@@ -589,16 +620,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.md,
   },
-  rescheduleInput: {
-    ...typography.bodyMd,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    color: colors.ink,
-    backgroundColor: colors.white,
-  },
   saveTimeButton: {
     alignItems: 'center',
     padding: spacing.sm,
@@ -606,3 +627,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
   },
 });
+};

@@ -12,6 +12,7 @@
     "build": "tsc",
     "prebuild": "npm test",
     "seed": "tsx prisma/seed.ts",
+    "seed:compiled": "node dist-seed/prisma/seed.js",
     "compile": "tsc --noEmit"
   },
   "dependencies": {

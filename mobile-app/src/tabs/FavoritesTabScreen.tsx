@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Room } from '../types';
 import { RoomCard } from '../components/RoomCard';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 import api from '../api';
 import {
   applyFavoriteFlags,
@@ -61,6 +63,8 @@ function mapRoom(item: any): Room {
 }
 
 export function FavoritesTabScreen({ onOpenRoom, onBookRoom }: FavoritesTabScreenProps) {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const [favoriteRooms, setFavoriteRooms] = useState<Room[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,7 +138,7 @@ export function FavoritesTabScreen({ onOpenRoom, onBookRoom }: FavoritesTabScree
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={colors.primary} />
           <Text style={styles.loadingText}>Loading favorites…</Text>
@@ -145,7 +149,7 @@ export function FavoritesTabScreen({ onOpenRoom, onBookRoom }: FavoritesTabScree
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
 
       <View style={styles.header}>
         <Text style={styles.title}>Favorites</Text>
@@ -235,7 +239,8 @@ export function FavoritesTabScreen({ onOpenRoom, onBookRoom }: FavoritesTabScree
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -321,7 +326,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   recentCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radii.md,
     padding: spacing.base,
     width: 150,
@@ -361,3 +366,4 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 });
+};

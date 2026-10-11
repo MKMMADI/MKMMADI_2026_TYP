@@ -57,6 +57,8 @@ model User {
   updatedAt     DateTime  @updatedAt
   Active        Boolean   @default(true)
 
+  @@index([role])
+
   sessions            Session[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]

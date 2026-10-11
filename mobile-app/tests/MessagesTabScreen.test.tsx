@@ -161,6 +161,28 @@ describe('MessagesTabScreen', () => {
     expect(screen.getByText('Evan Employee')).toBeTruthy();
   });
 
+  it('pulls to refresh the inbox and the open message thread', async () => {
+    render(<MessagesTabScreen user={employee} />);
+    expect(await screen.findByText('People you can message')).toBeTruthy();
+
+    const refreshedContact = { ...manager, name: 'Mina Updated' };
+    mockedApi.getConversationContacts.mockResolvedValue([refreshedContact] as never);
+    const inbox = screen.getByTestId('messages-inbox-scroll-view');
+    await act(async () => {
+      inbox.props.refreshControl.props.onRefresh();
+    });
+    expect(await screen.findByLabelText('Message Mina Updated')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Message Mina Updated'));
+    expect(await screen.findByText('Welcome to the team')).toBeTruthy();
+    includeMissedMessage = true;
+    const thread = screen.getByTestId('messages-thread-scroll-view');
+    await act(async () => {
+      thread.props.refreshControl.props.onRefresh();
+    });
+    expect(await screen.findByText('Message sent while offline')).toBeTruthy();
+  });
+
   it('opens a conversation requested from the clerk queue', async () => {
     const handled = jest.fn();
 

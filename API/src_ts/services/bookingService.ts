@@ -2,6 +2,7 @@ import prisma from '../prisma';
 import { createHttpError } from '../utils/httpError';
 import { Prisma, BookingStatus } from '@prisma/client';
 import { publishBookingDisplacement } from './realtime';
+import { isValidRejectionCode } from '../constants/rejectionReasons';
 
 //used to validate input
 export interface CreateBookingInput {
@@ -42,6 +43,27 @@ const bookingInclude = {
     },
   },
 };
+
+const bookingDetailsInclude = {
+  rooms: { include: { room: { include: { amenities: { include: { amenity: true } } } } } },
+  amenities: { include: { amenity: true } },
+  employee: {
+    select: {
+      id: true, employeeId: true, name: true, email: true, role: true,
+      department: true, contactNumber: true, officialRole: true,
+    },
+  },
+  assignedClerk: { select: { id: true, name: true, email: true } },
+  preparedBy: { select: { id: true, name: true, email: true } },
+  reviewedBy: { select: { id: true, name: true, email: true } },
+  displacedBy: { select: { id: true, purpose: true } },
+  displacedBookings: {
+    select: {
+      id: true, employeeId: true, purpose: true, startAt: true, endAt: true,
+      status: true, suggestedStartAt: true, suggestedEndAt: true,
+    },
+  },
+} as const;
 
 function parseDate(value: string | Date, fieldName: string) {
   const parsed = value instanceof Date ? value : new Date(value);
@@ -391,4 +413,138 @@ export async function listAvailableRooms(options: {
     ...item.room,
     amenities: item.room.amenities.map((amenityLink) => amenityLink.amenity),
   }));
+}
+
+export function listBookings(role: string | undefined, userId: number, statusParam?: string) {
+  const where: Record<string, unknown> = role === 'EMPLOYEE' ? { employeeId: userId } : {};
+  if (statusParam) {
+    const statuses = statusParam.split(',').map((status) => status.trim()).filter(Boolean);
+    if (statuses.length === 1) where.status = statuses[0];
+    else if (statuses.length > 1) where.status = { in: statuses };
+  }
+  return prisma.booking.findMany({ where, include: bookingDetailsInclude, orderBy: { createdAt: 'desc' } });
+}
+
+export function listAssignableClerks() {
+  return prisma.user.findMany({
+    where: { role: 'CLERK', Active: true },
+    select: { id: true, name: true, email: true },
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+  });
+}
+
+export async function assignBookingClerk(id: number, clerkId: number | null) {
+  const booking = await prisma.booking.findUnique({ where: { id }, select: { id: true, status: true } });
+  if (!booking) throw createHttpError('Booking not found', 404);
+  if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
+    throw createHttpError('Closed bookings cannot be assigned', 400);
+  }
+  if (clerkId !== null) {
+    const clerk = await prisma.user.findFirst({
+      where: { id: clerkId, role: 'CLERK', Active: true }, select: { id: true },
+    });
+    if (!clerk) throw createHttpError('Active clerk not found', 404);
+  }
+  return prisma.booking.update({ where: { id }, data: { assignedClerkId: clerkId }, include: bookingDetailsInclude });
+}
+
+export async function getBooking(id: number, userId: number, role: string) {
+  const booking = await prisma.booking.findUnique({ where: { id }, include: bookingDetailsInclude });
+  if (!booking) throw createHttpError('Booking not found', 404);
+  if (role !== 'MANAGER' && role !== 'CLERK' && booking.employeeId !== userId) {
+    throw createHttpError('Forbidden', 403);
+  }
+  return booking;
+}
+
+export async function approveBooking(id: number, reviewerId: number) {
+  const existing = await prisma.booking.findUnique({ where: { id } });
+  if (!existing) throw createHttpError('Booking not found', 404);
+  if (existing.status !== 'PENDING') throw createHttpError('Only pending bookings can be approved', 400);
+  await prisma.booking.update({
+    where: { id },
+    data: {
+      status: 'CONFIRMED', reviewedById: reviewerId, reviewedAt: new Date(),
+      rejectionReasonCode: null, rejectionNote: null,
+    },
+  });
+  return prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+}
+
+export async function rejectBooking(id: number, reviewerId: number, reasonCode: string, note?: string) {
+  if (!reasonCode || !isValidRejectionCode(reasonCode)) {
+    throw createHttpError('A valid rejection reasonCode is required', 400);
+  }
+  if (reasonCode === 'OTHER' && !(note && String(note).trim())) {
+    throw createHttpError('A note is required when reason is OTHER', 400);
+  }
+  const existing = await prisma.booking.findUnique({ where: { id } });
+  if (!existing) throw createHttpError('Booking not found', 404);
+  if (existing.status !== 'PENDING') throw createHttpError('Only pending bookings can be rejected', 400);
+  await prisma.booking.update({
+    where: { id },
+    data: {
+      status: 'CANCELLED', rejectionReasonCode: reasonCode, rejectionNote: note?.trim() || null,
+      reviewedById: reviewerId, reviewedAt: new Date(),
+    },
+  });
+  return prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+}
+
+const preparationStatuses = ['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'];
+
+export async function updateBookingStatus(id: number, status: string, userId: number) {
+  if (!status) throw createHttpError('Status is required', 400);
+  if (!preparationStatuses.includes(status)) {
+    throw createHttpError('Invalid preparation status. Allowed: CONFIRMED, PREPARING, READY, COMPLETED', 400);
+  }
+  const existing = await prisma.booking.findUnique({ where: { id } });
+  if (!existing) throw createHttpError('Booking not found', 404);
+  if (!preparationStatuses.includes(existing.status)) {
+    throw createHttpError('Only confirmed or in-preparation bookings can have preparation status changed', 400);
+  }
+  const data: Record<string, unknown> = { status };
+  if (status === 'PREPARING') data.preparedById = userId;
+  if (status === 'CONFIRMED') data.preparedById = null;
+  await prisma.booking.update({ where: { id }, data });
+  return prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+}
+
+export async function cancelBooking(id: number, userId: number, role: string) {
+  const booking = await prisma.booking.findUnique({ where: { id } });
+  if (!booking) throw createHttpError('Booking not found', 404);
+  if (role !== 'MANAGER' && role !== 'CLERK' && booking.employeeId !== userId) {
+    throw createHttpError('Forbidden', 403);
+  }
+  const staffOverride = role === 'MANAGER' || role === 'CLERK';
+  if (!staffOverride) {
+    if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
+      throw createHttpError('This booking can no longer be cancelled', 400);
+    }
+    if (booking.status !== 'PENDING' && new Date(booking.startAt).getTime() - Date.now() < 6 * 60 * 60 * 1000) {
+      throw createHttpError('Approved bookings can only be cancelled at least 6 hours before the start time', 400);
+    }
+  }
+  await prisma.booking.update({ where: { id }, data: { status: 'CANCELLED' } });
+  return prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+}
+
+export async function listOccupancy(fromValue?: string, toValue?: string) {
+  const from = fromValue ? new Date(fromValue) : new Date();
+  const to = toValue ? new Date(toValue) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) {
+    throw createHttpError('Invalid from/to range', 400);
+  }
+  const bookings = await prisma.booking.findMany({
+    where: {
+      status: { notIn: ['CANCELLED', 'COMPLETED', 'RESCHEDULE_REQUIRED'] },
+      startAt: { lt: to }, endAt: { gt: from },
+    },
+    select: { id: true, startAt: true, endAt: true, status: true, rooms: { select: { roomId: true } } },
+    orderBy: { startAt: 'asc' },
+  });
+  return bookings.flatMap((booking) => booking.rooms.map((room) => ({
+    bookingId: booking.id, roomId: room.roomId, startAt: booking.startAt,
+    endAt: booking.endAt, status: booking.status,
+  })));
 }

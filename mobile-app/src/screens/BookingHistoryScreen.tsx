@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Booking, Room } from '../types';
 import { colors, radii, spacing, typography } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 interface BookingHistoryScreenProps {
   bookings: Booking[];
@@ -28,6 +30,8 @@ export function BookingHistoryScreen({
   onOpenBooking,
   onBookAgain,
 }: BookingHistoryScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.topBar}>
@@ -110,7 +114,8 @@ export function BookingHistoryScreen({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   topBar: {
     flexDirection: 'row',
@@ -196,5 +201,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+};
 
 export default BookingHistoryScreen;

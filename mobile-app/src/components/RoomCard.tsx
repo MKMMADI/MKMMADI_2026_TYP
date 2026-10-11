@@ -9,7 +9,9 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Room } from '../types';
-import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
+import { radii, spacing, typography, shadows } from '../theme/tokens';
+import type { ColorPalette } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - spacing.base * 2;
@@ -27,6 +29,8 @@ export function RoomCard({
   onToggleFavorite,
   showFavorite,
 }: RoomCardProps) {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const isUnavailable = room.status !== 'AVAILABLE';
   const showHeart = showFavorite ?? Boolean(onToggleFavorite);
 
@@ -50,7 +54,11 @@ export function RoomCard({
         )}
         {showHeart && (
           <TouchableOpacity
-            style={[styles.heart, room.isFavorite && styles.heartActive]}
+            style={[
+              styles.heart,
+              mode === 'dark' && styles.heartDark,
+              room.isFavorite && (mode === 'dark' ? styles.heartActiveDark : styles.heartActive),
+            ]}
             onPress={(e) => {
               e?.stopPropagation?.();
               onToggleFavorite?.(room);
@@ -62,7 +70,7 @@ export function RoomCard({
             <Ionicons
               name={room.isFavorite ? 'heart' : 'heart-outline'}
               size={20}
-              color={room.isFavorite ? '#E11D48' : colors.ink}
+              color={room.isFavorite ? (mode === 'dark' ? '#FB7185' : '#E11D48') : colors.ink}
             />
           </TouchableOpacity>
         )}
@@ -109,7 +117,8 @@ export function RoomCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     marginBottom: spacing.md,
@@ -155,9 +164,17 @@ const styles = StyleSheet.create({
     zIndex: 2,
     elevation: 3,
   },
+  heartDark: {
+    backgroundColor: 'rgba(17,24,32,0.9)',
+    borderColor: colors.borderStrong,
+  },
   heartActive: {
     backgroundColor: '#FFF1F2',
     borderColor: '#FECDD3',
+  },
+  heartActiveDark: {
+    backgroundColor: '#3B252E',
+    borderColor: '#9F5366',
   },
   unavailableOverlay: {
     position: 'absolute',
@@ -228,4 +245,5 @@ const styles = StyleSheet.create({
     color: colors.muted,
     alignSelf: 'center',
   },
-});
+  });
+}

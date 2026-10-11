@@ -1,10 +1,12 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { User } from '../types';
 import { colors, radii, spacing, typography } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 interface EmployeeProfileScreenProps {
   user: User;
@@ -14,6 +16,8 @@ interface EmployeeProfileScreenProps {
 }
 
 export function EmployeeProfileScreen({ user, onBack, onOpenHistory, onLogout }: EmployeeProfileScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -62,7 +66,8 @@ export function EmployeeProfileScreen({ user, onBack, onOpenHistory, onLogout }:
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: spacing.base, paddingBottom: spacing.section },
   topBar: {
@@ -154,5 +159,6 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
 });
+};
 
 export default EmployeeProfileScreen;

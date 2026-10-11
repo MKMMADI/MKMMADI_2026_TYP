@@ -1,6 +1,11 @@
 import { Text, TouchableOpacity } from 'react-native';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { HomeTabScreen } from '../src/tabs/HomeTabScreen';
+
+jest.mock('@react-navigation/native', () => ({
+  useFocusEffect: (callback: () => void | (() => void)) =>
+    require('react').useEffect(callback, [callback]),
+}));
 
 jest.mock('../src/api', () => ({
   __esModule: true,
@@ -65,6 +70,29 @@ describe('HomeTabScreen room selection', () => {
     api.getOccupancy.mockResolvedValue([]);
   });
 
+  it('automatically refreshes room availability while the home tab is active', async () => {
+    jest.useFakeTimers();
+    try {
+      render(<HomeTabScreen onOpenRoom={jest.fn()} onBookRooms={jest.fn()} />);
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(api.getRooms).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        jest.advanceTimersByTime(30_000);
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(api.getRooms).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('passes the selected rooms to Continue', async () => {
     const onBookRooms = jest.fn();
     const onOpenRoom = jest.fn();
@@ -104,5 +132,43 @@ describe('HomeTabScreen room selection', () => {
     fireEvent.press(screen.getByText('Continue'));
 
     expect(onBookRooms).toHaveBeenCalledWith([availableRoom, secondRoom]);
+  });
+
+  it('allows entering a minimum capacity and keeps the stepper controls working', async () => {
+    render(<HomeTabScreen onOpenRoom={jest.fn()} onBookRooms={jest.fn()} />);
+
+    await waitFor(() => expect(screen.getByLabelText('Select room Boardroom')).toBeTruthy());
+    fireEvent.press(screen.getByText('Find a conference room'));
+
+    const capacityInput = await screen.findByLabelText('Minimum capacity');
+    fireEvent.changeText(capacityInput, '7');
+    expect(capacityInput.props.value).toBe('7');
+
+    fireEvent.press(screen.getByLabelText('Increase minimum capacity'));
+    expect(capacityInput.props.value).toBe('8');
+    fireEvent.press(screen.getByLabelText('Decrease minimum capacity'));
+    expect(capacityInput.props.value).toBe('7');
+    fireEvent.press(screen.getByLabelText('Increase minimum capacity'));
+    expect(capacityInput.props.value).toBe('8');
+
+    fireEvent.press(screen.getByText('Show rooms'));
+
+    await waitFor(() => expect(screen.getByText('8+ people')).toBeTruthy());
+    expect(screen.getByLabelText('Room details Boardroom')).toBeTruthy();
+    expect(screen.queryByLabelText('Room details Huddle room')).toBeNull();
+  });
+
+  it('normalizes an empty capacity entry to the minimum of one on apply', async () => {
+    render(<HomeTabScreen onOpenRoom={jest.fn()} onBookRooms={jest.fn()} />);
+
+    fireEvent.press(screen.getByText('Find a conference room'));
+    const capacityInput = await screen.findByLabelText('Minimum capacity');
+    fireEvent.changeText(capacityInput, '');
+    fireEvent.press(screen.getByText('Show rooms'));
+
+    await waitFor(() => expect(screen.getByText('Find a conference room')).toBeTruthy());
+    expect(screen.getByLabelText('Room details Huddle room')).toBeTruthy();
+    fireEvent.press(screen.getByText('Find a conference room'));
+    expect((await screen.findByLabelText('Minimum capacity')).props.value).toBe('1');
   });
 });

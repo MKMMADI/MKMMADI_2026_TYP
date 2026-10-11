@@ -13,6 +13,13 @@ jest.mock('../src/tabs/MessagesTabScreen', () => ({
   MessagesTabScreen: ({ openConversationId }: { openConversationId?: number }) =>
     require('react').createElement(require('react-native').Text, null, `Clerk messages ${openConversationId ?? 'inbox'}`),
 }));
+jest.mock('../src/tabs/NotificationsTabScreen', () => ({
+  NotificationsTabScreen: () =>
+    require('react').createElement(require('react-native').Text, null, 'Clerk notifications'),
+}));
+jest.mock('../src/hooks/useNotificationBadge', () => ({
+  useNotificationBadge: () => 3,
+}));
 
 jest.mock('../src/tabs/DashboardTabScreen', () => ({
   DashboardTabScreen: () => require('react').createElement(require('react-native').Text, null, 'Clerk dashboard'),
@@ -77,6 +84,28 @@ describe('ClerkTabNavigator sign out action', () => {
     fireEvent.press(screen.getByText('Queue'));
     fireEvent.press(await screen.findByText('Message booking owner'));
     expect(await screen.findByText('Clerk messages 91')).toBeTruthy();
+  });
+
+  it('opens the notifications screen from its tab', async () => {
+    render(
+      <NavigationContainer>
+        <ClerkTabNavigator
+          user={{
+            id: 'clerk-1',
+            name: 'Casey Clerk',
+            email: 'clerk@example.com',
+            department: 'Operations',
+            contactNumber: '',
+            role: 'CLERK',
+          }}
+          onSignOut={jest.fn()}
+        />
+      </NavigationContainer>,
+    );
+
+    fireEvent.press(screen.getByText('Alerts'));
+    expect(await screen.findByText('Clerk notifications')).toBeTruthy();
+    expect(screen.getByText('3')).toBeTruthy();
   });
 
   it('keeps confirmed sign out visible in the Profile header', async () => {

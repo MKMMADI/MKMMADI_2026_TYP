@@ -1,6 +1,7 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import "@/styles/manager-dashboard.css";
+import "@/styles/manager-theme.css";
 import { apiFetch, logout } from "@/lib/api";
 import { countPresentPreparingRooms, type QueueBookingSummary } from "@/lib/managerBookingRules";
 
@@ -150,6 +151,21 @@ interface ApiQueueBooking extends QueueBookingSummary {
   rooms: { room: { id: number } }[];
 }
 
+interface ApiNotificationBooking {
+  status: string;
+}
+
+interface ApiLowStockItem {
+  id: number;
+}
+
+interface ApiMessagePreview {
+  id: number;
+  participant: { name: string };
+  unreadCount: number;
+  lastMessage: { body: string } | null;
+}
+
 interface NavCategory {
   label: string;
   icon: IconName;
@@ -196,13 +212,29 @@ const navConfig: Record<string, NavCategory> = {
 };
 
 export default function ManagerLayout({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    try {
+      const savedTheme = window.localStorage.getItem("bookspace-theme");
+      return savedTheme === "light" || savedTheme === "dark" ? savedTheme : "dark";
+    } catch {
+      return "dark";
+    }
+  });
+  const [themeError, setThemeError] = useState<string | null>(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [preparingRoomCount, setPreparingRoomCount] = useState(0);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [messagePreviews, setMessagePreviews] = useState<ApiMessagePreview[]>([]);
+  const [notificationPreviewError, setNotificationPreviewError] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(["dashboard", "bookings", "facilities"])
   );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   // Auto-expand the category that matches the current route
   useEffect(() => {
@@ -212,6 +244,58 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
     if (activeCategory) {
       setExpandedCategories((prev) => new Set(prev).add(activeCategory[0]));
     }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("demo") === "1") return;
+    let active = true;
+
+    async function refreshNotificationPreview() {
+      try {
+        const [bookings, lowStockItems, conversations] = await Promise.all([
+          apiFetch<ApiNotificationBooking[]>("/bookings"),
+          apiFetch<ApiLowStockItem[]>("/consumables/low-stock"),
+          apiFetch<ApiMessagePreview[]>("/conversations"),
+        ]);
+        if (!active) return;
+
+        const bookingAlerts = Array.isArray(bookings)
+          ? bookings.filter((booking) => booking.status === "PENDING" || booking.status === "RESCHEDULE_REQUIRED").length
+          : 0;
+        const stockAlerts = Array.isArray(lowStockItems) ? lowStockItems.length : 0;
+        const unreadMessages = Array.isArray(conversations)
+          ? conversations.reduce((total, conversation) => total + (conversation.unreadCount || 0), 0)
+          : 0;
+        setNotificationCount(bookingAlerts + stockAlerts + unreadMessages);
+        setMessagePreviews(
+          Array.isArray(conversations)
+            ? conversations.filter((conversation) => conversation.unreadCount > 0).slice(0, 3)
+            : [],
+        );
+        setNotificationPreviewError(null);
+      } catch (error) {
+        if (active) {
+          setNotificationPreviewError(
+            error instanceof Error ? error.message : "Could not load notification previews",
+          );
+        }
+      }
+    }
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refreshNotificationPreview();
+    };
+    void refreshNotificationPreview();
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const intervalId = window.setInterval(refreshNotificationPreview, 60_000);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(intervalId);
+    };
   }, [location.pathname]);
 
   useEffect(() => {
@@ -277,8 +361,19 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
     month: "long",
   }).format(new Date());
 
+  function toggleTheme() {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    try {
+      window.localStorage.setItem("bookspace-theme", nextTheme);
+      setTheme(nextTheme);
+      setThemeError(null);
+    } catch (error) {
+      setThemeError(error instanceof Error ? `Could not save theme preference: ${error.message}` : "Could not save theme preference.");
+    }
+  }
+
   return (
-    <div className="manager-dashboard">
+    <div className="manager-dashboard" data-theme={theme}>
       {/* SIDEBAR */}
       <aside className="manager-sidebar">
         <Link className="manager-brand" to="/manager/dashboard" aria-label="BookSpace dashboard">
@@ -385,18 +480,31 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
 
             <button
               type="button"
+              className="manager-theme-toggle"
+              onClick={toggleTheme}
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              aria-pressed={theme === "dark"}
+            >
+              <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
+              <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+            </button>
+            {themeError ? <span className="manager-theme-error" role="alert">{themeError}</span> : null}
+
+            <button
+              type="button"
               className="manager-notifications"
               onClick={() => setNoticeOpen((v) => !v)}
-              aria-label="Notifications"
+              aria-label={`Notifications ${notificationCount}`}
+              aria-expanded={noticeOpen}
             >
               <Icon name="bell" />
-              <i />
+              {notificationCount > 0 ? <span className="manager-notification-count">{notificationCount}</span> : null}
             </button>
 
-            <button type="button" className="manager-create">
+            <Link to="/manager/bookings/new" className="manager-create" style={{ textDecoration: "none"}}>
               <Icon name="plus" size={18} />
               New booking
-            </button>
+            </Link>
 
             <button
               type="button"
@@ -409,11 +517,22 @@ export default function ManagerLayout({ children }: { children: ReactNode }) {
               <span>Log out</span>
             </button>
 
-            {noticeOpen && (
-              <div className="manager-notice" role="status">
-                You have 2 bookings awaiting review.
+            {noticeOpen ? (
+              <div className="manager-notice" role="dialog" aria-label="Notification previews">
+                <strong>Notifications ({notificationCount})</strong>
+                {notificationPreviewError ? <p role="alert">{notificationPreviewError}</p> : null}
+                {!notificationPreviewError && messagePreviews.length === 0
+                  ? <p>No unread messages.</p>
+                  : null}
+                {messagePreviews.map((conversation) => (
+                  <Link key={conversation.id} to="/manager/messages" className="manager-notice-message">
+                    <strong>{conversation.participant.name} · {conversation.unreadCount} unread</strong>
+                    <span>{conversation.lastMessage?.body || "New unread message"}</span>
+                  </Link>
+                ))}
+                <Link to="/manager/notifications" className="manager-notice-all">View all notifications</Link>
               </div>
-            )}
+            ) : null}
 
           </div>
         </header>

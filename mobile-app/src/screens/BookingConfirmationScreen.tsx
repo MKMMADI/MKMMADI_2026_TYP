@@ -3,6 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../components/Button';
 import { colors, radii, spacing, typography } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 interface BookingConfirmationScreenProps {
   booking: any;
@@ -10,6 +12,8 @@ interface BookingConfirmationScreenProps {
 }
 
 export function BookingConfirmationScreen({ booking, onBackHome }: BookingConfirmationScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const rooms = booking?.rooms?.map((item: any) => item.room).filter(Boolean) ?? [];
   const statusLabel = booking?.status === 'PENDING' ? 'Pending approval' : booking?.status || 'Pending approval';
   const when = booking?.startAt && booking?.endAt
@@ -47,7 +51,8 @@ export function BookingConfirmationScreen({ booking, onBackHome }: BookingConfir
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -99,5 +104,6 @@ const styles = StyleSheet.create({
   },
   button: { marginTop: spacing.lg, width: '100%' },
 });
+};
 
 export default BookingConfirmationScreen;

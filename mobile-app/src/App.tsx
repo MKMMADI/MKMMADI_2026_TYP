@@ -19,6 +19,9 @@ import { ClerkTabNavigator } from './navigation/ClerkTabNavigator';
 import { EmployeeTabNavigator } from './navigation/EmployeeTabNavigator';
 import { Booking, Room, User } from './types';
 import { colors, typography } from './theme/tokens';
+import type { ColorPalette } from './theme/tokens';
+import { AppThemeProvider, useAppTheme } from './theme/AppTheme';
+import { DarkTheme, DefaultTheme } from '@react-navigation/native';
 
 const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator();
@@ -248,6 +251,16 @@ function AppNavigator({ user, onSignOut }: { user: User; onSignOut: () => void |
 }
 
 export default function App() {
+  return (
+    <AppThemeProvider>
+      <AppContent />
+    </AppThemeProvider>
+  );
+}
+
+function AppContent() {
+  const { colors, mode, ready: themeReady } = useAppTheme();
+  const styles = createStyles(colors);
   const [user, setUser] = useState<User | null>(null);
   const [authState, setAuthState] = useState<'loading' | 'auth' | 'app'>('loading');
 
@@ -291,7 +304,7 @@ export default function App() {
     setAuthState('auth');
   };
 
-  if (authState === 'loading') {
+  if (authState === 'loading' || !themeReady) {
     return (
       <SafeAreaProvider>
         <View style={styles.loader}>
@@ -303,19 +316,33 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer
+        theme={{
+          ...(mode === 'dark' ? DarkTheme : DefaultTheme),
+          colors: {
+            ...(mode === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
+            primary: colors.primary,
+            background: colors.canvas,
+            card: colors.surfaceCard,
+            text: colors.ink,
+            border: colors.border,
+            notification: colors.error,
+          },
+        }}
+      >
         {authState === 'app' && user ? (
           <AppNavigator user={user} onSignOut={handleSignOut} />
         ) : (
           <AuthNavigator onAuthenticated={handleAuthenticated} />
         )}
       </NavigationContainer>
-      <StatusBar style="dark" />
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
     </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   loader: {
     flex: 1,
     justifyContent: 'center',
@@ -326,4 +353,5 @@ const styles = StyleSheet.create({
     ...typography.titleMd,
     color: colors.ink,
   },
-});
+  });
+}

@@ -10,8 +10,61 @@ const mockedApiFetch = vi.mocked(apiFetch);
 const mockedLogout = vi.mocked(logout);
 
 describe("ManagerLayout navigation", () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    window.localStorage.clear();
+    delete document.documentElement.dataset.theme;
+  });
   beforeEach(() => vi.clearAllMocks());
+
+  it("toggles and persists the manager color theme", async () => {
+    window.localStorage.setItem("bookspace-theme", "dark");
+    mockedApiFetch.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter initialEntries={["/manager/dashboard"]}>
+        <Routes>
+          <Route path="/manager/dashboard" element={<ManagerLayout><div>Overview content</div></ManagerLayout>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const toggle = screen.getByRole("button", { name: "Switch to light mode" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(document.documentElement.dataset.theme).toBe("dark");
+
+    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Switch to dark mode" }).getAttribute("aria-pressed")).toBe("false");
+    await waitFor(() => expect(window.localStorage.getItem("bookspace-theme")).toBe("light"));
+  });
+
+  it("defaults to dark mode and respects a saved light preference", async () => {
+    mockedApiFetch.mockResolvedValue([]);
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={["/manager/dashboard"]}>
+        <Routes>
+          <Route path="/manager/dashboard" element={<ManagerLayout><div>Overview content</div></ManagerLayout>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "Switch to light mode" }).getAttribute("aria-pressed")).toBe("true");
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    unmount();
+
+    window.localStorage.setItem("bookspace-theme", "light");
+    render(
+      <MemoryRouter initialEntries={["/manager/dashboard"]}>
+        <Routes>
+          <Route path="/manager/dashboard" element={<ManagerLayout><div>Overview content</div></ManagerLayout>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "Switch to dark mode" }).getAttribute("aria-pressed")).toBe("false");
+    expect(document.documentElement.dataset.theme).toBe("light");
+  });
 
   it("shows a direct Dashboard link and a live badge based on eligible rooms", async () => {
     const now = new Date();
@@ -57,11 +110,11 @@ describe("ManagerLayout navigation", () => {
       </MemoryRouter>,
     );
 
-    const newBookingButton = screen.getByRole("button", { name: /New booking/ });
+    const newBookingButton = screen.getByRole("link", { name: /New booking/ });
     const logoutButton = screen.getByRole("button", { name: "Log out" });
-    const topBarButtons = Array.from(newBookingButton.parentElement!.querySelectorAll("button"));
-    const newBookingIndex = topBarButtons.findIndex((button) => button === newBookingButton);
-    const logoutIndex = topBarButtons.findIndex((button) => button === logoutButton);
+    const topBarControls = Array.from(newBookingButton.parentElement!.children);
+    const newBookingIndex = topBarControls.findIndex((control) => control === newBookingButton);
+    const logoutIndex = topBarControls.findIndex((control) => control === logoutButton);
     expect(newBookingIndex).toBeGreaterThanOrEqual(0);
     expect(logoutIndex).toBeGreaterThan(newBookingIndex);
 
@@ -69,5 +122,54 @@ describe("ManagerLayout navigation", () => {
 
     await waitFor(() => expect(mockedLogout).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Sign-in page")).toBeTruthy();
+  });
+
+  it("shows a count and unread-message previews in the top-bar notification menu", async () => {
+    mockedApiFetch.mockImplementation(async (path: string) => {
+      if (path === "/bookings?status=PREPARING") return [];
+      if (path === "/bookings") {
+        return [
+          { id: 1, status: "PENDING" },
+          { id: 2, status: "RESCHEDULE_REQUIRED" },
+          { id: 3, status: "CONFIRMED" },
+        ] as never;
+      }
+      if (path === "/consumables/low-stock") return [{ id: 1 }, { id: 2 }] as never;
+      if (path === "/conversations") {
+        return [
+          {
+            id: 7,
+            participant: { name: "Jordan Employee" },
+            unreadCount: 3,
+            lastMessage: { body: "Please confirm the booking" },
+          },
+          {
+            id: 8,
+            participant: { name: "Casey Clerk" },
+            unreadCount: 0,
+            lastMessage: null,
+          },
+        ] as never;
+      }
+      return [] as never;
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/manager/dashboard"]}>
+        <Routes>
+          <Route path="/manager/dashboard" element={<ManagerLayout><div>Overview content</div></ManagerLayout>} />
+          <Route path="/manager/notifications" element={<div>Notifications page</div>} />
+          <Route path="/manager/messages" element={<div>Messages page</div>} />
+          <Route path="/manager/bookings/new" element={<div>Booking page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const notificationButton = await screen.findByRole("button", { name: "Notifications 7" });
+    fireEvent.click(notificationButton);
+    expect(await screen.findByText("Please confirm the booking")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "View all notifications" }).getAttribute("href")).toBe("/manager/notifications");
+    expect(screen.getByRole("link", { name: /Jordan Employee.*3 unread.*Please confirm the booking/ }).getAttribute("href")).toBe("/manager/messages");
+    expect(screen.getByRole("link", { name: /New booking/ }).getAttribute("href")).toBe("/manager/bookings/new");
   });
 });

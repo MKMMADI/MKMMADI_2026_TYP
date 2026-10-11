@@ -17,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 import { Amenity, Booking, BookingStatus } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 type StatusFilter = 'ALL' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'COMPLETED';
 
@@ -155,6 +157,8 @@ function formatTimeRange(start: string, end: string) {
 }
 
 export function QueueTabScreen({ initialStatus = 'ALL', onOpenConversation }: QueueTabScreenProps) {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const [queue, setQueue] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -311,7 +315,7 @@ export function QueueTabScreen({ initialStatus = 'ALL', onOpenConversation }: Qu
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
 
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
@@ -581,7 +585,8 @@ export function QueueTabScreen({ initialStatus = 'ALL', onOpenConversation }: Qu
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   header: {
     flexDirection: 'row',
@@ -662,7 +667,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radii.lg,
     padding: spacing.base,
     marginBottom: spacing.md,
@@ -681,7 +686,7 @@ const styles = StyleSheet.create({
   ownerCopy: { flex: 1, minWidth: 0, gap: 2 },
   ownerLabel: { ...typography.badge, color: colors.muted },
   ownerName: { ...typography.captionSm, color: colors.ink, fontWeight: '600' },
-  ownerMessageButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: colors.white },
+  ownerMessageButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: colors.surfaceCard },
   ownerMessageText: { ...typography.buttonSm, color: colors.primary },
   statusPill: {
     flexDirection: 'row',
@@ -790,3 +795,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 });
+};

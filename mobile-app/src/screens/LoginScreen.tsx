@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,6 +13,8 @@ import LottieView from 'lottie-react-native';
 import { Button } from '../components/Button';
 import api from '../api';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 import problemSolvingTeam from '../assets/animations/problem-solving-team.json';
 
 interface LoginScreenProps {
@@ -21,6 +23,8 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const [email, setEmail] = useState('alex.rivera@company.com');
   const [password, setPassword] = useState('password');
   const [loading, setLoading] = useState(false);
@@ -51,6 +55,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
         <LottieView
           source={problemSolvingTeam}
@@ -70,6 +75,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
           autoComplete="email"
           keyboardType="email-address"
           placeholder="name@company.com"
+          placeholderTextColor={colors.mutedSoft}
         />
 
         <Text style={[styles.label, { marginTop: spacing.md }]}>Password</Text>
@@ -79,6 +85,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
           onChangeText={setPassword}
           secureTextEntry
           placeholder="••••••••"
+          placeholderTextColor={colors.mutedSoft}
         />
 
         <Button title="Sign in" onPress={handleLogin} loading={loading} style={{ marginTop: spacing.lg }} />
@@ -93,7 +100,8 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   screen: {
     flex: 1,
   },
@@ -126,8 +134,9 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E6E9EE',
-    backgroundColor: '#FFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceCard,
+    color: colors.ink,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: radii.md,
@@ -142,5 +151,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 });
+};
 
 export default LoginScreen;

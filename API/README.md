@@ -103,6 +103,12 @@ commits the message first, then emits `message:new` to the two participants.
 `PATCH /api/v1/conversations/:id/read` emits `conversation:read` after read state
 is updated. Clients reload REST history after reconnect to catch missed events.
 
+When a manager approves a booking, its owner receives `booking:updated` with the
+booking ID and new status. Priority bookings emit `booking:displaced` to each
+displaced owner's authenticated user room, including the proposed replacement
+time. Mobile notification feeds refresh from the booking and conversation APIs
+when these events arrive and can also be refreshed manually.
+
 In production, set `SOCKET_ALLOWED_ORIGINS` to a comma-separated list of exact
 web origins, for example `https://bookspace.example.com`. Mobile native clients
 may connect without a browser Origin header but still require a valid token.
@@ -181,3 +187,23 @@ The API is available at `http://localhost:4000` and the web application at
 `http://localhost:8081`. Stop the Compose services with
 `docker compose -f docker-compose.yml down`; this does not delete the host
 PostgreSQL database.
+
+### Reseed the AWS demo database
+
+From the repository root, run this in PowerShell when you want to replace the
+AWS demo data:
+
+```powershell
+.\API\reseed-demo.ps1
+```
+
+The script uses the existing ECS seed-only task definition and the API service's
+network configuration in `af-south-1`. It verifies the AWS account and seed task
+definition, then requires you to type `RESEED DEMO DATABASE` before it starts
+the task. The seed deletes existing application records before recreating the
+demo data. Do not run it if any data needs to be retained.
+
+The AWS CLI must be installed and authenticated to account `764678966746`.
+The script waits for the task to stop and verifies its exit code and
+`Seed complete.` CloudWatch log marker. If it times out, it does not stop the
+task; inspect the task in ECS before retrying.

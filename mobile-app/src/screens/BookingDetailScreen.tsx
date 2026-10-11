@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Booking, BookingStatus, Room } from '../types';
 import { Button } from '../components/Button';
 import { colors, radii, spacing, typography } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 import api from '../api';
 
 const statusMeta: Record<
@@ -69,6 +71,8 @@ export function BookingDetailScreen({
   onBookAgain,
   onCancelled,
 }: BookingDetailScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const [booking, setBooking] = useState(initial);
   const [cancelling, setCancelling] = useState(false);
 
@@ -215,7 +219,8 @@ export function BookingDetailScreen({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   topBar: {
     flexDirection: 'row',
@@ -248,7 +253,7 @@ const styles = StyleSheet.create({
   card: {
     marginTop: spacing.base,
     marginHorizontal: spacing.base,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radii.lg,
     padding: spacing.base,
     borderWidth: 1,
@@ -341,5 +346,6 @@ const styles = StyleSheet.create({
   },
   cta: { width: '100%' },
 });
+};
 
 export default BookingDetailScreen;
