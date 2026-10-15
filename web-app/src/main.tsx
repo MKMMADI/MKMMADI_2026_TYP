@@ -4,9 +4,17 @@ import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import App from "./App.tsx";
 
+try {
+  const savedTheme = window.localStorage.getItem("bookspace-theme");
+  document.documentElement.dataset.theme =
+    savedTheme === "light" || savedTheme === "dark" ? savedTheme : "dark";
+} catch {
+  document.documentElement.dataset.theme = "dark";
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename="/bookspace">
       <App />
     </BrowserRouter>
   </StrictMode>

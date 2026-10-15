@@ -5,8 +5,11 @@ import { DashboardTabScreen } from '../tabs/DashboardTabScreen';
 import { QueueTabScreen } from '../tabs/QueueTabScreen';
 import { RoomsTabScreen } from '../tabs/RoomsTabScreen';
 import { ClerkProfileTabScreen } from '../tabs/ClerkProfileTabScreen';
+import { MessagesTabScreen } from '../tabs/MessagesTabScreen';
+import { NotificationsTabScreen } from '../tabs/NotificationsTabScreen';
 import { BookingStatus, User } from '../types';
-import { colors } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import { useNotificationBadge } from '../hooks/useNotificationBadge';
 import {
   FloatingTabIcon,
   floatingTabBarLabelStyle,
@@ -18,6 +21,8 @@ export type ClerkTabParamList = {
   DashboardTab: undefined;
   QueueTab: { statusFilter?: BookingStatus | 'ALL' } | undefined;
   RoomsTab: undefined;
+  NotificationsTab: undefined;
+  MessagesTab: { conversationId?: number } | undefined;
   ProfileTab: undefined;
 };
 
@@ -27,6 +32,8 @@ const TAB_LABELS: Record<keyof ClerkTabParamList, string> = {
   DashboardTab: 'Dashboard',
   QueueTab: 'Queue',
   RoomsTab: 'Rooms',
+  NotificationsTab: 'Alerts',
+  MessagesTab: 'Messages',
   ProfileTab: 'Profile',
 };
 
@@ -38,6 +45,10 @@ function iconForRoute(name: keyof ClerkTabParamList, focused: boolean): TabIconN
       return focused ? 'list' : 'list-outline';
     case 'RoomsTab':
       return focused ? 'business' : 'business-outline';
+    case 'NotificationsTab':
+      return focused ? 'notifications' : 'notifications-outline';
+    case 'MessagesTab':
+      return focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
     case 'ProfileTab':
       return focused ? 'person-circle' : 'person-circle-outline';
     default:
@@ -51,12 +62,15 @@ interface ClerkTabNavigatorProps {
 }
 
 export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const notificationCount = useNotificationBadge(user.id);
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarIcon: ({ focused, color }) => (
           <FloatingTabIcon
             name={iconForRoute(route.name, focused)}
@@ -65,13 +79,17 @@ export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
           />
         ),
         tabBarLabel: TAB_LABELS[route.name],
+        ...(route.name === 'NotificationsTab' ? { tabBarAccessibilityLabel: 'Notifications' } : {}),
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedSoft,
-        tabBarStyle: getFloatingTabBarStyle(insets.bottom),
+        tabBarStyle: getFloatingTabBarStyle(insets.bottom, colors),
         tabBarLabelStyle: floatingTabBarLabelStyle,
         tabBarItemStyle: {
           paddingVertical: 2,
         },
+        ...(route.name === 'NotificationsTab' && notificationCount > 0
+          ? { tabBarBadge: notificationCount, tabBarBadgeStyle: { backgroundColor: colors.error, color: colors.white } }
+          : {}),
       })}
     >
       <Tab.Screen name="DashboardTab">
@@ -88,12 +106,35 @@ export function ClerkTabNavigator({ user, onSignOut }: ClerkTabNavigatorProps) {
         )}
       </Tab.Screen>
       <Tab.Screen name="QueueTab">
-        {({ route }) => (
-          <QueueTabScreen initialStatus={route.params?.statusFilter ?? 'ALL'} />
+        {({ route, navigation }) => (
+          <QueueTabScreen
+            initialStatus={route.params?.statusFilter ?? 'ALL'}
+            onOpenConversation={(conversationId) => navigation.navigate('MessagesTab', { conversationId })}
+          />
         )}
       </Tab.Screen>
       <Tab.Screen name="RoomsTab">
         {() => <RoomsTabScreen />}
+      </Tab.Screen>
+      <Tab.Screen name="NotificationsTab">
+        {({ navigation }) => (
+          <NotificationsTabScreen
+            user={user}
+            onCountChange={(count) => navigation.setOptions({
+              tabBarBadge: count > 0 ? count : undefined,
+              tabBarBadgeStyle: { backgroundColor: colors.error, color: colors.white },
+            })}
+          />
+        )}
+      </Tab.Screen>
+      <Tab.Screen name="MessagesTab">
+        {({ navigation, route }) => (
+          <MessagesTabScreen
+            user={user}
+            openConversationId={route.params?.conversationId}
+            onConversationRequestHandled={() => navigation.setParams({ conversationId: undefined })}
+          />
+        )}
       </Tab.Screen>
       <Tab.Screen name="ProfileTab">
         {() => <ClerkProfileTabScreen user={user} onSignOut={onSignOut} />}

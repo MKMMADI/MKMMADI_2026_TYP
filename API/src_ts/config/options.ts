@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Loads and validates API configuration options.
+ */
+
 import dotenv from 'dotenv';
 
 // Load .env into process.env once at startup
@@ -10,7 +16,17 @@ const env = {
   JWT_SECRET: process.env.JWT_SECRET,
   ACCESS_TOKEN_EXPIRES: process.env.ACCESS_TOKEN_EXPIRES,
   REFRESH_TOKEN_EXPIRES_DAYS: process.env.REFRESH_TOKEN_EXPIRES_DAYS,
-  DATABASE_URL: process.env.DATABASE_URL
+  CORS_ALLOWED_ORIGINS: process.env.CORS_ALLOWED_ORIGINS,
+  SOCKET_ALLOWED_ORIGINS: process.env.SOCKET_ALLOWED_ORIGINS,
+  DATABASE_URL: process.env.DATABASE_URL,
+  AWS_REGION: process.env.AWS_REGION,
+  ROOM_IMAGE_S3_BUCKET: process.env.ROOM_IMAGE_S3_BUCKET,
+  ROOM_IMAGE_S3_ENDPOINT: process.env.ROOM_IMAGE_S3_ENDPOINT,
+  ROOM_IMAGE_UPLOAD_TTL_SECONDS: process.env.ROOM_IMAGE_UPLOAD_TTL_SECONDS,
+  RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS,
+  RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX,
+  AUTH_RATE_LIMIT_WINDOW_MS: process.env.AUTH_RATE_LIMIT_WINDOW_MS,
+  AUTH_RATE_LIMIT_MAX: process.env.AUTH_RATE_LIMIT_MAX,
 };
 
 export default env;

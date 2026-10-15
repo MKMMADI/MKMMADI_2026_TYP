@@ -15,8 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
-import { Booking, BookingStatus } from '../types';
+import { Amenity, Booking, BookingStatus } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 type StatusFilter = 'ALL' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'COMPLETED';
 
@@ -30,6 +32,7 @@ const statusMeta: Record<
   CONFIRMED: { label: 'Awaiting prep', short: 'Queued', tone: '#F8E7C7', tint: '#B76A00', icon: 'time-outline' },
   PREPARING: { label: 'Preparing', short: 'Prep', tone: '#D9EBFF', tint: '#0056A8', icon: 'sparkles-outline' },
   READY: { label: 'Ready', short: 'Ready', tone: '#DDF5E5', tint: '#0A7A3F', icon: 'checkmark-circle-outline' },
+  RESCHEDULE_REQUIRED: { label: 'Needs rescheduling', short: 'Reschedule', tone: '#FFF0D9', tint: '#9A5B00', icon: 'calendar-outline' },
   COMPLETED: { label: 'Completed', short: 'Done', tone: '#E8E9F7', tint: '#3E49A6', icon: 'checkbox-outline' },
   CANCELLED: { label: 'Cancelled', short: 'Cancel', tone: '#F9E1E1', tint: '#A32323', icon: 'close-circle-outline' },
 };
@@ -45,48 +48,47 @@ const NEXT_STATUS: Partial<Record<BookingStatus, BookingStatus>> = {
 
 interface QueueTabScreenProps {
   initialStatus?: BookingStatus | 'ALL';
+  onOpenConversation?: (conversationId: number) => void;
 }
 
 function mapBooking(item: any): Booking {
   const roomLinks = Array.isArray(item.rooms) ? item.rooms : [];
-  const rooms = roomLinks.map((link: any) => {
-    const payload = link.room ?? link;
-    const room = {
-      id: String(payload.id ?? link.roomId ?? 'unknown'),
-      name: payload.name ?? 'Room',
-      description: payload.description ?? '',
-      capacity: payload.capacity ?? 0,
-      status: payload.status ?? 'AVAILABLE',
-      isActive: payload.isActive ?? true,
-      imageUrl: payload.imageUrl ?? '',
-      amenities: (payload.amenities || []).map((a: any) =>
-        a?.amenity
-          ? {
-              id: String(a.amenity.id),
-              name: a.amenity.name,
-              icon: a.amenity.icon ?? 'checkmark-circle-outline',
-              description: a.amenity.description,
-            }
-          : {
-              id: String(a.id),
-              name: a.name,
-              icon: a.icon ?? 'checkmark-circle-outline',
-              description: a.description,
-            },
-      ),
-    };
+  const rooms = roomLinks.map((link: any, index: number) => {
+    const roomPayload = link?.room ?? link ?? {};
+    const roomAmenities = roomPayload.amenities;
 
     return {
-      id: String(link.id ?? `${item.id}-${room.id}`),
-      roomId: String(link.roomId ?? room.id),
-      room,
-      roomStatus: link.roomStatus,
+      id: String(link?.id ?? `${item.id}-room-${index + 1}`),
+      roomId: String(link?.roomId ?? roomPayload.id ?? 'unknown-room'),
+      roomStatus: link?.roomStatus,
+      roomAmenitiesLoaded: Array.isArray(roomAmenities),
+      room: {
+        id: String(roomPayload.id ?? 'unknown-room'),
+        name: roomPayload.name ?? 'Room',
+        description: roomPayload.description ?? '',
+        capacity: roomPayload.capacity ?? 0,
+        status: roomPayload.status ?? 'AVAILABLE',
+        isActive: roomPayload.isActive ?? true,
+        imageUrl: roomPayload.imageUrl ?? '',
+        amenities: Array.isArray(roomAmenities)
+          ? roomAmenities.map((entry: any) => {
+              const amenity = entry?.amenity ?? entry;
+              return {
+                id: String(amenity.id),
+                name: amenity.name,
+                icon: amenity.icon ?? 'checkmark-circle-outline',
+                description: amenity.description ?? '',
+              };
+            })
+          : [],
+      },
     };
   });
 
   return {
     id: String(item.id),
     employeeId: String(item.employee?.id ?? item.employeeId ?? ''),
+    employeeName: item.employee?.name ?? '',
     startAt: item.startAt,
     endAt: item.endAt,
     purpose: item.purpose ?? '',
@@ -104,25 +106,39 @@ function mapBooking(item: any): Booking {
   };
 }
 
-function inventoryChecklistForRoom(booking: Booking): string[] {
-  const roomSetups = booking.rooms.map(({ room }) => `${room.name} set-up checklist`);
-  const baseList = [
-    ...roomSetups,
-    'Sanitiser and wipe-down check',
-    'Table and chair layout',
-  ];
+interface RoomChecklist {
+  id: string;
+  roomName: string;
+  amenitiesAvailable: boolean;
+  checks: string[];
+}
 
-  const extras = (booking.requestedAmenities || []).map((amenity) => {
-    const name = amenity.name.toLowerCase();
-    if (name.includes('projector')) return 'Projector remote + HDMI cable';
-    if (name.includes('whiteboard')) return 'Whiteboard markers and eraser';
-    if (name.includes('phone')) return 'Conference phone charged';
-    if (name.includes('coffee')) return 'Coffee station restocked';
-    if (name.includes('tv')) return 'TV input checked';
-    return `${amenity.name} set and checked`;
+function amenityCheck(name: string) {
+  const normalizedName = name.toLowerCase();
+  if (normalizedName.includes('projector')) return 'Projector remote + HDMI cable';
+  if (normalizedName.includes('whiteboard')) return 'Whiteboard markers and eraser';
+  if (normalizedName.includes('phone')) return 'Conference phone charged';
+  if (normalizedName.includes('coffee')) return 'Coffee station restocked';
+  if (normalizedName.includes('tv')) return 'TV input checked';
+  return `${name} set and checked`;
+}
+
+function inventoryChecklistsForBooking(booking: Booking): RoomChecklist[] {
+  return booking.rooms.map((bookingRoom) => {
+    const amenitiesAvailable = bookingRoom.roomAmenitiesLoaded === true;
+    const amenities: Amenity[] = amenitiesAvailable ? bookingRoom.room.amenities : [];
+
+    return {
+      id: bookingRoom.id,
+      roomName: bookingRoom.room.name,
+      amenitiesAvailable,
+      checks: [
+        'Sanitiser and wipe-down check',
+        'Table and chair layout',
+        ...amenities.map((amenity) => amenityCheck(amenity.name)),
+      ],
+    };
   });
-
-  return [...baseList, ...extras];
 }
 
 function formatTimeRange(start: string, end: string) {
@@ -140,7 +156,9 @@ function formatTimeRange(start: string, end: string) {
   return `${s.toLocaleString([], { ...dayOpts, ...timeOpts })} – ${e.toLocaleString([], { ...dayOpts, ...timeOpts })}`;
 }
 
-export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
+export function QueueTabScreen({ initialStatus = 'ALL', onOpenConversation }: QueueTabScreenProps) {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const [queue, setQueue] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -154,6 +172,7 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
   const [hidePast, setHidePast] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [startingConversationId, setStartingConversationId] = useState<string | null>(null);
 
   const loadQueue = useCallback(async () => {
     setError(null);
@@ -198,6 +217,25 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
     setRefreshing(false);
   };
 
+  const messageBookingOwner = async (booking: Booking) => {
+    const employeeId = Number(booking.employeeId);
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      Alert.alert('Unable to message booking owner', 'The booking owner is unavailable.');
+      return;
+    }
+
+    setStartingConversationId(booking.id);
+    try {
+      const conversation = await api.startConversation(employeeId) as { id: number };
+      onOpenConversation?.(conversation.id);
+    } catch (caughtError) {
+      const message = caughtError instanceof Error ? caughtError.message : 'Could not start the conversation.';
+      Alert.alert('Unable to message booking owner', message);
+    } finally {
+      setStartingConversationId(null);
+    }
+  };
+
   const filteredQueue = useMemo(() => {
     const now = Date.now();
     const q = searchText.trim().toLowerCase();
@@ -210,7 +248,7 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
         const roomName = booking.rooms.map(({ room }) => room.name.toLowerCase()).join(' ');
         const purpose = (booking.purpose || '').toLowerCase();
         const status = booking.status.toLowerCase();
-        const employee = ''; // employee name may not be on Booking type
+        const employee = (booking.employeeName ?? '').toLowerCase();
         return roomName.includes(q) || purpose.includes(q) || status.includes(q) || employee.includes(q);
       })
       .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
@@ -277,7 +315,7 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
 
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
@@ -286,7 +324,13 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
             {filteredQueue.length} shown · {counts.CONFIRMED} queued · {counts.PREPARING} in prep
           </Text>
         </View>
-        <TouchableOpacity style={styles.iconBtn} onPress={onRefresh} disabled={refreshing}>
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={onRefresh}
+          disabled={refreshing}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh queue"
+        >
           <Ionicons name="refresh" size={18} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -379,9 +423,9 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
           ) : (
             filteredQueue.map((booking) => {
               const meta = statusMeta[booking.status] ?? statusMeta.CONFIRMED;
-              const roomName = booking.rooms.map(({ room }) => room.name).join(', ') || 'Room';
+              const roomName = booking.rooms.map(({ room }) => room.name).join(', ') || 'Room details unavailable';
               const expanded = expandedId === booking.id;
-              const checklist = inventoryChecklistForRoom(booking);
+              const checklists = inventoryChecklistsForBooking(booking);
               const next = NEXT_STATUS[booking.status];
               const busy = updatingId === booking.id;
 
@@ -410,15 +454,59 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
                     </Text>
                   )}
 
-                  {(booking.requestedAmenities || []).length > 0 ? (
-                    <View style={styles.amenityRow}>
-                      {(booking.requestedAmenities || []).slice(0, 4).map((a) => (
-                        <View key={a.id} style={styles.amenityChip}>
-                          <Text style={styles.amenityText}>{a.name}</Text>
+                  {booking.employeeId ? (
+                    <View style={styles.ownerRow}>
+                      <View style={styles.ownerCopy}>
+                        <Text style={styles.ownerLabel}>Booking owner</Text>
+                        <Text style={styles.ownerName} numberOfLines={1}>{booking.employeeName || 'Employee'}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.ownerMessageButton}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Message booking owner ${booking.employeeName || 'employee'}`}
+                        onPress={() => void messageBookingOwner(booking)}
+                        disabled={startingConversationId === booking.id}
+                      >
+                        {startingConversationId === booking.id ? (
+                          <ActivityIndicator size="small" color={colors.primary} />
+                        ) : (
+                          <>
+                            <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.primary} />
+                            <Text style={styles.ownerMessageText}>Message</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+
+                  {booking.rooms.length > 0 ? (
+                    <View style={styles.roomAmenitiesList}>
+                      {booking.rooms.map((bookingRoom) => (
+                        <View key={bookingRoom.id} style={styles.roomAmenitiesGroup}>
+                          <Text style={styles.roomAmenitiesTitle}>{bookingRoom.room.name} amenities</Text>
+                          {bookingRoom.roomAmenitiesLoaded ? (
+                            bookingRoom.room.amenities.length > 0 ? (
+                              <View style={styles.amenityRow}>
+                                {bookingRoom.room.amenities.map((amenity) => (
+                                  <View key={amenity.id} style={styles.amenityChip}>
+                                    <Text style={styles.amenityText}>{amenity.name}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            ) : (
+                              <Text style={styles.amenityStateText}>No amenities assigned to this room.</Text>
+                            )
+                          ) : (
+                            <Text style={styles.amenityStateText}>
+                              Room amenity data unavailable. Refresh the queue to retry.
+                            </Text>
+                          )}
                         </View>
                       ))}
                     </View>
-                  ) : null}
+                  ) : (
+                    <Text style={styles.amenityStateText}>Room details unavailable. Refresh the queue to retry.</Text>
+                  )}
 
                   <TouchableOpacity
                     style={styles.checklistToggle}
@@ -436,12 +524,26 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
 
                   {expanded ? (
                     <View style={styles.checklistBox}>
-                      {checklist.map((item, idx) => (
-                        <View key={`${booking.id}-c-${idx}`} style={styles.checklistItem}>
-                          <Ionicons name="ellipse-outline" size={12} color={colors.muted} />
-                          <Text style={styles.checklistText}>{item}</Text>
+                      {checklists.length > 0 ? checklists.map((checklist) => (
+                        <View key={checklist.id} style={styles.checklistGroup}>
+                          <Text style={styles.checklistRoomTitle}>{checklist.roomName} checklist</Text>
+                          {!checklist.amenitiesAvailable ? (
+                            <Text style={styles.amenityStateText}>
+                              Amenity-specific checks unavailable until room data is refreshed.
+                            </Text>
+                          ) : null}
+                          {checklist.checks.map((item, index) => (
+                            <View key={`${checklist.id}-check-${index}`} style={styles.checklistItem}>
+                              <Ionicons name="ellipse-outline" size={12} color={colors.muted} />
+                              <Text style={styles.checklistText}>{item}</Text>
+                            </View>
+                          ))}
                         </View>
-                      ))}
+                      )) : (
+                        <Text style={styles.amenityStateText}>
+                          Room details unavailable. Refresh the queue to retry.
+                        </Text>
+                      )}
                     </View>
                   ) : null}
 
@@ -483,7 +585,8 @@ export function QueueTabScreen({ initialStatus = 'ALL' }: QueueTabScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   header: {
     flexDirection: 'row',
@@ -564,7 +667,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radii.lg,
     padding: spacing.base,
     marginBottom: spacing.md,
@@ -579,6 +682,12 @@ const styles = StyleSheet.create({
   roomName: { ...typography.titleSm, color: colors.ink },
   when: { ...typography.captionSm, color: colors.muted, marginTop: 2 },
   purpose: { ...typography.bodySm, color: colors.body, marginTop: spacing.sm },
+  ownerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md, padding: spacing.sm, borderRadius: radii.md, backgroundColor: colors.surfaceSoft },
+  ownerCopy: { flex: 1, minWidth: 0, gap: 2 },
+  ownerLabel: { ...typography.badge, color: colors.muted },
+  ownerName: { ...typography.captionSm, color: colors.ink, fontWeight: '600' },
+  ownerMessageButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: colors.surfaceCard },
+  ownerMessageText: { ...typography.buttonSm, color: colors.primary },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -594,6 +703,15 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: spacing.sm,
   },
+  roomAmenitiesList: {
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  roomAmenitiesGroup: {
+    gap: 4,
+  },
+  roomAmenitiesTitle: { ...typography.captionSm, color: colors.ink, fontWeight: '700' },
+  amenityStateText: { ...typography.captionSm, color: colors.muted },
   amenityChip: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -615,6 +733,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
     gap: 8,
   },
+  checklistGroup: { gap: 8 },
+  checklistRoomTitle: { ...typography.bodySm, color: colors.ink, fontWeight: '700' },
   checklistItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   checklistText: { ...typography.bodySm, color: colors.body, flex: 1 },
   actionsRow: {
@@ -675,3 +795,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 });
+};

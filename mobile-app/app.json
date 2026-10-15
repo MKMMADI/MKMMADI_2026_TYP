@@ -1,14 +1,16 @@
 {
   "expo": {
-    "name": "Conference Rooms",
+    "name": "BookSpace",
     "slug": "mkmmadi-conference-rooms",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "conferencerooms",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FF385C"
+      "backgroundColor": "#16324F"
     },
     "ios": {
       "supportsTablet": true,
@@ -18,13 +20,15 @@
       }
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
-        "backgroundColor": "#FF385C"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#16324F"
       },
       "package": "com.mkmmadi.conferencerooms"
     },
     "extra": {
-      "apiUrl": "http://10.0.2.2:4000",
+      "apiUrl": "https://api.kaltego-mmadi.co.za",
       "eas": {
         "projectId": "9d7243c5-ce4e-431e-bd38-2272da7fe52f"
       }

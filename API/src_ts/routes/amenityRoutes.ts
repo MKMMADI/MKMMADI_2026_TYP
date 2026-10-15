@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Defines the Express endpoints for amenity API operations.
+ */
+
 import { Router } from 'express';
 import { authenticate, requireRoles } from '../middleware/auth';
 import { archiveAmenity, createAmenity, listAmenities, updateAmenity } from '../controllers/amenityController';

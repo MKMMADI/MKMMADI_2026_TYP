@@ -1,59 +1,48 @@
-import { createRoom, getRoom } from '../../src_ts/controllers/roomController';
-import prisma from '../../src_ts/prisma';
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Tests the room controller behavior and response handling.
+ */
 
-jest.mock('../../src_ts/prisma', () => ({
-  __esModule: true,
-  default: {
-    room: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
-    },
-  },
+import { createRoom, getRoom, updateRoom, searchAvailability } from '../../src_ts/controllers/roomController';
+import * as roomService from '../../src_ts/services/roomService';
+
+jest.mock('../../src_ts/services/roomService', () => ({
+  listRooms: jest.fn(), createRoom: jest.fn(), getRoom: jest.fn(), updateRoom: jest.fn(),
+  archiveRoom: jest.fn(), updateRoomStatus: jest.fn(), searchAvailability: jest.fn(),
 }));
 
-const mockedCreate = prisma.room.create as jest.MockedFunction<
-  typeof prisma.room.create
->;
-const mockedFindUnique = prisma.room.findUnique as jest.MockedFunction<
-  typeof prisma.room.findUnique
->;
-
 describe('roomController', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+  beforeEach(() => jest.clearAllMocks());
 
-  it('creates a room and maps related amenities in the response', async () => {
-    const room = {
-      id: 1,
-      name: 'Boardroom',
-      capacity: 10,
-      amenities: [{ amenity: { id: 2, name: 'Projector' } }],
-    };
-    mockedCreate.mockResolvedValue(room as never);
+  it('returns created room with service-provided amenity mapping', async () => {
+    const room = { id: 1, name: 'Boardroom', amenities: [{ id: 2, name: 'Projector' }] };
+    (roomService.createRoom as jest.Mock).mockResolvedValue(room);
     const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
-
-    await createRoom(
-      { body: { name: 'Boardroom', capacity: 10, amenityIds: [2] } } as any,
-      res,
-      jest.fn(),
-    );
-
+    const body = { name: 'Boardroom', capacity: 10, amenityIds: [2] };
+    await createRoom({ body } as any, res, jest.fn());
+    expect(roomService.createRoom).toHaveBeenCalledWith(body);
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({
-      ...room,
-      amenities: [{ id: 2, name: 'Projector' }],
-    });
+    expect(res.json).toHaveBeenCalledWith(room);
   });
 
-  it('returns a 404 error when a room does not exist', async () => {
-    mockedFindUnique.mockResolvedValue(null);
-    const next = jest.fn();
+  it('parses IDs and delegates room reads and updates', async () => {
+    (roomService.getRoom as jest.Mock).mockResolvedValue({ id: 4 });
+    (roomService.updateRoom as jest.Mock).mockResolvedValue({ id: 4 });
+    const res = { json: jest.fn() } as any;
+    await getRoom({ params: { id: '4' } } as any, res, jest.fn());
+    await updateRoom({ params: { id: '4' }, body: { capacity: 6 } } as any, res, jest.fn());
+    expect(roomService.getRoom).toHaveBeenCalledWith(4);
+    expect(roomService.updateRoom).toHaveBeenCalledWith(4, { capacity: 6 });
+  });
 
-    await getRoom({ params: { id: '99' } } as any, {} as any, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Room not found', status: 404 }),
-    );
+  it('delegates availability query parsing', async () => {
+    (roomService.searchAvailability as jest.Mock).mockResolvedValue([]);
+    await searchAvailability({
+      query: { startAt: '2025-01-01', endAt: '2025-01-02', capacity: '12', amenityIds: '1,2' },
+    } as any, { json: jest.fn() } as any, jest.fn());
+    expect(roomService.searchAvailability).toHaveBeenCalledWith({
+      startAt: '2025-01-01', endAt: '2025-01-02', capacity: 12, amenityIds: ['1', '2'],
+    });
   });
 });

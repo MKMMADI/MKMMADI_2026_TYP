@@ -14,7 +14,10 @@ export function useLogin(remember: boolean) {
     try {
       const tokens = await login(email.trim(), password);
       const storage = remember ? localStorage : sessionStorage;
+      const otherStorage = remember ? sessionStorage : localStorage;
 
+      otherStorage.removeItem("accessToken");
+      otherStorage.removeItem("refreshToken");
       storage.setItem("accessToken", tokens.accessToken);
       storage.setItem("refreshToken", tokens.refreshToken);
 

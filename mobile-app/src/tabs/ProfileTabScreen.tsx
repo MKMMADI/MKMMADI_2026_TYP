@@ -10,12 +10,15 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { User, Booking } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 import api from '../api';
 import { getFavoriteRoomIds } from '../lib/preferences';
 
@@ -46,6 +49,8 @@ export function ProfileTabScreen({
   onOpenHistory,
   onOpenMyBookings,
 }: ProfileTabScreenProps) {
+  const { colors, mode, toggleTheme } = useAppTheme();
+  const styles = createStyles(colors);
   const [stats, setStats] = useState({
     total: 0,
     upcoming: 0,
@@ -127,8 +132,8 @@ export function ProfileTabScreen({
   const initial = (user.name || user.email || '?').charAt(0).toUpperCase();
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+    <SafeAreaView testID="employee-profile-root" style={styles.safe}>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -218,6 +223,25 @@ export function ProfileTabScreen({
           <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.menuItem}>
             <View style={styles.menuItemLeft}>
+              <Ionicons name={mode === 'dark' ? 'moon-outline' : 'sunny-outline'} size={22} color={colors.ink} />
+              <Text style={styles.menuItemText}>Dark mode</Text>
+            </View>
+            <Switch
+              accessibilityLabel="Dark mode"
+              accessibilityRole="switch"
+              accessibilityState={{ checked: mode === 'dark' }}
+              value={mode === 'dark'}
+              onValueChange={() => {
+                void toggleTheme().catch((error: unknown) => {
+                  Alert.alert('Theme unavailable', error instanceof Error ? error.message : 'Could not save theme preference.');
+                });
+              }}
+              trackColor={{ false: colors.hairline, true: colors.steel }}
+              thumbColor={colors.white}
+            />
+          </View>
+          <View style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
               <Ionicons name="mail-outline" size={22} color={colors.ink} />
               <Text style={styles.menuItemText}>Email</Text>
             </View>
@@ -263,7 +287,8 @@ export function ProfileTabScreen({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: spacing.base, paddingBottom: spacing.section },
   profileHeader: { alignItems: 'center', paddingVertical: spacing.xl },
@@ -313,7 +338,7 @@ const styles = StyleSheet.create({
   statLabel: { ...typography.captionSm, color: colors.muted, marginTop: 2, textAlign: 'center' },
   section: {
     marginTop: spacing.lg,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radii.md,
     overflow: 'hidden',
     borderWidth: 1,
@@ -347,7 +372,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radii.md,
     paddingVertical: spacing.md,
     marginTop: spacing.xl,
@@ -357,3 +382,4 @@ const styles = StyleSheet.create({
   logoutText: { ...typography.bodyMd, color: '#A32323', fontWeight: '600' },
   version: { ...typography.captionSm, color: colors.muted, textAlign: 'center', marginTop: spacing.lg },
 });
+};

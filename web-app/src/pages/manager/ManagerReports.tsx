@@ -1,6 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import ManagerLayout from "@/components/ManagerLayout";
 import { apiFetch } from "@/lib/api";
+import {
+  buildReportCsv,
+  buildReportExport,
+  buildReportXlsx,
+  createReportPdf,
+  downloadCsv,
+  downloadXlsx,
+  reportFileName,
+} from "@/lib/reportExports";
 import "@/styles/manager-operations.css";
 
 type ReportTab = "usage" | "availability" | "popularity";
@@ -21,12 +30,14 @@ function formatShortDate(isoDate: string) {
 /** Horizontal bar chart from label/value pairs */
 function BarChart({
   title,
+  description,
   items,
   valueKey = "value",
   labelKey = "label",
   unit = "",
 }: {
   title: string;
+  description: string;
   items: Record<string, unknown>[];
   valueKey?: string;
   labelKey?: string;
@@ -41,6 +52,7 @@ function BarChart({
     return (
       <div className="mo-chart">
         <h3 className="mo-section-title">{title}</h3>
+        <p className="mo-chart-description">{description}</p>
         <p className="mo-chart-empty">No data for this period.</p>
       </div>
     );
@@ -49,6 +61,7 @@ function BarChart({
   return (
     <div className="mo-chart">
       <h3 className="mo-section-title">{title}</h3>
+      <p className="mo-chart-description">{description}</p>
       <ul className="mo-bar-list" aria-label={title}>
         {items.map((item, idx) => {
           const value = Number(item[valueKey]) || 0;
@@ -81,9 +94,11 @@ function BarChart({
 /** Vertical column chart for daily series */
 function ColumnChart({
   title,
+  description,
   points,
 }: {
   title: string;
+  description: string;
   points: { date: string; bookings: number; totalHours?: number }[];
 }) {
   const max = Math.max(...points.map((p) => p.bookings), 1);
@@ -92,6 +107,7 @@ function ColumnChart({
     return (
       <div className="mo-chart">
         <h3 className="mo-section-title">{title}</h3>
+        <p className="mo-chart-description">{description}</p>
         <p className="mo-chart-empty">No data for this period.</p>
       </div>
     );
@@ -106,6 +122,7 @@ function ColumnChart({
   return (
     <div className="mo-chart">
       <h3 className="mo-section-title">{title}</h3>
+      <p className="mo-chart-description">{description}</p>
       <div className="mo-columns" role="img" aria-label={title}>
         {shown.map((p) => {
           const h = Math.max(4, Math.round((p.bookings / max) * 100));
@@ -138,6 +155,7 @@ export default function ManagerReports() {
   const [usage, setUsage] = useState<any>(null);
   const [availability, setAvailability] = useState<any>(null);
   const [popularity, setPopularity] = useState<any>(null);
+  const [loadedRange, setLoadedRange] = useState<{ start: string; end: string } | null>(null);
 
   async function load() {
     if (!startDate || !endDate) {
@@ -156,6 +174,7 @@ export default function ManagerReports() {
       setUsage(u);
       setAvailability(a);
       setPopularity(p);
+      setLoadedRange({ start: startDate, end: endDate });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load reports");
     } finally {
@@ -215,6 +234,44 @@ export default function ManagerReports() {
     ];
   }, [availability]);
 
+  const selectedReport = useMemo(
+    () => buildReportExport(tab, { usage, availability, popularity }, startDate, endDate),
+    [tab, usage, availability, popularity, startDate, endDate],
+  );
+
+  function exportCsv() {
+    if (!selectedReport) return;
+    downloadCsv(
+      buildReportCsv(selectedReport),
+      reportFileName(tab, startDate, endDate, "csv"),
+    );
+  }
+
+  function exportExcel() {
+    if (!selectedReport) return;
+    downloadXlsx(
+      buildReportXlsx(selectedReport),
+      reportFileName(tab, startDate, endDate, "xlsx"),
+    );
+  }
+
+  async function exportPdf() {
+    if (!selectedReport) return;
+    try {
+      await createReportPdf(selectedReport, reportFileName(tab, startDate, endDate, "pdf"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate PDF");
+    }
+  }
+
+  const canExport = Boolean(
+    selectedReport &&
+    !loading &&
+    !error &&
+    loadedRange?.start === startDate &&
+    loadedRange.end === endDate,
+  );
+
   return (
     <ManagerLayout>
       <div className="mo-page">
@@ -241,6 +298,17 @@ export default function ManagerReports() {
           <button type="button" className="mo-primary-btn" onClick={load} disabled={loading}>
             {loading ? "Loading…" : "Run reports"}
           </button>
+          <div className="mo-export-actions" aria-label="Export current report">
+            <button type="button" onClick={exportCsv} disabled={!canExport}>
+              Export CSV
+            </button>
+            <button type="button" onClick={exportExcel} disabled={!canExport}>
+              Export Excel
+            </button>
+            <button type="button" onClick={exportPdf} disabled={!canExport}>
+              Export PDF
+            </button>
+          </div>
         </div>
 
         <div className="mo-tabs">
@@ -295,10 +363,23 @@ export default function ManagerReports() {
               </div>
             </div>
 
-            <ColumnChart title="Bookings per day" points={dailyPoints} />
-            <BarChart title="Hours by room" items={roomHoursBars} unit="h" />
+            <ColumnChart
+              title="Bookings per day"
+              description="Each column shows the number of bookings on that date. Taller columns indicate busier days."
+              points={dailyPoints}
+            />
+            <BarChart
+              title="Hours by room"
+              description="Total booked hours per room for this date range. Longer bars show where meeting time is most concentrated."
+              items={roomHoursBars}
+              unit="h"
+            />
             {deptBars.length > 0 && (
-              <BarChart title="Bookings by department" items={deptBars} />
+              <BarChart
+                title="Bookings by department"
+                description="Compares booking counts across departments. Longer bars indicate which departments book rooms most often."
+                items={deptBars}
+              />
             )}
 
             <h3 className="mo-section-title">Room usage detail</h3>
@@ -354,12 +435,17 @@ export default function ManagerReports() {
 
             <ColumnChart
               title="Daily bookings"
+              description="Shows how many bookings fall on each date. Use peaks to spot busy days; this chart counts bookings, not free rooms."
               points={(availability.dailyBreakdown || []).map((d: any) => ({
                 date: d.date,
                 bookings: d.bookings,
               }))}
             />
-            <BarChart title="Average rooms booked vs free" items={freeVsBooked} />
+            <BarChart
+              title="Average rooms booked vs free"
+              description="Compares the average number of booked and free rooms per day across this range. Fewer free rooms means less spare capacity."
+              items={freeVsBooked}
+            />
 
             <h3 className="mo-section-title">Daily breakdown</h3>
             <div className="mo-table-wrap">
@@ -404,7 +490,11 @@ export default function ManagerReports() {
               </div>
             </div>
 
-            <BarChart title="Top rooms by bookings" items={popularityBars} />
+            <BarChart
+              title="Top rooms by bookings"
+              description="Ranks rooms by their total bookings in this date range. Longer bars identify the most frequently requested rooms."
+              items={popularityBars}
+            />
 
             <h3 className="mo-section-title">Top rooms</h3>
             <div className="mo-table-wrap">

@@ -4,7 +4,7 @@
  * Primary: navy #16324F · Steel accent #2F6690
  */
 
-export const colors = {
+export const lightColors = {
   primary: '#16324F',
   primaryActive: '#102A43',
   primaryDisabled: '#B8C9D6',
@@ -31,6 +31,37 @@ export const colors = {
   scrim: 'rgba(16,42,67,0.4)',
   white: '#FFFFFF',
 } as const;
+
+export const darkColors: ColorPalette = {
+  ...lightColors,
+  primary: '#8FB5D2',
+  primaryActive: '#B4CEE2',
+  primaryDisabled: '#42586B',
+  primaryError: '#FF8C79',
+  steel: '#7DB5E0',
+  steelLight: '#253D51',
+  canvas: '#111820',
+  surfaceSoft: '#1A2530',
+  surfaceStrong: '#253340',
+  surfaceCard: '#1A2530',
+  ink: '#EDF3F8',
+  body: '#D2DCE5',
+  muted: '#A6B5C3',
+  mutedSoft: '#8295A6',
+  onPrimary: '#101820',
+  hairline: '#3A4A58',
+  hairlineSoft: '#2D3C49',
+  borderStrong: '#526473',
+  border: '#334452',
+  success: '#65D487',
+  warning: '#FFB454',
+  error: '#FF8878',
+  star: '#FFE08A',
+  scrim: 'rgba(0,0,0,0.65)',
+};
+
+export type ColorPalette = { [K in keyof typeof lightColors]: string };
+export const colors: ColorPalette = lightColors;
 
 export const spacing = {
   xxs: 2,

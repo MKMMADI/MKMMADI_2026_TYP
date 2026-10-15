@@ -1,7 +1,9 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ManagerLayout from "@/components/ManagerLayout";
+import RoomImagePicker from "@/components/RoomImagePicker";
 import { apiFetch } from "@/lib/api";
+import { uploadRoomImage } from "@/lib/roomImages";
 import "@/styles/manager-facilities.css";
 
 interface Amenity {
@@ -24,6 +26,7 @@ export default function ManagerSpaceCreate() {
   const [capacity, setCapacity] = useState("8");
   const [status, setStatus] = useState<RoomStatus>("AVAILABLE");
   const [selectedAmenityIds, setSelectedAmenityIds] = useState<number[]>([]);
+  const [roomPhoto, setRoomPhoto] = useState<File | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -62,7 +65,7 @@ export default function ManagerSpaceCreate() {
 
     setSubmitting(true);
     try {
-      await apiFetch("/rooms", {
+      const room = await apiFetch<{ id: number; name: string }>("/rooms", {
         method: "POST",
         body: JSON.stringify({
           name: name.trim(),
@@ -73,6 +76,18 @@ export default function ManagerSpaceCreate() {
           amenityIds: selectedAmenityIds,
         }),
       });
+      if (roomPhoto) {
+        try {
+          await uploadRoomImage(room.id, roomPhoto);
+        } catch (uploadError) {
+          const message = uploadError instanceof Error ? uploadError.message : "Photo upload failed";
+          navigate("/manager/spaces", {
+            replace: true,
+            state: { toast: `"${room.name}" was created, but its photo could not be uploaded: ${message}` },
+          });
+          return;
+        }
+      }
       navigate("/manager/spaces", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create space");
@@ -138,6 +153,18 @@ export default function ManagerSpaceCreate() {
               </select>
             </label>
           </div>
+
+          <fieldset className="mf-fieldset">
+            <legend>Room photo</legend>
+            <RoomImagePicker
+              selectedFile={roomPhoto}
+              onFileChange={setRoomPhoto}
+              disabled={submitting}
+            />
+            <p className="mf-hint">
+              The space is created first, then its photo is uploaded securely.
+            </p>
+          </fieldset>
 
           <fieldset className="mf-fieldset">
             <legend>Amenities</legend>

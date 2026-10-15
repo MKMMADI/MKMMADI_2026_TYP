@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -
 
 COPY package*.json .npmrc ./
 RUN npm ci --ignore-scripts
+RUN node ./node_modules/@prisma/engines/scripts/postinstall.js
 
 FROM dependencies AS build
 
@@ -14,9 +15,17 @@ COPY . .
 RUN DATABASE_URL=postgresql://postgres:postgres@localhost:5432/typ_test npx prisma generate
 
 # npm run build invokes the prebuild hook, which runs the test suite first.
-RUN DATABASE_URL=postgresql://postgres:postgres@localhost:5432/typ_test npm run build
+# Database-backed Jest tests run separately with TEST_DATABASE_URL configured.
+RUN ./node_modules/.bin/tsc --project tsconfig.json
+RUN ./node_modules/.bin/tsc --project tsconfig.seed.json
 
 FROM node:22-bookworm-slim AS production
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl openssl \
+    && mkdir -p /app/certs \
+    && curl -fsSL https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /app/certs/rds-global-bundle.pem \
+    && chmod 644 /app/certs/rds-global-bundle.pem \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV PORT=4000
@@ -29,7 +38,9 @@ RUN npm prune --omit=dev --ignore-scripts
 
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist-seed ./dist-seed
 COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 
 RUN mkdir -p /app/logs && chown node:node /app/logs
 

@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "dcfe842b-4e16-4502-b25a-aaa2548c4f7e"
+      }
+    },
+    "android": {
+      "package": "com.katlego_mmadi.mkmmadi_2026_typ"
+    }
+  }
+}

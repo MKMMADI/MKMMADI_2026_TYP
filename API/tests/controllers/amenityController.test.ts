@@ -1,50 +1,52 @@
-import { createAmenity, listAmenities } from '../../src_ts/controllers/amenityController';
-import prisma from '../../src_ts/prisma';
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Tests the amenity controller behavior and response handling.
+ */
 
-jest.mock('../../src_ts/prisma', () => ({
-  __esModule: true,
-  default: {
-    amenity: {
-      findMany: jest.fn(),
-      create: jest.fn(),
-    },
-  },
+import { createAmenity, listAmenities, updateAmenity, archiveAmenity } from '../../src_ts/controllers/amenityController';
+import * as amenityService from '../../src_ts/services/amenityService';
+
+jest.mock('../../src_ts/services/amenityService', () => ({
+  listAmenities: jest.fn(), createAmenity: jest.fn(), updateAmenity: jest.fn(), archiveAmenity: jest.fn(),
 }));
 
-const mockedFindMany = prisma.amenity.findMany as jest.MockedFunction<
-  typeof prisma.amenity.findMany
->;
-const mockedCreate = prisma.amenity.create as jest.MockedFunction<
-  typeof prisma.amenity.create
->;
-
 describe('amenityController', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+  beforeEach(() => jest.clearAllMocks());
 
-  it('lists active amenities in descending creation order', async () => {
-    const amenities = [{ id: 1, name: 'Projector' }];
-    mockedFindMany.mockResolvedValue(amenities as never);
+  it('returns the amenity list from its service', async () => {
+    (amenityService.listAmenities as jest.Mock).mockResolvedValue([{ id: 1 }]);
     const res = { json: jest.fn() } as any;
-
     await listAmenities({} as any, res, jest.fn());
-
-    expect(mockedFindMany).toHaveBeenCalledWith({
-      where: { isActive: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    expect(res.json).toHaveBeenCalledWith(amenities);
+    expect(res.json).toHaveBeenCalledWith([{ id: 1 }]);
   });
 
-  it('passes validation errors to the error handler', async () => {
+  it('passes creation input to the service and responds with 201', async () => {
+    const amenity = { id: 1, name: 'Projector' };
+    (amenityService.createAmenity as jest.Mock).mockResolvedValue(amenity);
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() } as any;
+    const body = { name: 'Projector' };
+    await createAmenity({ body } as any, res, jest.fn());
+    expect(amenityService.createAmenity).toHaveBeenCalledWith(body);
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(amenity);
+  });
+
+  it('forwards service validation errors to Express', async () => {
+    const error = Object.assign(new Error('Name is required'), { status: 400 });
+    (amenityService.createAmenity as jest.Mock).mockRejectedValue(error);
     const next = jest.fn();
+    await createAmenity({ body: {} } as any, { status: jest.fn().mockReturnThis(), json: jest.fn() } as any, next);
+    expect(next).toHaveBeenCalledWith(error);
+  });
 
-    await createAmenity({ body: {} } as any, {} as any, next);
-
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Name is required', status: 400 }),
-    );
-    expect(mockedCreate).not.toHaveBeenCalled();
+  it('parses the id for update and archive operations', async () => {
+    (amenityService.updateAmenity as jest.Mock).mockResolvedValue({ id: 3 });
+    (amenityService.archiveAmenity as jest.Mock).mockResolvedValue({ id: 3, isActive: false });
+    const res = { json: jest.fn() } as any;
+    await updateAmenity({ params: { id: '3' }, body: { name: 'New' } } as any, res, jest.fn());
+    await archiveAmenity({ params: { id: '3' } } as any, res, jest.fn());
+    expect(amenityService.updateAmenity).toHaveBeenCalledWith(3, { name: 'New' });
+    expect(amenityService.archiveAmenity).toHaveBeenCalledWith(3);
   });
 });

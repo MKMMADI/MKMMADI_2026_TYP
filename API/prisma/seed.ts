@@ -4,14 +4,69 @@
  * (or: npx ts-node prisma/seed.ts)
  */
 import "dotenv/config";
+import { readFileSync } from "node:fs";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, Role, RoomStatus, BookingStatus } from "@prisma/client";
+import { PrismaClient, Role, OfficialRole, RoomStatus, BookingStatus } from "@prisma/client";
+import { Pool } from "pg";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error("DATABASE_URL must be set");
+
+const isProduction = process.env.NODE_ENV === "production";
+let poolConnectionString = connectionString;
+if (isProduction) {
+  const databaseUrl = new URL(connectionString);
+  databaseUrl.searchParams.delete("sslmode");
+  databaseUrl.searchParams.delete("sslrootcert");
+  poolConnectionString = databaseUrl.toString();
+}
+
+const pool = new Pool({
+  connectionString: poolConnectionString,
+  ...(isProduction
+    ? {
+        ssl: {
+          ca: readFileSync("/app/certs/rds-global-bundle.pem", "utf8"),
+          rejectUnauthorized: true,
+        },
+      }
+    : {}),
+});
+const adapter = new PrismaPg(pool, { disposeExternalPool: true });
 const prisma = new PrismaClient({ adapter });
 
 const PASSWORD = "Password123!"; // shared demo password for all seed users
+const ROOM_IMAGES = {
+  atlas: {
+    url: "https://images.unsplash.com/photo-1431540015161-0bf868a2d407?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Benjamin Child",
+  },
+  studio2: {
+    url: "https://images.unsplash.com/photo-1571624436279-b272aff752b5?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Andy Vult",
+  },
+  horizon: {
+    url: "https://images.unsplash.com/photo-1628062699790-7c45262b82b4?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Michael Fousert",
+  },
+  baobab: {
+    url: "https://images.unsplash.com/photo-1582653291997-079a1c04e5a1?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Danielle Cerullo",
+  },
+  podA: {
+    url: "https://images.unsplash.com/photo-1517502884422-41eaead166d4?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Dane Deaner",
+  },
+  karoo: {
+    url: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Nastuh Abootalebi",
+  },
+  archiveRoom: {
+    url: "https://images.unsplash.com/photo-1622675363311-3e1904dc1885?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Mapbox",
+  },
+} as const;
 
 function daysFromNow(days: number, hour = 9, minute = 0) {
   const d = new Date();
@@ -173,6 +228,143 @@ async function main() {
     }),
   ]);
 
+  const departments = [
+    "Engineering",
+    "Finance",
+    "Human Resources",
+    "Marketing",
+    "Operations",
+    "Product",
+    "Research",
+    "Sales",
+    "Strategy",
+  ];
+  const additionalEmployeeNames = [
+    "Thando Maseko",
+    "Amina Patel",
+    "Oliver Smith",
+    "Zanele Khumalo",
+    "James Williams",
+    "Nomsa Dlamini",
+    "Ethan Brown",
+    "Naledi Nkosi",
+    "Liam Johnson",
+    "Ayanda Ndlovu",
+    "Grace Adams",
+    "Kabelo Molefe",
+    "Noah Taylor",
+    "Amahle Zulu",
+    "Daniel Martin",
+    "Lindiwe Mkhize",
+    "Joshua Wilson",
+    "Nandi Cele",
+    "Matthew Davis",
+    "Refilwe Modise",
+    "Benjamin Clarke",
+    "Karabo Mokoena",
+    "Charlotte Green",
+    "Siphesihle Nene",
+    "Samuel White",
+    "Palesa Radebe",
+    "Luke Thompson",
+    "Busisiwe Nkomo",
+    "Henry Scott",
+    "Mpho Tshabalala",
+    "Isabella Moore",
+    "Themba Mthembu",
+    "Chloe Bennett",
+  ];
+  const additionalEmployees = await Promise.all(
+    additionalEmployeeNames.map((name, index) =>
+      prisma.user.create({
+        data: {
+          name,
+          email: `${name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, "").toLowerCase().trim().replace(/\s+/g, ".")}@bookspace.co.za`,
+          passwordHash,
+          role: Role.EMPLOYEE,
+          department: departments[index % departments.length],
+          contactNumber: `+27 60 ${String(100 + index).padStart(3, "0")} ${String(1000 + index).padStart(4, "0")}`,
+          Active: true,
+        },
+      }),
+    ),
+  );
+
+  const officialRoles = [
+    OfficialRole.CHAIRMAN_OF_THE_BOARD,
+    OfficialRole.CHIEF_OF_STAFF,
+    OfficialRole.FINANCIAL_CONTROL_OFFICER,
+    OfficialRole.DIRECTOR,
+    OfficialRole.PRESIDENT,
+    OfficialRole.COMPANY_SECRETARY,
+    OfficialRole.TREASURER,
+    OfficialRole.PARTNER,
+    OfficialRole.VICE_CHAIRMAN,
+  ];
+  const officialNames = [
+    "Michael Dube",
+    "Thandiwe Nxumalo",
+    "Andrew Cooper",
+    "Nomvula Sithole",
+    "David van Wyk",
+    "Bongani Msimang",
+    "Elizabeth Naicker",
+    "Sipho Mokoena",
+    "Graham Petersen",
+  ];
+  const officials = await Promise.all(
+    officialRoles.map((officialRole, index) =>
+      prisma.user.create({
+        data: {
+          name: officialNames[index],
+          email: `${officialNames[index].toLowerCase().replace(/\s+/g, ".")}@bookspace.co.za`,
+          passwordHash,
+          role: Role.EMPLOYEE,
+          officialRole,
+          department: "Executive Office",
+          contactNumber: `+27 61 ${String(200 + index).padStart(3, "0")} ${String(2000 + index).padStart(4, "0")}`,
+          Active: true,
+        },
+      }),
+    ),
+  );
+
+  const additionalClerkNames = [
+    "Busi Nkomo",
+    "Vusi Sithole",
+    "Lerato Maseko",
+    "Peter Adams",
+    "Thulani Mthethwa",
+    "Carol Williams",
+    "Nomsa Zondi",
+    "Mark Jacobs",
+    "Palesa Molefe",
+    "Sizwe Khumalo",
+    "Janet Dlamini",
+    "Mandla Mokoena",
+    "Ayesha Ismail",
+    "Nkosinathi Cele",
+    "Helen Smith",
+    "Musa Ndlovu",
+    "Zinhle Mkhize",
+    "Richard Brown",
+  ];
+  const additionalClerks = await Promise.all(
+    additionalClerkNames.map((name, index) =>
+      prisma.user.create({
+        data: {
+          name,
+          email: `${name.toLowerCase().replace(/\s+/g, ".")}@bookspace.co.za`,
+          passwordHash,
+          role: Role.CLERK,
+          department: "Facilities & Operations",
+          contactNumber: `+27 62 ${String(300 + index).padStart(3, "0")} ${String(3000 + index).padStart(4, "0")}`,
+          Active: true,
+        },
+      }),
+    ),
+  );
+
   // ─── Amenities ───────────────────────────────────────────
   console.log("Seeding amenities…");
 
@@ -253,6 +445,7 @@ async function main() {
     data: {
       name: "Atlas Boardroom",
       description: "Main boardroom on level 3 — ideal for leadership and client meetings.",
+      imageUrl: ROOM_IMAGES.atlas.url,
       capacity: 12,
       status: RoomStatus.AVAILABLE,
       isActive: true,
@@ -274,6 +467,7 @@ async function main() {
     data: {
       name: "Studio 2",
       description: "Design studio with writable walls — product and creative sessions.",
+      imageUrl: ROOM_IMAGES.studio2.url,
       capacity: 8,
       status: RoomStatus.AVAILABLE,
       isActive: true,
@@ -292,6 +486,7 @@ async function main() {
     data: {
       name: "Horizon Room",
       description: "Quiet mid-size room with city views — strategy and 1:1s.",
+      imageUrl: ROOM_IMAGES.horizon.url,
       capacity: 6,
       status: RoomStatus.AVAILABLE,
       isActive: true,
@@ -310,6 +505,7 @@ async function main() {
     data: {
       name: "Baobab",
       description: "Large training room for workshops and all-hands.",
+      imageUrl: ROOM_IMAGES.baobab.url,
       capacity: 24,
       status: RoomStatus.AVAILABLE,
       isActive: true,
@@ -331,6 +527,7 @@ async function main() {
     data: {
       name: "Focus Pod A",
       description: "Small focus booth for interviews and private calls.",
+      imageUrl: ROOM_IMAGES.podA.url,
       capacity: 2,
       status: RoomStatus.AVAILABLE,
       isActive: true,
@@ -344,6 +541,7 @@ async function main() {
     data: {
       name: "Karoo Lounge",
       description: "Informal lounge space — currently under maintenance.",
+      imageUrl: ROOM_IMAGES.karoo.url,
       capacity: 10,
       status: RoomStatus.MAINTENANCE,
       isActive: true,
@@ -357,6 +555,7 @@ async function main() {
     data: {
       name: "Old Library (archived)",
       description: "Decommissioned space — kept for historical bookings only.",
+      imageUrl: ROOM_IMAGES.archiveRoom.url,
       capacity: 4,
       status: RoomStatus.OUT_OF_SERVICE,
       isActive: false,
@@ -680,7 +879,7 @@ async function main() {
   console.log("  Manager : lerato.mokoena@bookspace.co.za");
   console.log("  Clerk   : sipho.dlamini@bookspace.co.za");
   console.log("  Employee: thandi.mokoena@bookspace.co.za");
-  console.log(`\nRooms: 7 | Amenities: ${amenities.length} | Employees: ${employees.length + 3}`);
+  console.log(`\nRooms: 7 | Amenities: ${amenities.length} | Employees: ${employees.length + additionalEmployees.length + officials.length} | Clerks: ${additionalClerks.length + 2}`);
   console.log(`Bookings: ${bookingSeeds.length} | Consumables: 6`);
 }
 

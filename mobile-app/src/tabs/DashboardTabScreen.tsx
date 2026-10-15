@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 import { Booking, BookingStatus, User } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 type QueueStatus = Extract<BookingStatus, 'CONFIRMED' | 'PREPARING' | 'READY' | 'COMPLETED'>;
 
@@ -90,6 +92,8 @@ const STATUS_META: Record<
 };
 
 export function DashboardTabScreen({ user, onOpenQueue, onOpenRooms }: DashboardTabScreenProps) {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [roomStats, setRoomStats] = useState({ total: 0, available: 0, maintenance: 0 });
   const [loading, setLoading] = useState(true);
@@ -203,7 +207,7 @@ export function DashboardTabScreen({ user, onOpenQueue, onOpenRooms }: Dashboard
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -352,7 +356,8 @@ export function DashboardTabScreen({ user, onOpenQueue, onOpenRooms }: Dashboard
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingBottom: spacing.section },
   header: {
@@ -440,7 +445,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     paddingVertical: spacing.md,
     borderRadius: radii.lg,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderWidth: 1,
     borderColor: colors.hairlineSoft,
   },
@@ -453,7 +458,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     padding: spacing.base,
     borderRadius: radii.md,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderWidth: 1,
     borderColor: colors.hairlineSoft,
   },
@@ -495,3 +500,4 @@ const styles = StyleSheet.create({
   },
   retryButtonText: { ...typography.buttonSm, color: colors.onPrimary },
 });
+};

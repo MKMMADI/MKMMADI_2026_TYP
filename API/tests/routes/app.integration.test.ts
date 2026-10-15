@@ -1,7 +1,17 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Exercises the app API routes through the Express application.
+ */
+
 import request from 'supertest';
 import app from '../../src_ts/app';
 
 describe('API routes', () => {
+  it('trusts the ALB as the first proxy', () => {
+    expect(app.get('trust proxy')).toBe(1);
+  });
+
   it('reports that the API is running', async () => {
     const response = await request(app).get('/');
 

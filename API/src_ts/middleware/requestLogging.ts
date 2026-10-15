@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Implements request logging Express middleware for API requests.
+ */
+
 import { RequestHandler } from 'express';
 import logger from '../utils/logger';
 import config from '../config';

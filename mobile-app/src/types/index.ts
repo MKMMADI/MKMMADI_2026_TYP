@@ -7,6 +7,7 @@ export type BookingStatus =
   | 'CONFIRMED'
   | 'PREPARING'
   | 'READY'
+  | 'RESCHEDULE_REQUIRED'
   | 'COMPLETED'
   | 'CANCELLED';
 
@@ -48,11 +49,13 @@ export interface BookingRoom {
   roomId: string;
   room: Room;
   roomStatus?: string;
+  roomAmenitiesLoaded?: boolean;
 }
 
 export interface Booking {
   id: string;
   employeeId: string;
+  employeeName?: string;
   startAt: string; // ISO
   endAt: string;
   purpose: string;
@@ -60,6 +63,35 @@ export interface Booking {
   createdAt: string;
   rooms: BookingRoom[];
   requestedAmenities: Amenity[];
+  suggestedStartAt?: string | null;
+  suggestedEndAt?: string | null;
+}
+
+export interface ConversationParticipant {
+  id: number;
+  name: string;
+  role: Role;
+}
+
+export interface DirectMessage {
+  id: number;
+  conversationId: number;
+  senderId: number;
+  recipientId: number;
+  body: string;
+  createdAt: string;
+  readAt: string | null;
+  sender: ConversationParticipant;
+  recipient: ConversationParticipant;
+}
+
+export interface ConversationSummary {
+  id: number;
+  participant: ConversationParticipant;
+  createdAt: string;
+  updatedAt: string;
+  unreadCount: number;
+  lastMessage: DirectMessage | null;
 }
 
 export interface SearchFilters {

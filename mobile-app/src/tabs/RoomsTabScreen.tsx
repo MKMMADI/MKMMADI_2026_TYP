@@ -17,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 import { Room, RoomStatus } from '../types';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 type StatusFilter = 'ALL' | RoomStatus;
 
@@ -117,6 +119,8 @@ function nextBookingLabel(roomId: string, slots: OccupancySlot[], now = Date.now
 }
 
 export function RoomsTabScreen() {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [occupancy, setOccupancy] = useState<OccupancySlot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -231,7 +235,7 @@ export function RoomsTabScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
 
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
@@ -412,7 +416,8 @@ export function RoomsTabScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   header: {
     flexDirection: 'row',
@@ -472,7 +477,7 @@ const styles = StyleSheet.create({
   filterTextActive: { color: colors.onPrimary },
   listContent: { paddingHorizontal: spacing.base, paddingBottom: spacing.section },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radii.lg,
     padding: spacing.base,
     marginBottom: spacing.md,
@@ -577,3 +582,4 @@ const styles = StyleSheet.create({
   emptyTitle: { ...typography.titleMd, color: colors.ink, marginTop: spacing.md },
   emptySub: { ...typography.bodySm, color: colors.muted, marginTop: spacing.xs, textAlign: 'center' },
 });
+};

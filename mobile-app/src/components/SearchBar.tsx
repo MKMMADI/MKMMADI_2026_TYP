@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
+import type { ColorPalette } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
 import { SearchFilters } from '../types';
 import { format } from 'date-fns';
 
@@ -17,6 +19,8 @@ function formatWhen(start: Date | null, end: Date | null) {
 }
 
 export function SearchBar({ filters, onPress, compact = false }: SearchBarProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const hasFilters =
     filters.startAt || filters.endAt || filters.capacity > 1 || filters.amenityIds.length > 0;
 
@@ -60,7 +64,8 @@ export function SearchBar({ filters, onPress, compact = false }: SearchBarProps)
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -92,4 +97,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+  });
+}

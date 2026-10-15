@@ -1,7 +1,30 @@
-import { addDays, format, startOfDay } from 'date-fns';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { BookingScreen } from '../src/screens/BookingScreen';
 import { Room } from '../src/types';
+
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = require('react');
+  const { Text, TouchableOpacity } = require('react-native');
+
+  return {
+    __esModule: true,
+    default: ({ mode, onChange }: { mode: string; onChange: (event: unknown, date: Date) => void }) =>
+      React.createElement(
+        TouchableOpacity,
+        {
+          accessibilityRole: 'button',
+          onPress: () => {
+            const date = new Date();
+            if (mode === 'date') date.setDate(date.getDate() + 1);
+            else date.setHours(11, 30, 0, 0);
+            onChange({ type: 'set' }, date);
+          },
+        },
+        React.createElement(Text, null, `Set ${mode}`),
+      ),
+    DateTimePickerAndroid: { open: jest.fn() },
+  };
+});
 
 const makeRoom = (overrides: Partial<Room>): Room => ({
   id: 'room-1',
@@ -66,8 +89,8 @@ describe('BookingScreen multi-room review', () => {
     render(<BookingScreen rooms={rooms} onBack={jest.fn()} onConfirm={onConfirm} />);
 
     fireEvent.press(screen.getByLabelText('Choose booking date'));
-    const tomorrowLabel = format(addDays(startOfDay(new Date()), 1), 'EEEE d MMMM yyyy');
-    fireEvent.press(screen.getByLabelText(tomorrowLabel));
+    fireEvent.press(screen.getByText('Set date'));
+    fireEvent.press(screen.getByText('Done'));
     fireEvent.changeText(screen.getByPlaceholderText('e.g. Sprint planning with product'), 'Planning');
     fireEvent.press(screen.getByText('Confirm booking'));
 

@@ -1,0 +1,382 @@
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --text: #a6b5c3;
+  --text-h: #edf3f8;
+  --bg: #111820;
+  --border: #334452;
+  --code-bg: #1a2530;
+  --m-error: #ff8878;
+  background: #111820;
+}
+
+html[data-theme="dark"] body {
+  background: #111820;
+}
+
+html[data-theme="dark"] .clerk-dashboard {
+  color: #edf3f8;
+}
+
+html[data-theme="dark"] .clerk-dashboard .queue-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #1a2530;
+}
+
+html[data-theme="dark"] .clerk-dashboard .queue-table th,
+html[data-theme="dark"] .clerk-dashboard .queue-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #334452;
+  color: #edf3f8;
+  text-align: left;
+}
+
+html[data-theme="dark"] .clerk-dashboard .queue-table th {
+  color: #c2ced9;
+}
+
+html[data-theme="dark"] .clerk-dashboard select,
+html[data-theme="dark"] .clerk-dashboard button {
+  border: 1px solid #405364;
+  border-radius: 6px;
+  background: #202d39;
+  color: #edf3f8;
+  padding: 6px 9px;
+}
+
+html[data-theme="dark"] .checklist-drawer {
+  border: 1px solid #405364;
+  border-radius: 10px;
+  background: #1a2530;
+  color: #edf3f8;
+  padding: 16px;
+}
+
+.manager-dashboard[data-theme="dark"] {
+  --m-ink: #edf3f8;
+  --m-muted: #a6b5c3;
+  --m-line: #334452;
+  --m-teal: #7db5e0;
+  --m-teal-dark: #a3c9e8;
+  --m-teal-light: #253d51;
+  --m-steel: #7db5e0;
+  --m-steel-light: #253d51;
+  --m-shadow: 0 2px 8px rgba(0, 0, 0, .2), 0 4px 12px rgba(0, 0, 0, .12);
+  --m-surface: #1a2530;
+  --m-surface-strong: #253340;
+  --m-hairline: #3a4a58;
+  --m-success: #65d487;
+  --m-warning: #ffb454;
+  --m-error: #ff8878;
+  background: #111820;
+  color: var(--m-ink);
+  color-scheme: dark;
+}
+
+.manager-dashboard[data-theme="dark"] .manager-sidebar,
+.manager-dashboard[data-theme="dark"] .manager-topbar,
+.manager-dashboard[data-theme="dark"] .manager-notice,
+.manager-dashboard[data-theme="dark"] .manager-notice-all,
+.manager-dashboard[data-theme="dark"] .manager-logout-button,
+.manager-dashboard[data-theme="dark"] .manager-outline-button,
+.manager-dashboard[data-theme="dark"] .manager-stats article,
+.manager-dashboard[data-theme="dark"] .quick-action-card,
+.manager-dashboard[data-theme="dark"] .mf-callout,
+.manager-dashboard[data-theme="dark"] .mq-callout,
+.manager-dashboard[data-theme="dark"] .mb-summary-card,
+.manager-dashboard[data-theme="dark"] .mb-filters button,
+.manager-dashboard[data-theme="dark"] .mb-date-clear,
+.manager-dashboard[data-theme="dark"] .mb-assignee-select,
+.manager-dashboard[data-theme="dark"] .mb-date-bar,
+.manager-dashboard[data-theme="dark"] .mb-table-wrap,
+.manager-dashboard[data-theme="dark"] .mb-table th,
+.manager-dashboard[data-theme="dark"] .mb-modal,
+.manager-dashboard[data-theme="dark"] .mf-summary-card,
+.manager-dashboard[data-theme="dark"] .mf-filters button,
+.manager-dashboard[data-theme="dark"] .mf-card,
+.manager-dashboard[data-theme="dark"] .mf-form,
+.manager-dashboard[data-theme="dark"] .mf-table-wrap,
+.manager-dashboard[data-theme="dark"] .mf-table th,
+.manager-dashboard[data-theme="dark"] .mf-modal,
+.manager-dashboard[data-theme="dark"] .mo-summary-card,
+.manager-dashboard[data-theme="dark"] .mo-level-filters button,
+.manager-dashboard[data-theme="dark"] .mo-table-wrap,
+.manager-dashboard[data-theme="dark"] .mo-table th,
+.manager-dashboard[data-theme="dark"] .mo-tabs button,
+.manager-dashboard[data-theme="dark"] .mo-chart,
+.manager-dashboard[data-theme="dark"] .mo-modal,
+.manager-dashboard[data-theme="dark"] .mo-profile-hero,
+.manager-dashboard[data-theme="dark"] .mo-form,
+.manager-dashboard[data-theme="dark"] .mo-card,
+.manager-dashboard[data-theme="dark"] .mq-summary-card,
+.manager-dashboard[data-theme="dark"] .mq-filters button,
+.manager-dashboard[data-theme="dark"] .mq-search input,
+.manager-dashboard[data-theme="dark"] .mf-card,
+.manager-dashboard[data-theme="dark"] .mq-card,
+.manager-dashboard[data-theme="dark"] .mm-card,
+.manager-dashboard[data-theme="dark"] .message-sidebar,
+.manager-dashboard[data-theme="dark"] .message-thread-panel,
+.manager-dashboard[data-theme="dark"] .message-preview-banner,
+.manager-dashboard[data-theme="dark"] .message-contact-row,
+.manager-dashboard[data-theme="dark"] .message-composer,
+.manager-dashboard[data-theme="dark"] .manager-alert-success,
+.manager-dashboard[data-theme="dark"] .manager-alert-error,
+.manager-dashboard[data-theme="dark"] .mb-toast,
+.manager-dashboard[data-theme="dark"] .mo-toast,
+.manager-dashboard[data-theme="dark"] .mb-empty,
+.manager-dashboard[data-theme="dark"] .mo-empty,
+.manager-dashboard[data-theme="dark"] .notification-card.empty-state,
+.manager-dashboard[data-theme="dark"] .notification-card,
+.manager-dashboard[data-theme="dark"] .filter-card {
+  background: #1a2530;
+  color: var(--m-ink);
+  border-color: var(--m-line);
+}
+
+.manager-dashboard[data-theme="dark"] .manager-content {
+  color: var(--m-ink);
+}
+
+.manager-dashboard[data-theme="dark"] .manager-brand,
+.manager-dashboard[data-theme="dark"] .manager-date,
+.manager-dashboard[data-theme="dark"] h1,
+.manager-dashboard[data-theme="dark"] h2,
+.manager-dashboard[data-theme="dark"] h3,
+.manager-dashboard[data-theme="dark"] label,
+.manager-dashboard[data-theme="dark"] th,
+.manager-dashboard[data-theme="dark"] td,
+.manager-dashboard[data-theme="dark"] .card-content p,
+.manager-dashboard[data-theme="dark"] .manager-notice-message strong {
+  color: var(--m-ink);
+}
+
+.manager-dashboard[data-theme="dark"] input,
+.manager-dashboard[data-theme="dark"] select,
+.manager-dashboard[data-theme="dark"] textarea,
+.manager-dashboard[data-theme="dark"] .mb-search input,
+.manager-dashboard[data-theme="dark"] .mo-search input,
+.manager-dashboard[data-theme="dark"] .mf-status-select,
+.manager-dashboard[data-theme="dark"] .manager-new-booking-page input,
+.manager-dashboard[data-theme="dark"] .notification-filter-field input,
+.manager-dashboard[data-theme="dark"] .notification-filter-field select,
+.manager-dashboard[data-theme="dark"] .manager-booking-option,
+.manager-dashboard[data-theme="dark"] .manager-new-booking-page .mo-back-link {
+  background-color: #111820;
+  color: var(--m-ink);
+  border-color: var(--m-line);
+}
+
+.manager-dashboard[data-theme="dark"] .mb-filters button:hover {
+  border-color: #405364;
+  background: #202d39;
+  color: #dce6ef;
+}
+
+.manager-dashboard[data-theme="dark"] .mb-filters button.active,
+.manager-dashboard[data-theme="dark"] .mb-filters button.active:hover {
+  border-color: #45617a;
+  background: #253d51;
+  color: #dce6ef;
+}
+
+.manager-dashboard[data-theme="dark"] .mo-tabs button.active {
+  border-color: #547694;
+  background: #2a4358;
+  color: #edf3f8;
+  box-shadow: inset 0 -2px 0 #7db5e0;
+}
+
+.manager-dashboard[data-theme="dark"] .mb-date-field input[type="date"] {
+  border-color: #405364;
+  background-color: #202d39;
+  color: var(--m-ink);
+  color-scheme: dark;
+}
+
+.manager-dashboard[data-theme="dark"] .mb-modal-overlay,
+.manager-dashboard[data-theme="dark"] .mf-modal-overlay,
+.manager-dashboard[data-theme="dark"] .mo-modal-overlay {
+  background: rgba(0, 0, 0, 0.68);
+}
+
+.manager-dashboard[data-theme="dark"] .mb-modal,
+.manager-dashboard[data-theme="dark"] .mf-modal,
+.manager-dashboard[data-theme="dark"] .mo-modal {
+  border: 1px solid #405364;
+  background: #202d39;
+  color: var(--m-ink);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.manager-dashboard[data-theme="dark"] .mb-modal-close {
+  border-color: #405364;
+  background: #1a2530;
+  color: var(--m-ink);
+}
+
+.manager-dashboard[data-theme="dark"] .mf-callout p {
+  color: #c2ced9;
+}
+
+.manager-dashboard[data-theme="dark"] .mf-callout em,
+.manager-dashboard[data-theme="dark"] .mq-callout em {
+  color: #a3c9e8;
+}
+
+.manager-dashboard[data-theme="dark"] .mq-callout p,
+.manager-dashboard[data-theme="dark"] .mq-empty-hint,
+.manager-dashboard[data-theme="dark"] .mq-hide-past {
+  color: #c2ced9;
+}
+
+.manager-dashboard[data-theme="dark"] .manager-insights {
+  border-color: #334452;
+  background: linear-gradient(117deg, #1a2530, #202d39);
+}
+
+.manager-dashboard[data-theme="dark"] .manager-insights p:not(.manager-kicker) {
+  color: #c2ced9;
+}
+
+.manager-dashboard[data-theme="dark"] .manager-bars {
+  border-bottom-color: #405364;
+}
+
+.manager-dashboard[data-theme="dark"] .manager-bars span {
+  background: #405364;
+}
+
+.manager-dashboard[data-theme="dark"] .manager-bars span.current {
+  background: #7db5e0;
+}
+
+.manager-dashboard[data-theme="dark"] .manager-booking-employee {
+  color: #c2ced9;
+}
+
+.manager-dashboard[data-theme="dark"] .mb-table tbody tr:hover td {
+  background: #202d39;
+}
+
+.manager-dashboard[data-theme="dark"] .message-conversation,
+.manager-dashboard[data-theme="dark"] .message-contact-row {
+  color: var(--m-ink);
+}
+
+.manager-dashboard[data-theme="dark"] .message-conversation.active,
+.manager-dashboard[data-theme="dark"] .message-conversation:hover,
+.manager-dashboard[data-theme="dark"] .message-contact-row:hover {
+  border-color: #405364;
+  background: #253340;
+  color: var(--m-ink);
+}
+
+.manager-dashboard[data-theme="dark"] .message-conversation-copy strong,
+.manager-dashboard[data-theme="dark"] .message-contact-copy span {
+  color: var(--m-ink);
+}
+
+.manager-dashboard[data-theme="dark"] .message-conversation-copy small,
+.manager-dashboard[data-theme="dark"] .message-contact-copy small,
+.manager-dashboard[data-theme="dark"] .message-thread-header p,
+.manager-dashboard[data-theme="dark"] .message-muted {
+  color: #a6b5c3;
+}
+
+.manager-dashboard[data-theme="dark"] .manager-dashboard-card,
+.manager-dashboard[data-theme="dark"] .manager-stat-card,
+.manager-dashboard[data-theme="dark"] .manager-panel,
+.manager-dashboard[data-theme="dark"] .manager-card,
+.manager-dashboard[data-theme="dark"] .mb-booking-card,
+.manager-dashboard[data-theme="dark"] .mb-row,
+.manager-dashboard[data-theme="dark"] .mo-panel,
+.manager-dashboard[data-theme="dark"] .mf-fieldset,
+.manager-dashboard[data-theme="dark"] .manager-booking-group,
+.manager-dashboard[data-theme="dark"] .mf-empty,
+.manager-dashboard[data-theme="dark"] .mf-state,
+.manager-dashboard[data-theme="dark"] .mo-state,
+.manager-dashboard[data-theme="dark"] .mq-empty,
+.manager-dashboard[data-theme="dark"] .mq-state,
+.manager-dashboard[data-theme="dark"] .mo-btn--ghost,
+.manager-dashboard[data-theme="dark"] .mf-btn--ghost,
+.manager-dashboard[data-theme="dark"] .mb-booking-review-details div {
+  background-color: #1a2530;
+  border-color: var(--m-line);
+  color: var(--m-ink);
+}
+
+.manager-dashboard[data-theme="dark"] .manager-theme-toggle {
+  border-color: var(--m-line);
+  background: #1a2530;
+  color: var(--m-ink);
+}
+
+.manager-dashboard[data-theme="dark"] .manager-theme-toggle:hover,
+.manager-dashboard[data-theme="dark"] .manager-new-booking-page .mo-back-link:hover {
+  background: #253340;
+}
+
+.manager-dashboard[data-theme="dark"] .mo-primary-btn,
+.manager-dashboard[data-theme="dark"] .mb-btn--approve,
+.manager-dashboard[data-theme="dark"] .mb-btn--reject-solid,
+.manager-dashboard[data-theme="dark"] .manager-create,
+.manager-dashboard[data-theme="dark"] .mf-primary-link,
+.manager-dashboard[data-theme="dark"] .mf-btn--primary,
+.manager-dashboard[data-theme="dark"] .btn-action {
+  border-color: #2f6690;
+  background: #2f6690;
+  color: #fff;
+}
+
+.manager-dashboard[data-theme="dark"] .mo-primary-btn:hover,
+.manager-dashboard[data-theme="dark"] .mb-btn--approve:hover:not(:disabled),
+.manager-dashboard[data-theme="dark"] .manager-create:hover,
+.manager-dashboard[data-theme="dark"] .btn-action:hover {
+  border-color: #3f7daa;
+  background: #3f7daa;
+}
+
+.manager-theme-toggle {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid var(--m-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--m-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.manager-theme-toggle:hover {
+  background: var(--m-surface);
+}
+
+.manager-theme-toggle:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--m-teal) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.manager-theme-error {
+  max-width: 220px;
+  color: var(--m-error);
+  font-size: 11px;
+}
+
+@media (max-width: 740px) {
+  .manager-theme-toggle {
+    width: 38px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .manager-theme-toggle span:first-child {
+    font-size: 18px;
+  }
+}

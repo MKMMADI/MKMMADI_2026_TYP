@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Exercises the room API routes through the Express application.
+ */
+
 import request from 'supertest';
 import app from '../../src_ts/app';
 import {
@@ -30,7 +36,14 @@ describe('Room Routes Integration Tests', () => {
     it('should list all active rooms for authenticated user', async () => {
       await prisma.room.createMany({
         data: [
-          { name: 'Room A', capacity: 10, description: 'Floor 1', status: 'AVAILABLE', isActive: true },
+          {
+            name: 'Room A',
+            capacity: 10,
+            description: 'Floor 1',
+            status: 'AVAILABLE',
+            isActive: true,
+            imageUrl: 'https://images.example.com/room-a.jpg',
+          },
           { name: 'Room B', capacity: 20, description: 'Floor 2', status: 'AVAILABLE', isActive: true },
         ],
       });
@@ -41,6 +54,8 @@ describe('Room Routes Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.find((room: { name: string }) => room.name === 'Room A').imageUrl)
+        .toBe('https://images.example.com/room-a.jpg');
     });
 
     it('should reject unauthenticated access', async () => {
@@ -67,6 +82,40 @@ describe('Room Routes Integration Tests', () => {
       expect(response.status).toBe(201);
       expect(response.body.name).toBe(roomData.name);
       expect(response.body.capacity).toBe(roomData.capacity);
+    });
+
+    it('should create a room with an image URL', async () => {
+      const imageUrl = 'https://images.unsplash.com/photo-1431540015161-0bf868a2d407?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop';
+      const response = await request(app)
+        .post('/api/v1/rooms')
+        .set(authHeader(managerTokens))
+        .send({ name: randomString('RoomWithImage'), capacity: 8, imageUrl });
+
+      expect(response.status).toBe(201);
+      expect(response.body.imageUrl).toBe(imageUrl);
+    });
+
+    it('should create a room without an image URL', async () => {
+      const response = await request(app)
+        .post('/api/v1/rooms')
+        .set(authHeader(managerTokens))
+        .send({ name: randomString('RoomWithoutImage'), capacity: 8 });
+
+      expect(response.status).toBe(201);
+      expect(response.body.imageUrl).toBeNull();
+    });
+
+    it('should reject a non-HTTPS image URL', async () => {
+      const response = await request(app)
+        .post('/api/v1/rooms')
+        .set(authHeader(managerTokens))
+        .send({
+          name: randomString('RoomWithInvalidImage'),
+          capacity: 8,
+          imageUrl: 'http://images.example.com/room.jpg',
+        });
+
+      expect(response.status).toBe(400);
     });
 
     it('should reject room creation by non-manager', async () => {
@@ -114,6 +163,18 @@ describe('Room Routes Integration Tests', () => {
       expect(response.body.name).toBe('Test Room');
     });
 
+    it('should return the stored image URL for an employee', async () => {
+      const imageUrl = 'https://images.unsplash.com/photo-1431540015161-0bf868a2d407?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop';
+      await prisma.room.update({ where: { id: roomId }, data: { imageUrl } });
+
+      const response = await request(app)
+        .get(`/api/v1/rooms/${roomId}`)
+        .set(authHeader(employeeTokens));
+
+      expect(response.status).toBe(200);
+      expect(response.body.imageUrl).toBe(imageUrl);
+    });
+
     it('should return 404 for non-existent room', async () => {
       const fakeId = 999999;
 
@@ -157,6 +218,28 @@ describe('Room Routes Integration Tests', () => {
       expect(response.body.capacity).toBe(updateData.capacity);
     });
 
+    it('should let a manager replace and remove a room image URL', async () => {
+      const imageUrl = 'https://images.unsplash.com/photo-1431540015161-0bf868a2d407?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop';
+      const replacedUrl = 'https://images.unsplash.com/photo-1571624436279-b272aff752b5?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop';
+      await prisma.room.update({ where: { id: roomId }, data: { imageUrl } });
+
+      const replaceResponse = await request(app)
+        .patch(`/api/v1/rooms/${roomId}`)
+        .set(authHeader(managerTokens))
+        .send({ imageUrl: replacedUrl });
+
+      expect(replaceResponse.status).toBe(200);
+      expect(replaceResponse.body.imageUrl).toBe(replacedUrl);
+
+      const removeResponse = await request(app)
+        .patch(`/api/v1/rooms/${roomId}`)
+        .set(authHeader(managerTokens))
+        .send({ imageUrl: null });
+
+      expect(removeResponse.status).toBe(200);
+      expect(removeResponse.body.imageUrl).toBeNull();
+    });
+
     it('should reject room update by non-manager', async () => {
       const response = await request(app)
         .patch(`/api/v1/rooms/${roomId}`)
@@ -175,6 +258,46 @@ describe('Room Routes Integration Tests', () => {
         .send({ name: 'Update' });
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('S3 room image routes', () => {
+    it('should prevent employees from requesting an S3 upload URL', async () => {
+      const room = await prisma.room.create({
+        data: { name: 'Upload Permission Room', capacity: 8 },
+      });
+
+      const response = await request(app)
+        .post(`/api/v1/rooms/${room.id}/image-upload`)
+        .set(authHeader(employeeTokens))
+        .send({ contentType: 'image/jpeg', contentLength: 1024 });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should reject unsupported upload types before contacting storage', async () => {
+      const room = await prisma.room.create({
+        data: { name: 'Upload Validation Room', capacity: 8 },
+      });
+
+      const response = await request(app)
+        .post(`/api/v1/rooms/${room.id}/image-upload`)
+        .set(authHeader(managerTokens))
+        .send({ contentType: 'image/svg+xml', contentLength: 1024 });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should prevent employees from removing room images', async () => {
+      const room = await prisma.room.create({
+        data: { name: 'Image Delete Permission Room', capacity: 8 },
+      });
+
+      const response = await request(app)
+        .delete(`/api/v1/rooms/${room.id}/image`)
+        .set(authHeader(employeeTokens));
+
+      expect(response.status).toBe(403);
     });
   });
 

@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Booking, BookingStatus, Room } from '../types';
 import { Button } from '../components/Button';
 import { colors, radii, spacing, typography } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 import api from '../api';
 
 const statusMeta: Record<
@@ -24,6 +26,7 @@ const statusMeta: Record<
   CONFIRMED: { label: 'Confirmed', tone: '#F8E7C7', tint: '#B76A00' },
   PREPARING: { label: 'Preparing', tone: '#D9EBFF', tint: '#0056A8' },
   READY: { label: 'Ready', tone: '#DDF5E5', tint: '#0A7A3F' },
+  RESCHEDULE_REQUIRED: { label: 'Schedule changed', tone: '#FFF0D9', tint: '#9A5B00' },
   COMPLETED: { label: 'Completed', tone: '#E8E9F7', tint: '#3E49A6' },
   CANCELLED: { label: 'Cancelled', tone: '#F9E1E1', tint: '#A32323' },
 };
@@ -68,6 +71,8 @@ export function BookingDetailScreen({
   onBookAgain,
   onCancelled,
 }: BookingDetailScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const [booking, setBooking] = useState(initial);
   const [cancelling, setCancelling] = useState(false);
 
@@ -214,7 +219,8 @@ export function BookingDetailScreen({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   topBar: {
     flexDirection: 'row',
@@ -247,7 +253,7 @@ const styles = StyleSheet.create({
   card: {
     marginTop: spacing.base,
     marginHorizontal: spacing.base,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radii.lg,
     padding: spacing.base,
     borderWidth: 1,
@@ -340,5 +346,6 @@ const styles = StyleSheet.create({
   },
   cta: { width: '100%' },
 });
+};
 
 export default BookingDetailScreen;

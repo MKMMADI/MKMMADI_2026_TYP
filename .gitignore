@@ -1,8 +1,6 @@
-```
-# Test files
-API/tests/
-
 *.tgz
 *.zip
 *.sh
-```
+.env
+.env.*
+!.env.example

@@ -280,6 +280,35 @@
   margin: 24px 0 18px;
 }
 
+.mo-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mo-export-actions button {
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid var(--m-line, #e7edeb);
+  border-radius: 8px;
+  background: #fff;
+  color: #536366;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.mo-export-actions button:hover:not(:disabled) {
+  border-color: var(--m-teal, #2a9d8f);
+  color: var(--m-teal-dark, #16786d);
+}
+
+.mo-export-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .mo-tabs {
   display: flex;
   gap: 6px;
@@ -325,6 +354,13 @@
 
 .mo-chart .mo-section-title {
   margin-top: 0;
+}
+
+.mo-chart-description {
+  margin: -4px 0 16px;
+  color: var(--m-muted, #738184);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .mo-chart-empty {

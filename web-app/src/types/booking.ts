@@ -5,6 +5,7 @@ export type BookingStatus =
   | "CONFIRMED"
   | "PREPARING"   
   | "READY"
+  | "RESCHEDULE_REQUIRED"
   | "COMPLETED"
   | "CANCELLED";
 

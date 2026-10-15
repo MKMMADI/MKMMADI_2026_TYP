@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 import { Booking, BookingStatus } from '../types';
 import { colors, radii, spacing, typography } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 
 interface ClerkDashboardScreenProps {
   onOpenProfile?: () => void;
@@ -30,6 +32,7 @@ const statusMeta: Record<
   CONFIRMED: { label: 'Awaiting prep', tone: '#F8E7C7', tint: '#B76A00', icon: 'time-outline' },
   PREPARING: { label: 'Preparing', tone: '#D9EBFF', tint: '#0056A8', icon: 'sparkles-outline' },
   READY: { label: 'Ready', tone: '#DDF5E5', tint: '#0A7A3F', icon: 'checkmark-circle-outline' },
+  RESCHEDULE_REQUIRED: { label: 'Needs rescheduling', tone: '#FFF0D9', tint: '#9A5B00', icon: 'calendar-outline' },
   COMPLETED: { label: 'Completed', tone: '#E8E9F7', tint: '#3E49A6', icon: 'checkbox-outline' },
   CANCELLED: { label: 'Cancelled', tone: '#F9E1E1', tint: '#A32323', icon: 'close-circle-outline' },
 };
@@ -41,6 +44,7 @@ const tabLabels: Record<StatusFilter, string> = {
   CONFIRMED: 'Queued',
   PREPARING: 'Prep',
   READY: 'Ready',
+  RESCHEDULE_REQUIRED: 'Needs rescheduling',
   COMPLETED: 'Done',
   CANCELLED: 'Cancelled',
 };
@@ -84,39 +88,16 @@ function formatBookingDateTime(start: string, end: string) {
 }
 
 function mapBookingFromApi(payload: any): Booking {
-  const rooms = (Array.isArray(payload.rooms) ? payload.rooms : []).map((link: any) => {
-    const source = link.room ?? link;
-    const room = {
-      id: String(source.id ?? link.roomId ?? 'unknown-room'),
-      name: source.name ?? 'Unassigned room',
-      description: source.description ?? 'Room details unavailable',
-      capacity: source.capacity ?? 0,
-      status: source.status ?? 'AVAILABLE',
-      isActive: source.isActive ?? true,
-      imageUrl: source.imageUrl ?? '',
-      amenities: (source.amenities || []).map((entry: any) =>
-        entry?.amenity
-          ? {
-              id: String(entry.amenity.id),
-              name: entry.amenity.name,
-              icon: entry.amenity.icon ?? 'checkmark-circle-outline',
-              description: entry.amenity.description,
-            }
-          : {
-              id: String(entry.id),
-              name: entry.name,
-              icon: entry.icon ?? 'checkmark-circle-outline',
-              description: entry.description,
-            },
-      ),
-    };
-    return {
-      id: String(link.id ?? `${payload.id}-${room.id}`),
-      roomId: String(link.roomId ?? room.id),
-      room,
-      roomStatus: link.roomStatus,
-    };
-  });
+  const room = payload.rooms?.[0]?.room ?? {
+    id: String(payload.roomId ?? 'unknown-room'),
+    name: 'Unassigned room',
+    description: 'Room details unavailable',
+    capacity: 0,
+    status: 'AVAILABLE',
+    isActive: true,
+    imageUrl: '',
+    amenities: [],
+  };
 
   return {
     id: String(payload.id),
@@ -126,7 +107,13 @@ function mapBookingFromApi(payload: any): Booking {
     purpose: payload.purpose,
     status: payload.status,
     createdAt: payload.createdAt ?? new Date().toISOString(),
-    rooms,
+    rooms: [
+      {
+        id: String(payload.rooms?.[0]?.id ?? `${payload.id}-room`),
+        roomId: String(room.id),
+        room,
+      },
+    ],
     requestedAmenities: Array.isArray(payload.amenities)
       ? payload.amenities.map((entry: any) => ({
           id: String(entry.amenity?.id ?? entry.id ?? `${payload.id}-amenity`),
@@ -139,8 +126,8 @@ function mapBookingFromApi(payload: any): Booking {
 }
 
 function inventoryChecklistForRoom(booking: Booking): string[] {
-  const roomSetups = booking.rooms.map(({ room }) => `${room.name} set-up checklist`);
-  const baseList = [...roomSetups, 'Sanitiser and wipe-down check', 'Table and chair layout'];
+  const roomName = booking.rooms[0]?.room?.name ?? 'Room';
+  const baseList = [`${roomName} set-up checklist`, 'Sanitiser and wipe-down check', 'Table and chair layout'];
 
   const extras = booking.requestedAmenities.map((amenity) => {
     const name = amenity.name.toLowerCase();
@@ -156,6 +143,8 @@ function inventoryChecklistForRoom(booking: Booking): string[] {
 }
 
 export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDashboardScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const [queue, setQueue] = useState<Booking[]>([]);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
@@ -199,7 +188,7 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
     const query = searchText.trim().toLowerCase();
 
     return queue.filter((booking) => {
-      const roomName = booking.rooms.map(({ room }) => room.name.toLowerCase()).join(' ');
+      const roomName = booking.rooms[0]?.room?.name ?? '';
       const matchesStatus = statusFilter === 'ALL' || booking.status === statusFilter;
       const matchesSearch =
         !query ||
@@ -234,7 +223,7 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
 
     Alert.alert(
       'Confirm status change',
-      `Update ${selectedBooking.rooms.map(({ room }) => room.name).join(', ') || 'this booking'} (${formatBookingDateTime(selectedBooking.startAt, selectedBooking.endAt)}) from ${statusMeta[selectedBooking.status].label} to ${statusMeta[pendingStatus].label}?`,
+      `Update ${selectedBooking.rooms[0]?.room?.name ?? 'this room'} (${formatBookingDateTime(selectedBooking.startAt, selectedBooking.endAt)}) from ${statusMeta[selectedBooking.status].label} to ${statusMeta[pendingStatus].label}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -361,7 +350,7 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
             </View>
           ) : (
             filteredQueue.map((booking) => {
-              const roomName = booking.rooms.map(({ room }) => room.name).join(', ') || 'Room assignment';
+              const roomName = booking.rooms[0]?.room?.name ?? 'Room assignment';
               const meta = statusMeta[booking.status];
 
               return (
@@ -397,9 +386,7 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
           <View style={styles.modalBackdrop}>
             <View style={styles.modalSheet}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {selectedBooking.rooms.map(({ room }) => room.name).join(', ') || 'Room details'}
-                </Text>
+                <Text style={styles.modalTitle}>{selectedBooking.rooms[0]?.room?.name ?? 'Room details'}</Text>
                 <TouchableOpacity onPress={() => setSelectedBookingId(null)} style={styles.closeButton}>
                   <Ionicons name="close" size={22} color={colors.ink} />
                 </TouchableOpacity>
@@ -419,16 +406,6 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Time</Text>
                   <Text style={styles.value}>{formatTimeRange(selectedBooking.startAt, selectedBooking.endAt)}</Text>
-                </View>
-
-                <View style={styles.sectionBlock}>
-                  <Text style={styles.sectionTitle}>Rooms in this booking</Text>
-                  {selectedBooking.rooms.map(({ room, roomStatus }) => (
-                    <View key={room.id} style={styles.infoRow}>
-                      <Text style={styles.label}>{room.name}</Text>
-                      <Text style={styles.value}>{roomStatus || room.status} · {room.capacity} seats</Text>
-                    </View>
-                  ))}
                 </View>
 
                 <View style={styles.infoRow}>
@@ -518,7 +495,8 @@ export function ClerkDashboardScreen({ onOpenProfile, onOpenHistory }: ClerkDash
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -901,5 +879,6 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
 });
+};
 
 export default ClerkDashboardScreen;

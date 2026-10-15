@@ -1,357 +1,231 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Implements HTTP request handlers for booking operations.
+ */
+
 import { NextFunction, Response } from 'express';
-import prisma from '../prisma';
-import { createBooking } from '../services/bookingService';
+import { createBooking, rescheduleDisplacedBooking, listBookings as fetchBookings, listAssignableClerks as fetchAssignableClerks,
+  assignBookingClerk as assignClerk, getBooking as findBooking, approveBooking as approve,
+  rejectBooking as reject, updateBookingStatus as updateStatus, cancelBooking as cancel,
+  listOccupancy as getOccupancy } from '../services/bookingService';
 import { createHttpError } from '../utils/httpError';
 import { AuthRequest } from '../middleware/auth';
-import { isValidRejectionCode, REJECTION_REASONS } from '../constants/rejectionReasons';
+import { REJECTION_REASONS } from '../constants/rejectionReasons';
+import { publishBookingUpdate } from '../services/realtime';
 
-const bookingInclude = {
-  rooms: { include: { room: true } },
-  amenities: { include: { amenity: true } },
-  employee: { select: { id: true, name: true, email: true } },
-  preparedBy: { select: { id: true, name: true, email: true } },
-  reviewedBy: { select: { id: true, name: true, email: true } },
-} as const;
-
-/** Statuses clerks may set on the preparation queue (including moving backwards). */
-const PREP_STATUSES = new Set(['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED']);
-
-
+/**
+ * Parses a route parameter as a positive integer booking ID, returning null if invalid.
+ * @param raw Unparsed value supplied by the caller.
+ * @returns A positive booking ID, or null when the route parameter is invalid.
+ */
 function parseBookingId(raw: string | string[] | undefined): number | null {
   const value = Array.isArray(raw) ? raw[0] : raw;
   if (value == null || value === '') return null;
   const id = Number(value);
-  if (!Number.isInteger(id) || id <= 0) return null;
-  return id;
+  return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+/**
+ * Creates a booking from the authenticated user and request fields, then responds with HTTP 201.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function createBookingHandler(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const roomIds = Array.isArray(req.body.roomIds)
-      ? req.body.roomIds.map((roomId: unknown) => Number(roomId))
-      : [];
-    const amenityIds = Array.isArray(req.body.amenityIds)
-      ? req.body.amenityIds.map((amenityId: unknown) => Number(amenityId))
-      : [];
-
+    const roomIds = Array.isArray(req.body.roomIds) ? req.body.roomIds.map((value: unknown) => Number(value)) : [];
+    const amenityIds = Array.isArray(req.body.amenityIds) ? req.body.amenityIds.map((value: unknown) => Number(value)) : [];
     const booking = await createBooking({
-      employeeId: req.user?.id,
-      purpose: req.body.purpose,
-      startAt: req.body.startAt,
-      endAt: req.body.endAt,
-      roomIds,
-      amenityIds,
-      capacity: Number(req.body.capacity || 0),
+      employeeId: req.user?.id, purpose: req.body.purpose, startAt: req.body.startAt,
+      endAt: req.body.endAt, roomIds, amenityIds, capacity: Number(req.body.capacity || 0),
     });
-
     res.status(201).json(booking);
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 }
 
+/**
+ * Validates the booking ID and rescheduling choice, then returns the result or forwards errors.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
+export async function rescheduleBooking(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const id = parseBookingId(req.params.id);
+    if (id == null) return next(createHttpError('Invalid booking id', 400));
+    const acceptSuggestion = req.body?.acceptSuggestion === true;
+    if (acceptSuggestion && (req.body?.startAt !== undefined || req.body?.endAt !== undefined)) {
+      return next(createHttpError('Accept the suggested time or provide a replacement startAt', 400));
+    }
+    if (!acceptSuggestion && req.body?.startAt === undefined) {
+      return next(createHttpError('Provide acceptSuggestion: true or a replacement startAt', 400));
+    }
+    res.json(await rescheduleDisplacedBooking({
+      bookingId: id, employeeId: req.user.id, acceptSuggestion,
+      startAt: req.body.startAt, endAt: req.body.endAt,
+    }));
+  } catch (error) { next(error); }
+}
+
+/**
+ * Returns bookings visible to the authenticated user, applying the optional status query.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function listBookings(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const role = req.user?.role;
-    const statusParam = typeof req.query.status === 'string' ? req.query.status : undefined;
-
-    const where: Record<string, unknown> =
-      role === 'EMPLOYEE' ? { employeeId: req.user.id } : {};
-
-    if (statusParam) {
-      const statuses = statusParam.split(',').map((s) => s.trim()).filter(Boolean);
-      if (statuses.length === 1) where.status = statuses[0];
-      else if (statuses.length > 1) where.status = { in: statuses };
-    }
-
-    const bookings = await prisma.booking.findMany({
-      where,
-      include: bookingInclude,
-      orderBy: { createdAt: 'desc' },
-    });
-
-    res.json(bookings);
-  } catch (error) {
-    next(error);
-  }
+    res.json(await listBookingsService(req));
+  } catch (error) { next(error); }
 }
 
+/**
+ * Loads bookings filtered by the authenticated role, user ID, and optional status query.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @returns A promise resolving to the bookings visible under the request’s role, user ID, and optional status.
+ */
+async function listBookingsService(req: AuthRequest) {
+  return fetchBookings(req.user?.role, req.user.id, typeof req.query.status === 'string' ? req.query.status : undefined);
+}
+
+/**
+ * Returns the clerks eligible to be assigned to bookings.
+ * @param _req Express request parameter; unused because the handler does not need request data.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
+export async function listAssignableClerks(_req: AuthRequest, res: Response, next: NextFunction) {
+  try { res.json(await fetchAssignableClerks()); } catch (error) { next(error); }
+}
+
+/**
+ * Validates booking and clerk IDs, then assigns or unassigns the clerk.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
+export async function assignBookingClerk(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const id = parseBookingId(req.params.id);
+    if (id == null) return next(createHttpError('Invalid booking id', 400));
+    if (!req.body || !Object.prototype.hasOwnProperty.call(req.body, 'clerkId')) {
+      return next(createHttpError('clerkId is required; use null to unassign', 400));
+    }
+    const rawId: unknown = req.body.clerkId;
+    const clerkId = rawId === null ? null : Number(rawId);
+    if (clerkId !== null && (!Number.isInteger(clerkId) || clerkId <= 0)) {
+      return next(createHttpError('clerkId must be a positive integer or null', 400));
+    }
+    res.json(await assignClerk(id, clerkId));
+  } catch (error) { next(error); }
+}
+
+/**
+ * Returns the booking if the authenticated user may access it.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function getBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = parseBookingId(req.params.id);
-    if (id == null) {
-      return next(createHttpError('Invalid booking id', 400));
-    }
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: bookingInclude,
-    });
-
-    if (!booking) {
-      return next(createHttpError('Booking not found', 404));
-    }
-
-    if (
-      req.user.role !== 'MANAGER' &&
-      req.user.role !== 'CLERK' &&
-      booking.employeeId !== req.user.id
-    ) {
-      return next(createHttpError('Forbidden', 403));
-    }
-
-    res.json(booking);
-  } catch (error) {
-    next(error);
-  }
+    if (id == null) return next(createHttpError('Invalid booking id', 400));
+    res.json(await findBooking(id, req.user.id, req.user.role));
+  } catch (error) { next(error); }
 }
 
+/**
+ * Returns the supported booking rejection reasons.
+ * @param _req Express request parameter; unused because the handler does not need request data.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function listRejectionReasons(_req: AuthRequest, res: Response, next: NextFunction) {
-  try {
-    res.json(REJECTION_REASONS);
-  } catch (error) {
-    next(error);
-  }
+  try { res.json(REJECTION_REASONS); } catch (error) { next(error); }
 }
 
+/**
+ * Approves the booking for the authenticated reviewer and publishes a status update.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function approveBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = parseBookingId(req.params.id);
-    if (id == null) {
-      return next(createHttpError('Invalid booking id', 400));
-    }
-    const existing = await prisma.booking.findUnique({ where: { id } });
-
-    if (!existing) {
-      return next(createHttpError('Booking not found', 404));
-    }
-    if (existing.status !== 'PENDING') {
-      return next(createHttpError('Only pending bookings can be approved', 400));
-    }
-
-    await prisma.booking.update({
-      where: { id },
-      data: {
-        status: 'CONFIRMED',
-        reviewedById: req.user.id,
-        reviewedAt: new Date(),
-        rejectionReasonCode: null,
-        rejectionNote: null,
-      },
-    });
-    const booking = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingInclude });
-
-    // TODO: notify employee (email / in-app notification)
+    if (id == null) return next(createHttpError('Invalid booking id', 400));
+    const booking = await approve(id, req.user.id);
+    publishBookingUpdate(booking.employeeId, { bookingId: booking.id, status: booking.status });
     res.json(booking);
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 }
 
+/**
+ * Rejects the booking using the supplied reason code and optional note.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function rejectBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = parseBookingId(req.params.id);
-    if (id == null) {
-      return next(createHttpError('Invalid booking id', 400));
-    }
-    const { reasonCode, note } = req.body as { reasonCode?: string; note?: string };
-
-    if (!reasonCode || !isValidRejectionCode(reasonCode)) {
-      return next(createHttpError('A valid rejection reasonCode is required', 400));
-    }
-    if (reasonCode === 'OTHER' && !(note && String(note).trim())) {
-      return next(createHttpError('A note is required when reason is OTHER', 400));
-    }
-
-    const existing = await prisma.booking.findUnique({ where: { id } });
-    if (!existing) {
-      return next(createHttpError('Booking not found', 404));
-    }
-    if (existing.status !== 'PENDING') {
-      return next(createHttpError('Only pending bookings can be rejected', 400));
-    }
-
-    await prisma.booking.update({
-      where: { id },
-      data: {
-        status: 'CANCELLED',
-        rejectionReasonCode: reasonCode,
-        rejectionNote: note?.trim() || null,
-        reviewedById: req.user.id,
-        reviewedAt: new Date(),
-      },
-    });
-    const booking = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingInclude });
-
-    // TODO: notify employee with reason
-    res.json(booking);
-  } catch (error) {
-    next(error);
-  }
+    if (id == null) return next(createHttpError('Invalid booking id', 400));
+    res.json(await reject(id, req.user.id, req.body?.reasonCode, req.body?.note));
+  } catch (error) { next(error); }
 }
 
+/**
+ * Updates the booking status for the authenticated user.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function updateBookingStatus(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = parseBookingId(req.params.id);
-    if (id == null) {
-      return next(createHttpError('Invalid booking id', 400));
-    }
-    const { status } = req.body as { status?: string };
-
-    if (!status) {
-      return next(createHttpError('Status is required', 400));
-    }
-
-    if (!PREP_STATUSES.has(status)) {
-      return next(
-        createHttpError(
-          'Invalid preparation status. Allowed: CONFIRMED, PREPARING, READY, COMPLETED',
-          400
-        )
-      );
-    }
-
-    const existing = await prisma.booking.findUnique({ where: { id } });
-    if (!existing) {
-      return next(createHttpError('Booking not found', 404));
-    }
-
-    // Queue work only on confirmed/prep pipeline (not PENDING / CANCELLED)
-    const fromAllowed = PREP_STATUSES.has(existing.status) || existing.status === 'CONFIRMED';
-    if (!fromAllowed && existing.status !== 'CONFIRMED') {
-      // CONFIRMED is in PREP_STATUSES; also allow if already in pipeline
-      if (!['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'].includes(existing.status)) {
-        return next(
-          createHttpError(
-            'Only confirmed or in-preparation bookings can have preparation status changed',
-            400
-          )
-        );
-      }
-    }
-
-    if (!['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'].includes(existing.status)) {
-      return next(
-        createHttpError(
-          'Only confirmed or in-preparation bookings can have preparation status changed',
-          400
-        )
-      );
-    }
-
-    const data: Record<string, unknown> = { status };
-
-    // When starting (or re-starting) prep, claim the booking
-    if (status === 'PREPARING') {
-      data.preparedById = req.user.id;
-    }
-
-    // Moving back from READY/PREPARING to CONFIRMED clears claim
-    if (status === 'CONFIRMED') {
-      data.preparedById = null;
-    }
-
-    await prisma.booking.update({
-      where: { id },
-      data,
-    });
-    const booking = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingInclude });
-
-    res.json(booking);
-  } catch (error) {
-    next(error);
-  }
+    if (id == null) return next(createHttpError('Invalid booking id', 400));
+    res.json(await updateStatus(id, req.body?.status, req.user.id));
+  } catch (error) { next(error); }
 }
 
+/**
+ * Cancels the booking for the authenticated user and role.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function cancelBooking(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = parseBookingId(req.params.id);
-    if (id == null) {
-      return next(createHttpError('Invalid booking id', 400));
-    }
-    const booking = await prisma.booking.findUnique({ where: { id } });
-    if (!booking) {
-      return next(createHttpError('Booking not found', 404));
-    }
-    if (
-      req.user.role !== 'MANAGER' &&
-      req.user.role !== 'CLERK' &&
-      booking.employeeId !== req.user.id
-    ) {
-      return next(createHttpError('Forbidden', 403));
-    }
-
-    // Employees may always cancel PENDING. For approved pipeline statuses they need ≥6 hours before start.
-    const staffOverride = req.user.role === 'MANAGER' || req.user.role === 'CLERK';
-    if (!staffOverride) {
-      if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
-        return next(createHttpError('This booking can no longer be cancelled', 400));
-      }
-      if (booking.status !== 'PENDING') {
-        const msUntilStart = new Date(booking.startAt).getTime() - Date.now();
-        const sixHoursMs = 6 * 60 * 60 * 1000;
-        if (msUntilStart < sixHoursMs) {
-          return next(
-            createHttpError(
-              'Approved bookings can only be cancelled at least 6 hours before the start time',
-              400,
-            ),
-          );
-        }
-      }
-    }
-
-    await prisma.booking.update({
-      where: { id },
-      data: { status: 'CANCELLED' },
-    });
-    const updatedBooking = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingInclude });
-
-    res.json(updatedBooking);
-  } catch (error) {
-    next(error);
-  }
+    if (id == null) return next(createHttpError('Invalid booking id', 400));
+    res.json(await cancel(id, req.user.id, req.user.role));
+  } catch (error) { next(error); }
 }
 
-/** Occupancy windows for all rooms (no PII) — used by employee home availability. */
+/**
+ * Returns occupancy windows for the optional query time range without personal information.
+ * @param req Authenticated request containing the booking route ID, request body, or query filters used by this handler.
+ * @param res Express response used to send the booking operation result.
+ * @param next Express callback used to forward booking-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function listOccupancy(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const from = req.query.from ? new Date(String(req.query.from)) : new Date();
-    const to = req.query.to
-      ? new Date(String(req.query.to))
-      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-
-    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) {
-      return next(createHttpError('Invalid from/to range', 400));
-    }
-
-    const bookings = await prisma.booking.findMany({
-      where: {
-        status: { notIn: ['CANCELLED', 'COMPLETED'] },
-        startAt: { lt: to },
-        endAt: { gt: from },
-      },
-      select: {
-        id: true,
-        startAt: true,
-        endAt: true,
-        status: true,
-        rooms: { select: { roomId: true } },
-      },
-      orderBy: { startAt: 'asc' },
-    });
-
-    const slots = bookings.flatMap((b) =>
-      b.rooms.map((r) => ({
-        bookingId: b.id,
-        roomId: r.roomId,
-        startAt: b.startAt,
-        endAt: b.endAt,
-        status: b.status,
-      })),
-    );
-
-    res.json(slots);
-  } catch (error) {
-    next(error);
-  }
+    res.json(await getOccupancy(
+      req.query.from === undefined ? undefined : String(req.query.from),
+      req.query.to === undefined ? undefined : String(req.query.to),
+    ));
+  } catch (error) { next(error); }
 }

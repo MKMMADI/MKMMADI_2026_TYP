@@ -8,6 +8,8 @@ import {
   TextStyle,
 } from 'react-native';
 import { colors, radii, typography } from '../theme/tokens';
+import type { ColorPalette } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
 
 type Variant = 'primary' | 'secondary' | 'tertiary' | 'pill';
 
@@ -32,6 +34,8 @@ export function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const isDisabled = disabled || loading;
 
   return (
@@ -73,7 +77,8 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   base: {
     height: 48,
     paddingHorizontal: 24,
@@ -102,4 +107,5 @@ const styles = StyleSheet.create({
   tertiaryText: { color: colors.ink, textDecorationLine: 'underline' },
   pillText: { ...typography.buttonSm, color: colors.onPrimary },
   disabledText: { opacity: 0.7 },
-});
+  });
+}

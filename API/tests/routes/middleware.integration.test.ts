@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Exercises the middleware API routes through the Express application.
+ */
+
 import request from 'supertest';
 import app from '../../src_ts/app';
 import {
@@ -8,7 +14,13 @@ import {
 import prisma from '../../src_ts/prisma';
 import jwt from 'jsonwebtoken';
 import config from '../../src_ts/config';
+import logger from '../../src_ts/utils/logger';
 
+/**
+ * Returns the standard date range used by report integration tests.
+
+ * @returns The date-range object shared by report tests.
+ */
 function reportRange() {
   const startDate = new Date();
   const endDate = new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -25,6 +37,24 @@ describe('Authentication Middleware Integration Tests', () => {
   });
 
   describe('Authorization Header Validation', () => {
+    it('redacts login request bodies from error logs', async () => {
+      const errorLog = jest.spyOn(logger, 'error');
+      const fakePassword = 'NeverLogThisFakePassword';
+
+      try {
+        const response = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: 'missing-user@example.com', password: fakePassword });
+
+        expect(response.status).toBe(400);
+        expect(errorLog).toHaveBeenCalled();
+        expect(JSON.stringify(errorLog.mock.calls)).not.toContain(fakePassword);
+        expect(JSON.stringify(errorLog.mock.calls)).toContain('[redacted]');
+      } finally {
+        errorLog.mockRestore();
+      }
+    });
+
     it('should reject requests without Authorization header', async () => {
       const response = await request(app).get('/api/v1/rooms');
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ManagerLayout from "@/components/ManagerLayout";
 import { apiFetch } from "@/lib/api";
+import { countPresentPreparingRooms, getRecentBookings } from "@/lib/managerBookingRules";
 
 type IconName =
   | "grid"
@@ -135,10 +136,11 @@ function Icon({
 }
 
 // ===== Types matching the API =====
-type BookingStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "COMPLETED" | "CANCELLED";
+type BookingStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "RESCHEDULE_REQUIRED" | "COMPLETED" | "CANCELLED";
 
 interface ApiBooking {
   id: number;
+  createdAt: string;
   purpose: string;
   startAt: string;
   endAt: string;
@@ -168,6 +170,7 @@ function statusToColor(status: BookingStatus): string {
     CONFIRMED: "teal",
     PREPARING: "blue",
     READY: "amber",
+    RESCHEDULE_REQUIRED: "amber",
     COMPLETED: "green",
     CANCELLED: "red",
   };
@@ -180,6 +183,7 @@ function statusLabel(status: BookingStatus): string {
     CONFIRMED: "Confirmed",
     PREPARING: "Preparing",
     READY: "Ready",
+    RESCHEDULE_REQUIRED: "Needs rescheduling",
     COMPLETED: "Completed",
     CANCELLED: "Cancelled",
   };
@@ -248,13 +252,11 @@ export default function ManagerDashboard() {
     return start >= todayStart && start <= todayEnd;
   });
 
-  const recentBookings = [...bookings]
-    .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-    .slice(0, 4);
+  const recentBookings = getRecentBookings(bookings);
 
   const summary = {
     confirmed: bookings.filter((b) => b.status === "CONFIRMED").length,
-    preparing: bookings.filter((b) => b.status === "PREPARING").length,
+    preparing: countPresentPreparingRooms(bookings),
     ready: bookings.filter((b) => b.status === "READY").length,
     completed: bookings.filter((b) => b.status === "COMPLETED").length,
   };
@@ -369,7 +371,7 @@ export default function ManagerDashboard() {
               <div className="manager-panel-header">
                 <div>
                   <h2>Recent Bookings</h2>
-                  <p>Upcoming and ongoing meetings</p>
+                  <p>Latest booking requests</p>
                 </div>
                 <button type="button" onClick={() => navigate("/manager/bookings")}>
                   View all <Icon name="arrow" size={16} />

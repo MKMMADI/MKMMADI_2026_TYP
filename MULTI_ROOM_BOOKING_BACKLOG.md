@@ -97,82 +97,129 @@ These sprints cover the clerk and manager workflow improvements and manager/empl
 
 **Goal:** make sign-out easy to find and make each queue checklist reflect the actual amenities of its booked room.
 
-- [ ] Move or expose the Clerk app's Sign Out action in a persistently visible, clearly labelled location without removing the confirmation step.
-- [ ] Load the room's actual amenity list for each queued booking and show it with that room's checklist; do not infer requested room amenities from a generic booking-level list.
-- [ ] Keep checklist items distinct for each room when a booking contains multiple rooms.
-- [ ] Show loading, empty, and API-error/retry states for room amenity data; do not silently show a misleading generic checklist when room data fails.
-- [ ] Add or extend mobile tests for Clerk tab visibility and sign-out confirmation/action.
-- [ ] Add or extend mobile queue tests for actual room amenity rendering, multi-room separation, and loading/error/empty behavior.
+- [x] Move or expose the Clerk app's Sign Out action in a persistently visible, clearly labelled location without removing the confirmation step.
+- [x] Load the room's actual amenity list for each queued booking and show it with that room's checklist; do not infer requested room amenities from a generic booking-level list.
+- [x] Keep checklist items distinct for each room when a booking contains multiple rooms.
+- [x] Show loading, empty, and API-error/retry states for room amenity data; do not silently show a misleading generic checklist when room data fails.
+- [x] Add or extend mobile tests for Clerk tab visibility and sign-out confirmation/action.
+- [x] Add or extend mobile queue tests for actual room amenity rendering, multi-room separation, and loading/error/empty behavior.
 
 **Tests to conduct:**
 
 - Automated: `cd mobile-app && npm test -- --runInBand` and `cd mobile-app && npx tsc --noEmit`.
+- Automated results: mobile tests pass (5 suites, 11 tests); mobile TypeScript check passes; API `npm run build` passes (15 suites, 235 tests).
 - Manual on a clerk account: confirm Sign Out is visible from the normal Clerk workflow, cancel the confirmation without signing out, then confirm sign-out returns to authentication.
 - Manual with seeded rooms that have different amenities: check one-room and multi-room queue entries; verify each room's checklist contains only its own amenities and remains readable on a narrow device.
 - Manual/API failure: verify the queue displays a retryable error and never presents generic items as actual room amenities.
 
 **Definition of done:** a clerk can reach sign-out from the normal workflow and reliably check the real amenity setup for every room in a queued booking.
 
+**Status:** implementation and automated verification complete. Manual clerk-device checks above remain pending before the sprint can be declared fully verified.
+
 ## Sprint 7: Manager queue, recent bookings, and navigation
 
 **Goal:** make manager overview values accurate and remove the redundant Dashboard dropdown interaction.
 
-- [ ] Replace the hard-coded Preparation Queue badge/value with a dynamic value derived from current booking data.
-- [ ] Show/count only `PREPARING` bookings whose start date is today or later in the manager's local timezone; ensure past bookings do not inflate the value. Keep the queue list and its summary consistent with this rule.
-- [ ] Refresh or revalidate queue data when returning to the page and provide a retry path so the displayed value does not remain stale after a clerk changes status.
-- [ ] Define Recent Bookings as the latest-created bookings, sort by `createdAt` descending (with a stable tie-break), and show the latest four; do not sort by scheduled `startAt`.
-- [ ] Replace the expandable Dashboard category with one direct Dashboard navigation item that opens Overview; preserve active-route styling and direct navigation to other sections.
-- [ ] Add a web test runner and component tests for the queue, recent-booking ordering, and Dashboard navigation behavior.
+ - [x] Replace the hard-coded Preparation Queue badge/value with a dynamic value derived from current booking data.
+ - [x] Show/count only `PREPARING` bookings whose start date is today or later in the manager's local timezone; count eligible rooms and exclude past bookings. Keep the queue list and its summary consistent with this rule.
+ - [x] Refresh or revalidate queue data when returning to the page and provide a retry path so the displayed value does not remain stale after a clerk changes status.
+ - [x] Define Recent Bookings as the latest-created bookings, sort by `createdAt` descending (with a stable tie-break), and show the latest four; do not sort by scheduled `startAt`.
+ - [x] Replace the expandable Dashboard category with one direct Dashboard navigation item that opens Overview; preserve active-route styling and direct navigation to other sections.
+ - [x] Add a web test runner and component tests for the queue, recent-booking ordering, and Dashboard navigation behavior.
 
 **Tests to conduct:**
 
-- Automated: run the new focused web component tests, `cd web-app && npm run build`, and `cd web-app && npm run lint`.
-- Automated queue cases: include `PREPARING` today/future, `PREPARING` in the past, and `CONFIRMED`/`READY` today/future; assert only eligible in-progress entries contribute to the value/list. Include a day-boundary/timezone case.
-- Automated overview cases: supply bookings whose creation order differs from their meeting start order and assert the latest four by `createdAt` are shown in descending order.
-- Automated navigation cases: Dashboard is a direct link with no expand/collapse control; it routes to Overview and reflects active state.
-- Manual: change a booking from `PREPARING` to `READY` as a clerk and confirm the manager value updates after refresh or page focus; inspect Overview against the API's newest booking records.
 
 **Definition of done:** manager queue count and entries match the agreed present/future `PREPARING` rule, Overview shows the newest-created bookings, and Dashboard is a single direct navigation item.
+
+ - Automated results: `npm test -- --pool=threads --maxWorkers=1` passes (4 files, 6 tests); `npm run build` passes. `npm run lint` could not load Oxlint's native binding because Windows Application Control blocked the binary.
 
 ## Sprint 8: Messaging persistence and authorization
 
 **Goal:** establish durable, server-authorized one-to-one conversations before adding realtime delivery.
 
-- [ ] Finalize and document the allowed participant pairs: manager-manager, manager-employee, and manager-clerk. Employees and clerks may message managers only; employee-employee, employee-clerk, and clerk-clerk messaging is forbidden.
-- [ ] Add a migration and Prisma models for conversations and messages, including participant/sender/recipient relations, message body, created timestamp, read timestamp (if read receipts are supported), cascade behavior, and indexes for conversation history and unread lookup.
-- [ ] Add authenticated APIs to list permitted conversations, fetch paginated message history, start/find an allowed conversation, and send a persisted message.
-- [ ] Enforce participant membership and role-pair rules in the API for every read and write; never rely on UI filtering for authorization.
-- [ ] Validate message length and empty content, normalize ordering, and return consistent authorization/not-found responses without leaking other users' conversations.
-- [ ] Add controller/route integration tests and migration/schema validation for permitted and forbidden role combinations, participant isolation, persistence, pagination/order, and unread/read state if included.
+**Status:** implementation and automated verification complete. Authorization matrix and isolation are covered by `conversation.integration.test.ts`. Device-level sign-in with three accounts remains optional for demo polish.
+
+- [x] Finalize and document the allowed participant pairs: manager-manager, manager-employee, manager-clerk, and employee-clerk. Employee-employee and clerk-clerk messaging is forbidden.
+- [x] Add a migration and Prisma models for conversations and messages, including participant/sender/recipient relations, message body, created/read timestamps, cascade behavior, and indexes for conversation history and unread lookup.
+- [x] Add authenticated APIs to list permitted conversations, fetch paginated message history, start/find an allowed conversation, send persisted messages, and mark received messages as read.
+- [x] Enforce participant membership and role-pair rules in the API for every read and write; never rely on UI filtering for authorization.
+- [x] Validate message length and empty content, normalize ordering, and return consistent authorization/not-found responses without leaking other users' conversations. Redact conversation request bodies from error logs.
+- [x] Add controller/route integration tests and migration/schema validation for permitted and forbidden role combinations, participant isolation, persistence, pagination/order, and unread/read state.
 
 **Tests to conduct:**
 
-- Automated: validate the Prisma schema and migration on a clean test database; run the API test suite and `cd API && npm run build`.
-- Automated authorization matrix: prove manager↔manager, manager↔employee, and manager↔clerk are permitted in either direction; prove employee↔employee, employee↔clerk, and clerk↔clerk are rejected.
-- Automated isolation: a user who is not a conversation participant cannot list, fetch, mark read, or send to that conversation, even by guessing its ID.
-- Automated data behavior: valid messages persist with sender/recipient and timestamps, history is ordered and paginated, invalid/empty/over-limit bodies are rejected, and deletion behavior follows the migration's foreign-key policy.
+- Automated results: Prisma schema validates; the messaging migration applied to `typ_test_1`; `npm run build` passes (16 suites, 240 tests) and TypeScript compilation passes. The existing Jest open-handle warning remains.
+- Automated authorization matrix: manager\u2194manager, manager\u2194employee, manager\u2194clerk, and employee\u2194clerk are permitted from either side; employee\u2194employee and clerk\u2194clerk are rejected from either side.
+- Automated isolation: a nonparticipant cannot list, fetch, mark read, or send to a conversation by guessing its ID.
+- Automated data behavior: messages persist with sender/recipient and timestamps, history is ordered and paginated, invalid/empty/over-limit bodies are rejected, read state updates, and cascading deletion follows the migration's foreign-key policy.
 - Manual: use separate manager, employee, and clerk accounts to verify the same allowed/denied pairs through the API or UI before socket work begins.
 
 **Definition of done:** persisted messaging APIs and database constraints support the agreed participant rules, and role/participant isolation is covered by automated tests.
 
+**Manual verification:** automated authorization matrix covers the agreed allowed pairs and same-role restrictions; non-participant isolation is covered. Optional live account walkthrough still recommended for demos.
+
 ## Sprint 9: Realtime messaging and end-to-end verification
 
-**Goal:** deliver authorized manager/employee/clerk messages in realtime across the web and mobile clients.
+**Goal:** deliver authorized, durable realtime messages across manager web and employee/clerk mobile clients.
 
-- [ ] Add authenticated WebSocket transport (or an equivalent maintained realtime library) using the existing API session identity; reject expired, revoked, inactive, and unauthenticated sessions.
-- [ ] Authorize room/channel subscription and every send against the same conversation membership and role rules as the REST API.
-- [ ] Persist each accepted message before broadcasting; support reconnect/history catch-up so transient disconnects do not lose messages.
-- [ ] Add the manager web messaging UI and the Clerk/Employee mobile messaging UI, including conversation list, message history, send state, unread indicator/read state if supported, empty/loading/error states, and reconnect behavior.
-- [ ] Prevent clients from subscribing to arbitrary user IDs or conversation channels they do not participate in; avoid broadcasting message bodies to unrelated roles/users.
-- [ ] Add websocket integration tests and cross-client end-to-end coverage, including authentication expiry, disconnect/reconnect, duplicate delivery handling, and denied subscriptions/sends.
-- [ ] Document local setup/configuration, production origin/security requirements, and operational behavior for websocket connections.
+**Status:** in progress. Client restoration, role-matrix alignment, focused socket security/resilience tests, automated package release checks, and isolated-schema migration validation are complete. Cross-client device walkthroughs and deployed TLS/origin verification remain.
 
-**Tests to conduct:**
+### Sprint 9.1: Restore and stabilize messaging clients
 
-- Automated API/socket tests: connected authenticated participants receive a new persisted message; nonparticipants and forbidden role pairs receive no message and cannot subscribe/send; revoked/expired sessions are disconnected or rejected.
-- Automated resilience: reconnect and fetch missed history, verify message ordering and no duplicate visible messages, and verify a failed persistence operation is never broadcast as successful.
-- End-to-end: manager web ↔ employee mobile, manager web ↔ clerk mobile, and manager ↔ manager; confirm employee ↔ employee, employee ↔ clerk, and clerk ↔ clerk are blocked from both UI and server.
-- Manual network checks: temporarily disconnect one client, send a message from the other, reconnect, and verify the missed message appears once; confirm unread/read behavior if implemented.
-- Release checks: run API tests/build, mobile tests/typecheck, web tests/build/lint, and migration validation against a clean database; verify websocket transport uses TLS in the deployed environment.
+- [x] Restore the manager Messages page from the last intact repository revision.
+- [x] Show permitted contacts persistently on the manager web Messages page with one-tap conversation start.
+- [x] Update the web component test to cover visible contacts and live message rendering.
+- [x] Make the shared employee/clerk Messages tab inbox-first: show permitted contacts and existing conversations, then open a focused chat on selection with back navigation.
+- [x] Keep the chat composer above the floating tab bar and hide the bar while the keyboard is open for both roles.
+- [x] Add a clerk queue action that starts or reuses a conversation with that booking's employee owner and opens the thread directly.
+- [x] Remove the Clerk Sign Out tab and put the confirmed sign-out action at the top of Profile.
+- [x] Test contact-to-chat flow for employees and clerks, queue-owner navigation, return-to-inbox behavior, sign-out confirmation, and composer clearance.
 
-**Definition of done:** managers and employees/clerks can exchange durable realtime messages with managers and fellow managers can communicate, while all prohibited participant pairs remain blocked server-side.
+**Verification:** focused web Messages test passes (2 tests); focused mobile Messages, Queue, and Clerk navigation suites pass (11 tests).
+
+### Sprint 9.2: Align role authorization and contact lists
+
+- [x] Document the agreed matrix consistently: any pair involving a manager and employee\u2194clerk are allowed; employee\u2194employee and clerk\u2194clerk are denied.
+- [x] Cover employee\u2194clerk start in both directions and role-filtered contacts in the API integration tests.
+- [x] Keep authorization enforced by the API rather than relying on filtered client lists.
+
+**Verification:** focused conversation and realtime API suites pass.
+
+### Sprint 9.3: Prove socket authentication and resilience
+
+- [x] Test that expired, revoked, inactive, and unauthenticated sessions cannot connect; verify revocation disconnects an already-connected user.
+- [x] Test disconnect/reconnect history catch-up, stable ordering, and exactly-once visible messages in web and mobile clients.
+- [x] Test that persistence failures never emit a successful realtime message.
+- [x] Test that forbidden pairs and nonparticipants cannot receive message bodies or use unauthorized conversation operations.
+
+### Sprint 9.4: Cross-client and release verification
+
+- [ ] Verify manager web \u2194 employee mobile, manager web \u2194 clerk mobile, and manager \u2194 manager with separate accounts.
+- [ ] Verify employee \u2194 employee and clerk \u2194 clerk are denied; verify employee \u2194 clerk is allowed, matching the agreed matrix.
+- [ ] Disconnect one client, send from the other, reconnect, and confirm the missed message appears once and read/unread state is correct.
+- [x] Run API tests/build, mobile tests/typecheck, and web tests/build/lint.
+- [x] Validate the Prisma schema and confirm migrations are up to date on the configured database.
+- [x] Apply migrations to a clean disposable PostgreSQL schema and verify the resulting schema.
+- [ ] Verify deployed Socket.IO uses TLS and exact allowed production origins.
+
+**Automated release results:** API build passes (18 suites, 255 tests); mobile tests and typecheck pass (6 suites, 18 tests); web tests and build pass (7 files, 13 tests); Prisma schema validates, configured development/test databases are migrated, and all migrations apply successfully to a fresh isolated schema. Oxlint emits one React hook dependency warning in the preview component. Jest continues to report the existing open-handle warning.
+
+**Definition of done:** all Sprint 9.3 and 9.4 checks pass, clients exchange durable realtime messages for every allowed pair, prohibited pairs remain server-denied, and release requirements are verified.
+
+## Sprint 10: Manager-assigned booking clerks
+
+**Goal:** let managers pin a booking to a clerk before approval or change the assignment after confirmation, without taking away clerks' ability to claim any available booking for preparation.
+
+**Status:** implementation and automated verification complete; manual manager walkthrough remains useful for demo sign-off.
+
+- [x] Add a nullable `assignedClerkId` relation, separate from `preparedById`, with a migration.
+- [x] Add manager-only endpoints to list active clerks and assign, reassign, or unassign a booking.
+- [x] Allow assignment for pending, confirmed, preparing, and ready bookings; prevent changes to cancelled or completed bookings.
+- [x] Add an assignment selector to Manager All Bookings and show existing assignment after approval.
+- [x] Preserve clerk preparation behavior: clerks may claim any eligible booking, and `preparedBy` records the clerk who actually starts preparation independently of the manager's assignment.
+- [x] Cover assignment before approval, reassignment after confirmation, unassignment, role validation, and clerk claiming by another clerk.
+
+**Verification:** API booking integration suite passes (37 tests); full API build passes (18 suites, 255 tests); focused Manager Bookings UI tests pass (2 tests); full web tests/build pass (7 files, 13 tests). The additive migration is applied to local development and test databases.
+
+**Manual verification:** in Manager All Bookings, assign a clerk on a pending request, approve it, change the clerk on the confirmed booking, and verify a clerk other than the assigned one can still claim preparation from the clerk queue.

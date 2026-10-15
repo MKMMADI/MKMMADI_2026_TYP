@@ -1,7 +1,9 @@
 import React from 'react';
 import { Platform, StyleSheet, View, ViewStyle, TextStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, shadows } from '../theme/tokens';
+import { colors as lightColors, radii, shadows } from '../theme/tokens';
+import type { ColorPalette } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
 
 /** Horizontal inset — larger = narrower floating bar. */
 export const FLOATING_TAB_MARGIN_H = 28;
@@ -14,7 +16,7 @@ export const FLOATING_TAB_HEIGHT = 62;
  * Shared floating tab-bar chrome for Employee + Clerk navigators.
  * Pass `bottomInset` from `useSafeAreaInsets().bottom` so it clears the home indicator.
  */
-export function getFloatingTabBarStyle(bottomInset = 0): ViewStyle {
+export function getFloatingTabBarStyle(bottomInset = 0, colors: ColorPalette = lightColors): ViewStyle {
   return {
     position: 'absolute',
     left: FLOATING_TAB_MARGIN_H,
@@ -22,7 +24,7 @@ export function getFloatingTabBarStyle(bottomInset = 0): ViewStyle {
     bottom: Math.max(bottomInset, FLOATING_TAB_MARGIN_BOTTOM),
     height: FLOATING_TAB_HEIGHT,
     borderRadius: radii.xl,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceCard,
     borderTopWidth: 0,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.hairlineSoft,
@@ -61,23 +63,6 @@ export function getFloatingTabContentPadding(bottomInset = 0): number {
   );
 }
 
-const indicatorStyles = StyleSheet.create({
-  /** Active indicator (selected tab pill) around the icon. */
-  pill: {
-    width: 44,
-    height: 28,
-    borderRadius: radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillActive: {
-    backgroundColor: colors.steelLight,
-  },
-  pillIdle: {
-    backgroundColor: 'transparent',
-  },
-});
-
 export type TabIconName = keyof typeof Ionicons.glyphMap;
 
 /**
@@ -95,8 +80,18 @@ export function FloatingTabIcon({
   color: string;
   size?: number;
 }) {
+  const { colors } = useAppTheme();
   return (
-    <View style={[indicatorStyles.pill, focused ? indicatorStyles.pillActive : indicatorStyles.pillIdle]}>
+    <View
+      style={{
+        width: 44,
+        height: 28,
+        borderRadius: radii.full,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: focused ? colors.steelLight : 'transparent',
+      }}
+    >
       <Ionicons name={name} size={size} color={color} />
     </View>
   );

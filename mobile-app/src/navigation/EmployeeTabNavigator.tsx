@@ -5,8 +5,11 @@ import { HomeTabScreen } from '../tabs/HomeTabScreen';
 import { MyBookingsTabScreen } from '../tabs/MyBookingsTabScreen';
 import { FavoritesTabScreen } from '../tabs/FavoritesTabScreen';
 import { ProfileTabScreen } from '../tabs/ProfileTabScreen';
+import { MessagesTabScreen } from '../tabs/MessagesTabScreen';
+import { NotificationsTabScreen } from '../tabs/NotificationsTabScreen';
 import { Room, Booking, User } from '../types';
-import { colors } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import { useNotificationBadge } from '../hooks/useNotificationBadge';
 import {
   FloatingTabIcon,
   floatingTabBarLabelStyle,
@@ -18,6 +21,8 @@ export type EmployeeTabParamList = {
   HomeTab: undefined;
   MyBookingsTab: undefined;
   FavoritesTab: undefined;
+  NotificationsTab: undefined;
+  MessagesTab: undefined;
   ProfileTab: undefined;
 };
 
@@ -27,6 +32,8 @@ const TAB_LABELS: Record<keyof EmployeeTabParamList, string> = {
   HomeTab: 'Home',
   MyBookingsTab: 'My Bookings',
   FavoritesTab: 'Favorites',
+  NotificationsTab: 'Alerts',
+  MessagesTab: 'Messages',
   ProfileTab: 'Profile',
 };
 
@@ -38,6 +45,10 @@ function iconForRoute(name: keyof EmployeeTabParamList, focused: boolean): TabIc
       return focused ? 'calendar' : 'calendar-outline';
     case 'FavoritesTab':
       return focused ? 'heart' : 'heart-outline';
+    case 'NotificationsTab':
+      return focused ? 'notifications' : 'notifications-outline';
+    case 'MessagesTab':
+      return focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
     case 'ProfileTab':
       return focused ? 'person-circle' : 'person-circle-outline';
     default:
@@ -64,12 +75,15 @@ export function EmployeeTabNavigator({
   onSignOut,
   onOpenHistory,
 }: EmployeeTabNavigatorProps) {
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const notificationCount = useNotificationBadge(user.id);
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarIcon: ({ focused, color }) => (
           <FloatingTabIcon
             name={iconForRoute(route.name, focused)}
@@ -78,13 +92,17 @@ export function EmployeeTabNavigator({
           />
         ),
         tabBarLabel: TAB_LABELS[route.name],
+        ...(route.name === 'NotificationsTab' ? { tabBarAccessibilityLabel: 'Notifications' } : {}),
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedSoft,
-        tabBarStyle: getFloatingTabBarStyle(insets.bottom),
+        tabBarStyle: getFloatingTabBarStyle(insets.bottom, colors),
         tabBarLabelStyle: floatingTabBarLabelStyle,
         tabBarItemStyle: {
           paddingVertical: 2,
         },
+        ...(route.name === 'NotificationsTab' && notificationCount > 0
+          ? { tabBarBadge: notificationCount, tabBarBadgeStyle: { backgroundColor: colors.error, color: colors.white } }
+          : {}),
       })}
     >
       <Tab.Screen name="HomeTab">
@@ -97,6 +115,20 @@ export function EmployeeTabNavigator({
         {() => (
           <FavoritesTabScreen onOpenRoom={onOpenRoom} onBookRoom={onBookRoom} />
         )}
+      </Tab.Screen>
+      <Tab.Screen name="NotificationsTab">
+        {({ navigation }) => (
+          <NotificationsTabScreen
+            user={user}
+            onCountChange={(count) => navigation.setOptions({
+              tabBarBadge: count > 0 ? count : undefined,
+              tabBarBadgeStyle: { backgroundColor: colors.error, color: colors.white },
+            })}
+          />
+        )}
+      </Tab.Screen>
+      <Tab.Screen name="MessagesTab">
+        {() => <MessagesTabScreen user={user} />}
       </Tab.Screen>
       <Tab.Screen name="ProfileTab">
         {({ navigation }) => (

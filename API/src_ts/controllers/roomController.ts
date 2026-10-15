@@ -1,185 +1,180 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Implements HTTP request handlers for room operations.
+ */
+
 import { NextFunction, Request, Response } from 'express';
-import { RoomStatus } from '@prisma/client';
-import prisma from '../prisma';
+import * as roomService from '../services/roomService';
+import * as roomImageService from '../services/roomImageService';
 import { createHttpError } from '../utils/httpError';
-import { listAvailableRooms } from '../services/bookingService';
 
-export async function listRooms(req: Request, res: Response, next: NextFunction) {
+/**
+ * Reads and validates a positive room ID from the route parameter.
+ * @param req Request containing the room route ID, request body, or availability query values used by this handler.
+ * @returns The positive route room ID; throws an HTTP 400 error if it is invalid.
+ */
+function roomIdFromRequest(req: Request) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) throw createHttpError('Invalid room id', 400);
+  return id;
+}
+
+/**
+ * Returns the active room list.
+ * @param _req Express request parameter; unused because the handler does not need request data.
+ * @param res Express response used to send the room operation result.
+ * @param next Express callback used to forward room-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
+export async function listRooms(_req: Request, res: Response, next: NextFunction) {
   try {
-    const rooms = await prisma.room.findMany({
-      where: { isActive: true },
-      include: { amenities: { include: { amenity: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    res.json(rooms.map((room) => ({
-      ...room,
-      amenities: room.amenities.map((item) => item.amenity),
-    })));
+    res.json(await roomService.listRooms());
   } catch (error) {
     next(error);
   }
 }
 
+/**
+ * Creates a room from the request body and responds with HTTP 201.
+ * @param req Request containing the room route ID, request body, or availability query values used by this handler.
+ * @param res Express response used to send the room operation result.
+ * @param next Express callback used to forward room-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function createRoom(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name, description, capacity, status = 'AVAILABLE', isActive = true, amenityIds = [] } = req.body;
-    if (!name || !capacity) {
-      return next(createHttpError('Name and capacity are required', 400));
-    }
-
-    const room = await prisma.room.create({
-      data: {
-        name,
-        description,
-        capacity: Number(capacity),
-        status,
-        isActive,
-        amenities: {
-          create: amenityIds.map((amenityId: number) => ({ amenityId })),
-        },
-      },
-      include: { amenities: { include: { amenity: true } } },
-    });
-
-    res.status(201).json({
-      ...room,
-      amenities: room.amenities.map((item) => item.amenity),
-    });
+    res.status(201).json(await roomService.createRoom(req.body));
   } catch (error) {
     next(error);
   }
 }
 
+/**
+ * Returns the room identified by the route parameter.
+ * @param req Request containing the room route ID, request body, or availability query values used by this handler.
+ * @param res Express response used to send the room operation result.
+ * @param next Express callback used to forward room-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function getRoom(req: Request, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
-      return next(createHttpError('Invalid room id', 400));
-    }
-    const room = await prisma.room.findUnique({
-      where: { id },
-      include: { amenities: { include: { amenity: true } } },
-    });
-    if (!room) {
-      return next(createHttpError('Room not found', 404));
-    }
-    res.json({
-      ...room,
-      amenities: room.amenities.map((item) => item.amenity),
-    });
+    res.json(await roomService.getRoom(Number(req.params.id)));
   } catch (error) {
     next(error);
   }
 }
 
+/**
+ * Updates the room identified by the route parameter using the request body.
+ * @param req Request containing the room route ID, request body, or availability query values used by this handler.
+ * @param res Express response used to send the room operation result.
+ * @param next Express callback used to forward room-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function updateRoom(req: Request, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
-      return next(createHttpError('Invalid room id', 400));
-    }
-    const { name, description, capacity, status, isActive, amenityIds } = req.body;
-    const existingRoom = await prisma.room.findUnique({ where: { id } });
-    if (!existingRoom) {
-      return next(createHttpError('Room not found', 404));
-    }
-
-    const room = await prisma.room.update({
-      where: { id },
-      data: {
-        ...(name !== undefined ? { name } : {}),
-        ...(description !== undefined ? { description } : {}),
-        ...(capacity !== undefined ? { capacity: Number(capacity) } : {}),
-        ...(status !== undefined ? { status } : {}),
-        ...(isActive !== undefined ? { isActive } : {}),
-      },
-      include: { amenities: { include: { amenity: true } } },
-    });
-
-    if (amenityIds) {
-      await prisma.roomAmenity.deleteMany({ where: { roomId: id } });
-      await prisma.roomAmenity.createMany({
-        data: amenityIds.map((amenityId: number) => ({ roomId: id, amenityId })),
-      });
-    }
-
-    const refreshedRoom = await prisma.room.findUnique({
-      where: { id },
-      include: { amenities: { include: { amenity: true } } },
-    });
-
-    res.json({
-      ...refreshedRoom,
-      amenities: refreshedRoom?.amenities.map((item) => item.amenity),
-    });
+    res.json(await roomService.updateRoom(Number(req.params.id), req.body));
   } catch (error) {
     next(error);
   }
 }
 
+/**
+ * Creates a signed upload request for a room image.
+ * @param req Request containing the room route ID, request body, or availability query values used by this handler.
+ * @param res Express response used to send the room operation result.
+ * @param next Express callback used to forward room-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
+export async function createRoomImageUpload(req: Request, res: Response, next: NextFunction) {
+  try {
+    const result = await roomImageService.createRoomImageUpload(
+      roomIdFromRequest(req),
+      req.body.contentType,
+      req.body.contentLength,
+    );
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Attaches the uploaded image key from the request body to the specified room.
+ * @param req Request containing the room route ID, request body, or availability query values used by this handler.
+ * @param res Express response used to send the room operation result.
+ * @param next Express callback used to forward room-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
+export async function attachRoomImage(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await roomImageService.attachRoomImage(roomIdFromRequest(req), req.body.objectKey));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Removes the image associated with the specified room.
+ * @param req Request containing the room route ID, request body, or availability query values used by this handler.
+ * @param res Express response used to send the room operation result.
+ * @param next Express callback used to forward room-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
+export async function removeRoomImage(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await roomImageService.removeRoomImage(roomIdFromRequest(req)));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Archives the room identified by the route parameter.
+ * @param req Request containing the room route ID, request body, or availability query values used by this handler.
+ * @param res Express response used to send the room operation result.
+ * @param next Express callback used to forward room-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function archiveRoom(req: Request, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
-      return next(createHttpError('Invalid room id', 400));
-    }
-    const existingRoom = await prisma.room.findUnique({ where: { id } });
-    if (!existingRoom) {
-      return next(createHttpError('Room not found', 404));
-    }
-    const room = await prisma.room.update({
-      where: { id },
-      data: { isActive: false },
-    });
-    res.json(room);
+    res.json(await roomService.archiveRoom(Number(req.params.id)));
   } catch (error) {
     next(error);
   }
 }
 
-const ROOM_STATUS_VALUES = ['AVAILABLE', 'OUT_OF_SERVICE', 'MAINTENANCE'] as const;
-type RoomStatusValue = (typeof ROOM_STATUS_VALUES)[number];
-
-function isRoomStatus(value: unknown): value is RoomStatusValue {
-  return typeof value === 'string' && (ROOM_STATUS_VALUES as readonly string[]).includes(value);
-}
-
-/** Clerk/manager operational status only (not full room edit). */
+/**
+ * Changes the room status using the status in the request body.
+ * @param req Request containing the room route ID, request body, or availability query values used by this handler.
+ * @param res Express response used to send the room operation result.
+ * @param next Express callback used to forward room-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function updateRoomStatus(req: Request, res: Response, next: NextFunction) {
   try {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
-      return next(createHttpError('Invalid room id', 400));
-    }
-    const { status: rawStatus } = req.body as { status?: string };
-    if (!isRoomStatus(rawStatus)) {
-      return next(createHttpError('Status must be AVAILABLE, OUT_OF_SERVICE, or MAINTENANCE', 400));
-    }
-    const status: RoomStatus = rawStatus;
-
-    const room = await prisma.room.update({
-      where: { id },
-      data: { status },
-    });
-
-    // Status-only response — full room+amenities still available via GET /rooms/:id
-    res.json(room);
+    res.json(await roomService.updateRoomStatus(Number(req.params.id), req.body?.status));
   } catch (error) {
     next(error);
   }
 }
 
+/**
+ * Finds available rooms using startAt, endAt, capacity, and amenityIds query values.
+ * @param req Request containing the room route ID, request body, or availability query values used by this handler.
+ * @param res Express response used to send the room operation result.
+ * @param next Express callback used to forward room-operation errors.
+ * @returns A promise that resolves after the HTTP response is sent; failures are forwarded to Express error middleware.
+ */
 export async function searchAvailability(req: Request, res: Response, next: NextFunction) {
   try {
-    const rooms = await listAvailableRooms({
+    res.json(await roomService.searchAvailability({
       startAt: req.query.startAt as string,
       endAt: req.query.endAt as string,
       capacity: req.query.capacity ? Number(req.query.capacity) : 0,
       amenityIds: typeof req.query.amenityIds === 'string' ? req.query.amenityIds.split(',') : [],
-    });
-
-    res.json(rooms);
+    }));
   } catch (error) {
     next(error);
   }

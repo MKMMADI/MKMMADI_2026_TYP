@@ -11,6 +11,8 @@ import { SearchBar } from '../components/SearchBar';
 import { RoomCard } from '../components/RoomCard';
 import { Room, SearchFilters } from '../types';
 import { colors, spacing, typography } from '../theme/tokens';
+import { useAppTheme } from '../theme/AppTheme';
+import type { ColorPalette } from '../theme/tokens';
 import api from '../api';
 
 const initialFilters: SearchFilters = {
@@ -27,6 +29,8 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({ onOpenRoom, onOpenProfile, onOpenHistory }: HomeScreenProps) {
+  const { colors, mode } = useAppTheme();
+  const styles = createStyles(colors);
   const [filters, setFilters] = useState<SearchFilters>(initialFilters);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,7 +70,7 @@ export function HomeScreen({ onOpenRoom, onOpenProfile, onOpenHistory }: HomeScr
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.canvas} />
       <View style={styles.headerRow}>
         <View style={styles.headerTextWrap}>
           <Text style={styles.greeting}>Where to meet?</Text>
@@ -102,7 +106,8 @@ export function HomeScreen({ onOpenRoom, onOpenProfile, onOpenHistory }: HomeScr
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.canvas,
@@ -152,3 +157,4 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 });
+};

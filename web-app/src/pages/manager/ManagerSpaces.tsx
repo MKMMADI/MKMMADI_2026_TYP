@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import ManagerLayout from "@/components/ManagerLayout";
+import RoomImagePicker from "@/components/RoomImagePicker";
 import { apiFetch } from "@/lib/api";
+import { uploadRoomImage } from "@/lib/roomImages";
 import "@/styles/manager-facilities.css";
 
 type RoomStatus = "AVAILABLE" | "MAINTENANCE" | "OUT_OF_SERVICE";
@@ -20,6 +22,7 @@ interface ApiRoom {
   status: RoomStatus;
   isActive: boolean;
   amenities: Amenity[];
+  imageUrl?: string | null;
 }
 
 const ROOM_STATUSES: { value: RoomStatus; label: string }[] = [
@@ -44,6 +47,8 @@ function statusClass(status: RoomStatus) {
 }
 
 export default function ManagerSpaces() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [rooms, setRooms] = useState<ApiRoom[]>([]);
   const [catalog, setCatalog] = useState<Amenity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +64,9 @@ export default function ManagerSpaces() {
   const [editAmenityIds, setEditAmenityIds] = useState<number[]>([]);
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [editPhoto, setEditPhoto] = useState<File | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [savingPhoto, setSavingPhoto] = useState(false);
 
   async function loadRooms() {
     try {
@@ -80,6 +88,13 @@ export default function ManagerSpaces() {
   useEffect(() => {
     loadRooms();
   }, []);
+
+  useEffect(() => {
+    const message = (location.state as { toast?: string } | null)?.toast;
+    if (!message) return;
+    setToast(message);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
     if (!toast) return;
@@ -152,12 +167,55 @@ export default function ManagerSpaces() {
     setEditStatus(room.status);
     setEditAmenityIds(room.amenities.map((a) => a.id));
     setEditError(null);
+    setEditPhoto(null);
+    setPhotoError(null);
   }
 
   function closeEdit() {
     setEditRoom(null);
     setEditError(null);
     setSavingEdit(false);
+    setEditPhoto(null);
+    setPhotoError(null);
+  }
+
+  async function uploadPhoto() {
+    if (!editRoom || !editPhoto || savingPhoto) return;
+    setSavingPhoto(true);
+    setPhotoError(null);
+    try {
+      const updated = await uploadRoomImage(editRoom.id, editPhoto);
+      setRooms((prev) =>
+        prev.map((room) => room.id === editRoom.id ? { ...room, imageUrl: updated.imageUrl } : room)
+      );
+      setEditRoom((prev) => prev ? { ...prev, imageUrl: updated.imageUrl } : prev);
+      setEditPhoto(null);
+      setToast(`Photo updated for "${editRoom.name}".`);
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "Could not upload room photo");
+    } finally {
+      setSavingPhoto(false);
+    }
+  }
+
+  async function removePhoto() {
+    if (!editRoom || savingPhoto || !editRoom.imageUrl) return;
+    if (!window.confirm(`Remove the photo for "${editRoom.name}"?`)) return;
+    setSavingPhoto(true);
+    setPhotoError(null);
+    try {
+      const updated = await apiFetch<ApiRoom>(`/rooms/${editRoom.id}/image`, { method: "DELETE" });
+      setRooms((prev) =>
+        prev.map((room) => room.id === editRoom.id ? { ...room, imageUrl: updated.imageUrl } : room)
+      );
+      setEditRoom((prev) => prev ? { ...prev, imageUrl: updated.imageUrl } : prev);
+      setEditPhoto(null);
+      setToast(`Photo removed from "${editRoom.name}".`);
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "Could not remove room photo");
+    } finally {
+      setSavingPhoto(false);
+    }
   }
 
   function toggleEditAmenity(id: number) {
@@ -280,6 +338,9 @@ export default function ManagerSpaces() {
 
             {filtered.map((room) => (
               <article key={room.id} className="mf-card">
+                {room.imageUrl && (
+                  <img className="mf-room-photo" src={room.imageUrl} alt={`${room.name} room`} loading="lazy" />
+                )}
                 <div className="mf-card-top">
                   <div>
                     <h3>{room.name}</h3>
@@ -330,7 +391,7 @@ export default function ManagerSpaces() {
                     disabled={actionId === room.id}
                     onClick={() => openEdit(room)}
                   >
-                    Edit amenities
+                    Edit space
                   </button>
                   <button
                     type="button"
@@ -375,6 +436,40 @@ export default function ManagerSpaces() {
                   ))}
                 </select>
               </label>
+
+              <fieldset className="mf-fieldset">
+                <legend>Room photo</legend>
+                <RoomImagePicker
+                  imageUrl={editRoom.imageUrl}
+                  selectedFile={editPhoto}
+                  onFileChange={(file) => {
+                    setEditPhoto(file);
+                    setPhotoError(null);
+                  }}
+                  disabled={savingPhoto}
+                />
+                <div className="mf-form-actions mf-photo-actions">
+                  <button
+                    type="button"
+                    className="mf-btn mf-btn--primary"
+                    disabled={!editPhoto || savingPhoto}
+                    onClick={uploadPhoto}
+                  >
+                    {savingPhoto ? "Uploading…" : "Upload photo"}
+                  </button>
+                  {editRoom.imageUrl && (
+                    <button
+                      type="button"
+                      className="mf-btn mf-btn--danger"
+                      disabled={savingPhoto}
+                      onClick={removePhoto}
+                    >
+                      Remove photo
+                    </button>
+                  )}
+                </div>
+                {photoError && <p className="mf-form-error" role="alert">{photoError}</p>}
+              </fieldset>
 
               <fieldset className="mf-fieldset">
                 <legend>Amenities on this space</legend>

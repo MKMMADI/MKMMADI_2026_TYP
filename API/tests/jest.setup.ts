@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Configures shared setup behavior for API tests.
+ */
+
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.test' });

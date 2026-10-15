@@ -58,14 +58,14 @@ export default function ClerkDashboard() {
     <div className="clerk-dashboard">
       <header>
         <h2>Today’s preparation queue</h2>
-        <p style={{ color: "#738184", fontSize: 14, marginTop: 4 }}>
+        <p style={{ color: "var(--text)", fontSize: 14, marginTop: 4 }}>
           Update room prep status. You can move from Ready back to Preparing or Awaiting prep if
           needed.
         </p>
       </header>
 
       {error && (
-        <p style={{ color: "#d4735e", marginBottom: 12 }} role="alert">
+        <p style={{ color: "var(--m-error, #d4735e)", marginBottom: 12 }} role="alert">
           {error}
         </p>
       )}
@@ -84,7 +84,7 @@ export default function ClerkDashboard() {
         <tbody>
           {bookings.length === 0 && (
             <tr>
-              <td colSpan={6} style={{ textAlign: "center", color: "#738184", padding: 24 }}>
+              <td colSpan={6} style={{ textAlign: "center", color: "var(--text)", padding: 24 }}>
                 No bookings in the preparation queue.
               </td>
             </tr>
