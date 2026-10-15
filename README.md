@@ -2,7 +2,7 @@
 
 BookSpace is a conference-room booking and operations system developed as a 2026 third-year university project. It is designed to make it easier for employees to find suitable meeting spaces and for office teams to manage bookings, room readiness, supplies, and usage reporting.
 
-The repository contains a TypeScript REST API, a React web operations portal, and a React Native/Expo mobile app. The API and web portal are connected to the application backend. The mobile app currently demonstrates the employee experience with local mock data and is not yet wired to the live API.
+The repository contains a TypeScript REST API, a React web operations portal, and a React Native/Expo mobile app. The web and mobile clients both have API-backed workflows. The mobile source also retains a sample-data module, so not every constant in the mobile project represents live application data.
 
 ## The problem it addresses
 
@@ -36,8 +36,9 @@ Room bookings involve more than selecting a date and time. Employees need to fin
 ### Mobile experience
 
 - Expo/React Native app prototype with sign-in and registration screens, room discovery and detail, booking flow, confirmation, booking history, employee profile, and a clerk dashboard.
+- API-backed mobile workflows include authentication, room and occupancy retrieval, booking creation and history, booking cancellation and rescheduling, clerk status updates, profile retrieval, conversations, and real-time notifications.
 - Airbnb-inspired, photo-led room browsing and a mobile-focused navigation experience.
-- Current limitation: these screens use local sample data. The mobile app needs API integration before its displayed bookings and room information represent live system data.
+- `mobile-app/src/constants/mockData.ts` contains sample rooms, users, and bookings for development/demo purposes; its presence does not mean the mobile app as a whole is disconnected from the backend.
 
 ## Functional requirements
 
@@ -61,7 +62,8 @@ Room bookings involve more than selecting a date and time. Employees need to fin
 - **Safer image uploads:** Room image uploads use short-lived presigned URLs when object storage is configured, and the API checks uploaded file signatures before attaching images.
 - **Real-time updates:** Socket.IO authenticates connections and scopes notifications to the relevant users.
 - **Testability:** The API has Jest unit and integration tests, the web app has Vitest tests, and the mobile app has Jest configured. API integration tests use a separately configured test database.
-- **Deployability:** Dockerfiles build the API and web app independently. The web container serves the production Vite build through Nginx; Docker Compose can run both services against PostgreSQL.
+- **Deployability:** Dockerfiles build the API and web app independently. The web container serves the production Vite build through Nginx; Docker Compose can run both services against PostgreSQL. An AWS ECS Fargate task definition is included for the API.
+- **AWS operations:** The API task definition references an image in Amazon ECR, retrieves database and JWT configuration from AWS Systems Manager Parameter Store, and streams container logs to Amazon CloudWatch Logs. The API also supports private room-image storage in Amazon S3 using presigned uploads.
 
 ## Architecture and technology
 
@@ -71,7 +73,7 @@ Room bookings involve more than selecting a date and time. Employees need to fin
 | Web operations portal | React 19, TypeScript, Vite, React Router, Axios, Socket.IO client |
 | Mobile app | React Native, Expo, TypeScript, React Navigation |
 | Image storage | AWS S3 SDK with presigned uploads; compatible storage endpoint can be configured |
-| Deployment | Docker, Docker Compose, Nginx |
+| Deployment | Docker, Docker Compose, Nginx; AWS ECS on Fargate, Amazon ECR, Systems Manager Parameter Store, CloudWatch Logs, and S3 integration |
 | Testing | Jest and Supertest (API), Vitest and Testing Library (web), Jest (mobile) |
 
 ### High-level request flow
@@ -81,6 +83,14 @@ Room bookings involve more than selecting a date and time. Employees need to fin
 3. Controllers hand application operations to domain services.
 4. Services enforce booking, room, inventory, messaging, and reporting rules and persist application data through Prisma/PostgreSQL.
 5. Socket.IO publishes selected updates to authenticated users; the web app can retrieve report data and export it for operational use.
+
+## AWS deployment
+
+The repository includes [`task-def.json`](./task-def.json), an ECS task definition for running the API container on AWS Fargate in the `af-south-1` region. It uses an image stored in Amazon ECR, injects the production database URL and JWT secret from AWS Systems Manager Parameter Store, and configures the `awslogs` driver to send container logs to CloudWatch Logs. The API Docker image also includes the AWS RDS global CA bundle for TLS database connections.
+
+The API's room-image service can use a private Amazon S3 bucket: it creates time-limited presigned upload URLs and validates uploaded image bytes before associating the image with a room. Configure the AWS region and bucket through environment variables and provide AWS credentials through the runtime's IAM role rather than storing access keys in the repository.
+
+The task definition documents the API's AWS runtime configuration; the repository does not include an AWS infrastructure-as-code stack or deployment pipeline, and the web Docker image is independently deployable. Avoid treating the local Docker Compose setup as an AWS deployment.
 
 ## Repository layout
 
@@ -157,7 +167,7 @@ cd mobile-app
 npm start
 ```
 
-The mobile app requires `EXPO_PUBLIC_API_URL` to be set for API connectivity, but its current screens use mock data and are not yet integrated with the API.
+Set `EXPO_PUBLIC_API_URL` to the reachable API base URL for the mobile app's API-backed flows. Sample fixtures remain in `src/constants/mockData.ts`; check the particular screen's data source when distinguishing live data from demo content.
 
 ## API overview
 
@@ -186,23 +196,22 @@ Example multi-room request:
 
 `capacity` is the requested attendee count, not the sum of the selected rooms' capacities. The API validates the selected rooms' combined capacity and creates one booking associated with each selected room.
 
-## CV-ready project highlights
-
-Use or adapt these points to describe the work you personally completed:
+## Project highlights
 
 - Developed a full-stack room-booking and operations platform spanning a TypeScript/Express REST API, React web portal, and React Native/Expo mobile client.
 - Implemented a relational booking domain with multi-room reservations, capacity validation, approval and rejection, clerk assignment, rescheduling, and preparation-status workflows.
 - Built role-aware management workflows for rooms, amenities, inventory, booking queues, reporting, and internal messaging.
 - Applied layered API design, Prisma/PostgreSQL data modeling, JWT-based session handling, input validation, rate limiting, and automated tests.
 - Added authenticated real-time communication with Socket.IO and secure room-image upload flows using presigned object-storage URLs.
+- Prepared an AWS ECS Fargate deployment for the API using an ECR image, SSM Parameter Store for runtime secrets, CloudWatch Logs, and optional S3-backed room-image uploads.
 - Containerized API and web deployment with Docker, Compose, and Nginx, and documented environment-based setup.
 
-For a CV, describe the mobile client accurately as a prototype using local mock data unless and until it is connected to the live API. Add measurable outcomes (such as test count, response-time improvement, or number of supported workflows) only when you have verified figures.
 
 ## Current scope notes
 
 - The API and manager/clerk web portal have backend-backed workflows; the employee dashboard route in the web app is currently a placeholder.
-- The mobile UI is a prototype backed by local mock data rather than live API data.
+- Some sample room/user/booking fixtures remain in the mobile codebase; mobile screens also call the live API for their core workflows.
 - Local deployment requires a separately running PostgreSQL database; Compose starts only the API and web services.
+- AWS configuration in the repository covers the API task definition and optional S3 image storage. It does not include an infrastructure-as-code stack or CI/CD deployment workflow.
 
 These notes distinguish implemented backend capabilities from client-side work that remains in progress and can be updated as the project evolves.
