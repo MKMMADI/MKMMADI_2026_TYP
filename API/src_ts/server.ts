@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Starts and gracefully shuts down the API HTTP server.
+ */
+
 import { createServer } from 'http';
 import config from './config/index';
 import app from './app';
@@ -8,6 +14,11 @@ import { initializeRealtime } from './services/realtime';
 const PORT = config.PORT;
 const server = createServer(app);
 
+/**
+ * Starts the HTTP server after initializing its dependencies.
+
+ * @returns A promise resolving after the server startup attempt; exits the process if database connection fails.
+ */
 async function startServer() {
   try {
     await prisma.$connect();
@@ -26,6 +37,11 @@ async function startServer() {
   }
 }
 
+/**
+ * Closes the HTTP server and Prisma client gracefully before exiting.
+ * @param signal Process signal that initiated graceful shutdown.
+ * @returns No value; closes the HTTP server and database connections before exiting.
+ */
 const shutdown = async (signal: string) => {
   logger.info(`Received ${signal}; shutting down gracefully`);
   server.close(async (error) => {

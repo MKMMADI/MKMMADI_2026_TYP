@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Provides reusable API test fixtures and database, authentication, and timing helpers.
+ */
+
 import request from 'supertest';
 import { Express } from 'express';
 import prisma from '../../src_ts/prismaTest';
@@ -21,7 +27,9 @@ export interface AuthTokens {
 }
 
 /**
- * Create a test user in the database
+ * Creates a test user, filling omitted fields with defaults, and returns its database identifiers.
+ * @param userData Optional test-user fields; omitted values are filled with test defaults.
+ * @returns A promise resolving to the created test user and its database IDs.
  */
 export async function createUser(userData: Partial<TestUser>): Promise<TestUser> {
   const user: Omit<TestUser, 'id' | 'employeeId'> & { id?: number } = {
@@ -55,7 +63,10 @@ export async function createUser(userData: Partial<TestUser>): Promise<TestUser>
 }
 
 /**
- * Login and get auth tokens for a user
+ * Signs in to the test API with the supplied credentials and returns both issued tokens.
+ * @param email Account email address.
+ * @param password Plain-text account password supplied for authentication.
+ * @returns A promise resolving to access and refresh tokens issued by the test API.
  */
 export async function login(email: string, password: string): Promise<AuthTokens> {
   const app = (await import('../../src_ts/app')).default;
@@ -74,7 +85,9 @@ export async function login(email: string, password: string): Promise<AuthTokens
 }
 
 /**
- * Create a user and login to get tokens
+ * Creates a test user, signs in, and returns the user together with its tokens.
+ * @param userData Optional test-user fields; omitted values are filled with test defaults.
+ * @returns A promise resolving to the created test user and its access and refresh tokens.
  */
 export async function createAndLoginUser(userData: Partial<TestUser> = {}): Promise<{ user: TestUser; tokens: AuthTokens }> {
   const user = await createUser(userData);
@@ -83,14 +96,18 @@ export async function createAndLoginUser(userData: Partial<TestUser> = {}): Prom
 }
 
 /**
- * Generate a valid authorization header
+ * Formats an access token as an HTTP Authorization header.
+ * @param token Access token to place in the Authorization header.
+ * @returns An Authorization header object containing the bearer token.
  */
 export function authHeader(token: string): { Authorization: string } {
   return { Authorization: `Bearer ${token}` };
 }
 
 /**
- * Clean up test data from database
+ * Deletes test database records in dependency-safe order.
+
+ * @returns A promise resolving after dependent test records have been deleted.
  */
 export async function cleanupTestData(): Promise<void> {
   // Delete in reverse order of dependencies
@@ -109,20 +126,28 @@ export async function cleanupTestData(): Promise<void> {
 }
 
 /**
- * Wait for a specified time (useful for token expiry tests)
+ * Resolves after the requested delay.
+ * @param ms Delay duration in milliseconds.
+ * @returns A promise resolving after the requested delay.
  */
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
- * Generate a random string
+ * Creates a timestamped pseudo-random string with the supplied prefix.
+ * @param prefix Prefix to include in the generated string.
+ * @returns A timestamped pseudo-random string beginning with the supplied prefix.
  */
 export function randomString(prefix: string = 'test'): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 }
 
-// Ensure messaging tables are cleaned (called from cleanup if not already)
+/**
+ * Deletes messages and conversations so messaging tests start with clean tables.
+
+ * @returns No value; asynchronous work completes when the promise resolves.
+ */
 export async function cleanupMessagingData(): Promise<void> {
   await prisma.message.deleteMany();
   await prisma.conversation.deleteMany();

@@ -1,6 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import ManagerLayout from "@/components/ManagerLayout";
 import { apiFetch } from "@/lib/api";
+import {
+  buildReportCsv,
+  buildReportExport,
+  buildReportXlsx,
+  createReportPdf,
+  downloadCsv,
+  downloadXlsx,
+  reportFileName,
+} from "@/lib/reportExports";
 import "@/styles/manager-operations.css";
 
 type ReportTab = "usage" | "availability" | "popularity";
@@ -146,6 +155,7 @@ export default function ManagerReports() {
   const [usage, setUsage] = useState<any>(null);
   const [availability, setAvailability] = useState<any>(null);
   const [popularity, setPopularity] = useState<any>(null);
+  const [loadedRange, setLoadedRange] = useState<{ start: string; end: string } | null>(null);
 
   async function load() {
     if (!startDate || !endDate) {
@@ -164,6 +174,7 @@ export default function ManagerReports() {
       setUsage(u);
       setAvailability(a);
       setPopularity(p);
+      setLoadedRange({ start: startDate, end: endDate });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load reports");
     } finally {
@@ -223,6 +234,44 @@ export default function ManagerReports() {
     ];
   }, [availability]);
 
+  const selectedReport = useMemo(
+    () => buildReportExport(tab, { usage, availability, popularity }, startDate, endDate),
+    [tab, usage, availability, popularity, startDate, endDate],
+  );
+
+  function exportCsv() {
+    if (!selectedReport) return;
+    downloadCsv(
+      buildReportCsv(selectedReport),
+      reportFileName(tab, startDate, endDate, "csv"),
+    );
+  }
+
+  function exportExcel() {
+    if (!selectedReport) return;
+    downloadXlsx(
+      buildReportXlsx(selectedReport),
+      reportFileName(tab, startDate, endDate, "xlsx"),
+    );
+  }
+
+  async function exportPdf() {
+    if (!selectedReport) return;
+    try {
+      await createReportPdf(selectedReport, reportFileName(tab, startDate, endDate, "pdf"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate PDF");
+    }
+  }
+
+  const canExport = Boolean(
+    selectedReport &&
+    !loading &&
+    !error &&
+    loadedRange?.start === startDate &&
+    loadedRange.end === endDate,
+  );
+
   return (
     <ManagerLayout>
       <div className="mo-page">
@@ -249,6 +298,17 @@ export default function ManagerReports() {
           <button type="button" className="mo-primary-btn" onClick={load} disabled={loading}>
             {loading ? "Loading…" : "Run reports"}
           </button>
+          <div className="mo-export-actions" aria-label="Export current report">
+            <button type="button" onClick={exportCsv} disabled={!canExport}>
+              Export CSV
+            </button>
+            <button type="button" onClick={exportExcel} disabled={!canExport}>
+              Export Excel
+            </button>
+            <button type="button" onClick={exportPdf} disabled={!canExport}>
+              Export PDF
+            </button>
+          </div>
         </div>
 
         <div className="mo-tabs">

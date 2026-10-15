@@ -23,6 +23,133 @@ when the room list is empty or invalid, capacity is not a positive whole
 number, a selected room is unavailable, the combined room capacity is
 insufficient, or a requested amenity is missing from any selected room.
 
+## Room photos
+
+Rooms have an optional `imageUrl` for externally hosted demo photos and an
+`imageKey` for objects uploaded to private S3 storage. Room read responses
+return `imageUrl`: legacy URLs are passed through and S3 objects receive a
+15-minute presigned download URL. Manager-only `POST /api/v1/rooms` and
+`PATCH /api/v1/rooms/:id` still accept HTTPS URLs for seeded/demo photos.
+
+### Manager S3 upload API
+
+Configure `AWS_REGION` and `ROOM_IMAGE_S3_BUCKET`. The API uses the standard
+AWS SDK credential chain, so prefer an IAM role for deployed environments or
+the AWS shared credentials profile locally. Never put AWS access keys in
+source control. The IAM principal needs `s3:PutObject`, `s3:GetObject`, and
+`s3:DeleteObject` on the room-image bucket's `rooms/*` prefix.
+
+1. Request a short-lived upload URL:
+
+   ```http
+   POST /api/v1/rooms/:id/image-upload
+   Authorization: Bearer <manager-token>
+   Content-Type: application/json
+
+   { "contentType": "image/jpeg", "contentLength": 123456 }
+   ```
+
+   The response includes `uploadUrl`, `objectKey`, `expiresIn`, and the
+   `Content-Type` request header. The room and expected-size metadata are
+   included in the presigned URL and should not be resent as request headers.
+2. `PUT` the raw image bytes to `uploadUrl` with the returned headers. Supported
+   types are JPEG, PNG, and WebP; maximum size is 5 MiB.
+3. Confirm the upload:
+
+   ```http
+   POST /api/v1/rooms/:id/image
+   Authorization: Bearer <manager-token>
+   Content-Type: application/json
+
+   { "objectKey": "rooms/123/<generated-id>.jpg" }
+   ```
+
+   The API checks that the object exists, belongs to that room, is within the
+   size limit, and has a supported image signature before attaching it. A
+   replaced S3 object is deleted after the room points at the new image.
+4. Remove a photo with manager-only `DELETE /api/v1/rooms/:id/image`.
+
+The bucket should remain private. For browser uploads, configure its S3 CORS
+policy to allow `PUT` from the deployed web-app origin and the `Content-Type`
+header. The room ID and expected size are signed into the upload URL as query
+parameters. The manager API endpoints are available to the web upload controls.
+
+Add an S3 lifecycle rule to expire objects under `pending-room-images/` after
+one day. Confirmed images are copied to `rooms/`; abandoned upload attempts are
+therefore cleaned up without expiring active room photos.
+
+The seed data still uses the supplied Unsplash HTTPS URLs; it does not upload
+those assets to S3. The manager upload flow stores S3 object keys in `imageKey`
+and room read APIs resolve those keys to temporary display URLs.
+
+## Synthetic report history
+
+The regular demo seed creates only a small number of recent bookings. To
+populate the manager reports with trends, run the separate additive report
+history seeder against a development database:
+
+```sh
+npm run seed:reports -- --confirm-development
+```
+
+It creates deterministic weekday bookings across the previous 180 days using
+the existing active employees and available rooms. Each purpose is labeled
+`[BOOKSPACE REPORT DEMO V1]`; completed, cancelled, and displaced bookings are
+included to make report status filters meaningful. Re-running the command
+replaces only bookings with that exact marker and leaves other bookings,
+employees, rooms, images, and amenities unchanged.
+
+For safety, the command refuses `NODE_ENV=production` and non-local database
+hosts by default. For a verified remote development database only, set
+`REPORT_SEED_ALLOW_REMOTE_DEV=true` and keep the explicit
+`--confirm-development` argument. Check `DATABASE_URL` points to the intended
+development database before running it. The generated history is synthetic
+and should not be presented as real business activity.
+
+### Seed the live demo database
+
+The production runner is compiled into the API image and is intended for a
+one-off ECS task using the API task definition's existing database secret and
+network settings. Build and push an image containing this change, then run it
+as a separate task with the container command overridden; do not update the
+API service or run the ordinary full demo seed.
+
+First, run the task with this container command override. It prints the
+non-secret database host and database name from `DATABASE_URL` without
+connecting to the database:
+
+```json
+["node", "dist-seed/prisma/seed-report-history.js", "--show-production-target"]
+```
+
+Use the exact `host:port/database` target printed above in this read-only
+preflight command override:
+
+```json
+[
+  "node", "dist-seed/prisma/seed-report-history.js",
+  "--confirm-production-target=replace-with-host:port/database", "--dry-run"
+]
+```
+
+Review the planned insert, conflict-skip, and replacement counts in the ECS
+task logs. Only after confirming the target is the live demo database and the
+counts are expected, run the same override with the exact target and without
+`--dry-run`:
+
+```json
+[
+  "node", "dist-seed/prisma/seed-report-history.js",
+  "--confirm-production-target=replace-with-host:port/database"
+]
+```
+
+The runner refuses production writes unless the exact target matches the
+runtime `DATABASE_URL`. It uses the API image's RDS CA bundle, and its
+transaction replaces only `[BOOKSPACE REPORT DEMO V1]` bookings while
+preserving other booking and room data. The synthetic report history should
+not be presented as real business activity.
+
 ## Assign a booking to a clerk
 
 Managers can list active clerks with `GET /api/v1/bookings/assignable-clerks`

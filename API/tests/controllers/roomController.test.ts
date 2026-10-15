@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Tests the room controller behavior and response handling.
+ */
+
 import { createRoom, getRoom, updateRoom, searchAvailability } from '../../src_ts/controllers/roomController';
 import * as roomService from '../../src_ts/services/roomService';
 

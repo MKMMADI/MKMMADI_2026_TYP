@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Provides shared rate limiting utility functions for the API.
+ */
+
 
 import rateLimit from 'express-rate-limit';
 import config from '../config';

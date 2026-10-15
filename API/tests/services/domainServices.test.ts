@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Tests the domainServices service behavior.
+ */
+
 import prisma from '../../src_ts/prisma';
 import { createAmenity } from '../../src_ts/services/amenityService';
 import { updateRoomStatus } from '../../src_ts/services/roomService';

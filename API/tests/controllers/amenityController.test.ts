@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Tests the amenity controller behavior and response handling.
+ */
+
 import { createAmenity, listAmenities, updateAmenity, archiveAmenity } from '../../src_ts/controllers/amenityController';
 import * as amenityService from '../../src_ts/services/amenityService';
 

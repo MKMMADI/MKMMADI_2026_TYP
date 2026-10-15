@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Tests the auth controller behavior and response handling.
+ */
+
 import { signup, signupManager, login, refresh, logout } from '../../src_ts/controllers/authController';
 import * as authService from '../../src_ts/services/authService';
 import { disconnectUserSockets } from '../../src_ts/services/realtime';
@@ -7,6 +13,11 @@ jest.mock('../../src_ts/services/authService', () => ({
 }));
 jest.mock('../../src_ts/services/realtime', () => ({ disconnectUserSockets: jest.fn() }));
 
+/**
+ * Creates a minimal mocked Express response for controller unit tests.
+
+ * @returns A mocked response object with the methods used by the controller.
+ */
 const response = () => ({ json: jest.fn() }) as any;
 
 describe('authController service delegation', () => {

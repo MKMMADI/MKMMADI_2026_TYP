@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Implements conversation service domain operations and their persistence or integrations.
+ */
+
 import { Prisma, Role } from '@prisma/client';
 import prisma from '../prisma';
 import { createHttpError } from '../utils/httpError';
@@ -36,10 +42,20 @@ type ConversationWithParticipants = Prisma.ConversationGetPayload<{
   include: typeof conversationInclude;
 }>;
 
+/**
+ * Returns only the participant ID, name, and role for client responses.
+ * @param user User record whose public participant fields are selected.
+ * @returns The participant ID, name, and role.
+ */
 function publicParticipant(user: { id: number; name: string; role: Role }) {
   return { id: user.id, name: user.name, role: user.role };
 }
 
+/**
+ * Returns the message with sender and recipient reduced to public participant fields.
+ * @param message Message with sender and recipient records to serialize for clients.
+ * @returns The message with sender and recipient represented by public participant fields.
+ */
 function serializeMessage<T extends {
   sender: { id: number; name: string; role: Role; Active: boolean };
   recipient: { id: number; name: string; role: Role; Active: boolean };
@@ -51,13 +67,23 @@ function serializeMessage<T extends {
   };
 }
 
-/** Allowed pairs: any conversation involving a manager, plus employee \u2194 clerk. */
+/**
+ * Allows conversation pairs that include a manager or pair an employee with a clerk.
+ * @param firstRole Role of one conversation participant.
+ * @param secondRole Role of the other conversation participant.
+ * @returns True when the roles are permitted to communicate; otherwise false.
+ */
 function rolesMayCommunicate(firstRole: Role, secondRole: Role) {
   if (firstRole === 'MANAGER' || secondRole === 'MANAGER') return true;
   const pair = new Set([firstRole, secondRole]);
   return pair.has('EMPLOYEE') && pair.has('CLERK');
 }
 
+/**
+ * Returns eligible contact roles for the current user; managers may see all other active roles.
+ * @param role Role of the current user whose eligible contacts are being filtered.
+ * @returns The set of roles eligible for contact, or undefined when all other roles are eligible.
+ */
 function contactRoleFilter(role: Role): Role[] | undefined {
   if (role === 'MANAGER') return undefined; // all other active users
   if (role === 'EMPLOYEE') return ['MANAGER', 'CLERK'];
@@ -65,12 +91,24 @@ function contactRoleFilter(role: Role): Role[] | undefined {
   return ['MANAGER'];
 }
 
+/**
+ * Returns the conversation participant other than the given user, or throws if the user is not a participant.
+ * @param conversation Conversation and participant records used to identify or serialize the other participant.
+ * @param userId ID of the authenticated participant accessing the conversation or contact list.
+ * @returns The other participant’s user record.
+ */
 function getOtherParticipant(conversation: ConversationWithParticipants, userId: number) {
   if (conversation.participantAId === userId) return conversation.participantB;
   if (conversation.participantBId === userId) return conversation.participantA;
   throw createHttpError('Conversation not found', 404);
 }
 
+/**
+ * Loads a conversation and verifies both participant accounts and their roles permit access.
+ * @param conversationId ID of the conversation to list, send to, or mark read.
+ * @param userId ID of the authenticated participant accessing the conversation or contact list.
+ * @returns The conversation record and the other participant’s user record.
+ */
 async function getAccessibleConversation(conversationId: number, userId: number) {
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
@@ -91,6 +129,12 @@ async function getAccessibleConversation(conversationId: number, userId: number)
   return { conversation, otherParticipant };
 }
 
+/**
+ * Builds the public conversation details and identifies the other participant.
+ * @param conversation Conversation and participant records used to identify or serialize the other participant.
+ * @param otherParticipant Public participant record returned alongside conversation metadata.
+ * @returns Public conversation metadata with the other participant’s public identity.
+ */
 function serializeConversation(
   conversation: ConversationWithParticipants,
   otherParticipant: { id: number; name: string; role: Role },
@@ -103,6 +147,12 @@ function serializeConversation(
   };
 }
 
+/**
+ * Looks up the conversation for the ordered participant ID pair.
+ * @param participantAId ID of the first participant in the canonical pair.
+ * @param participantBId ID of the second participant in the canonical pair.
+ * @returns A promise resolving to the matching conversation with participants, or null if none exists.
+ */
 async function findCanonicalConversation(participantAId: number, participantBId: number) {
   return prisma.conversation.findUnique({
     where: { participantAId_participantBId: { participantAId, participantBId } },
@@ -110,6 +160,11 @@ async function findCanonicalConversation(participantAId: number, participantBId:
   });
 }
 
+/**
+ * Returns accessible conversations with their latest message and unread-message count.
+ * @param userId ID of the authenticated participant accessing the conversation or contact list.
+ * @returns A promise resolving to accessible conversations with last-message details and unread counts.
+ */
 export async function listConversations(userId: number) {
   const conversations = await prisma.conversation.findMany({
     where: { OR: [{ participantAId: userId }, { participantBId: userId }] },
@@ -149,6 +204,11 @@ export async function listConversations(userId: number) {
   });
 }
 
+/**
+ * Returns active users the current user is permitted to contact, ordered by name.
+ * @param userId ID of the authenticated participant accessing the conversation or contact list.
+ * @returns A promise resolving to active, permitted contacts in name order.
+ */
 export async function listConversationContacts(userId: number) {
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
@@ -172,6 +232,12 @@ export async function listConversationContacts(userId: number) {
     .map(publicParticipant);
 }
 
+/**
+ * Rejects self-conversations and creates or returns the canonical conversation with the participant.
+ * @param userId ID of the authenticated participant accessing the conversation or contact list.
+ * @param participantId ID of the user to include as the other conversation participant.
+ * @returns A promise resolving to the conversation record and whether it was newly created.
+ */
 export async function startConversation(userId: number, participantId: number) {
   if (userId === participantId) {
     throw createHttpError('You cannot start a conversation with yourself', 400);
@@ -224,6 +290,14 @@ export async function startConversation(userId: number, participantId: number) {
   }
 }
 
+/**
+ * Returns one page of messages in an accessible conversation, optionally before a message cursor.
+ * @param userId ID of the authenticated participant accessing the conversation or contact list.
+ * @param conversationId ID of the conversation to list, send to, or mark read.
+ * @param pageSize Maximum number of messages to return on this page.
+ * @param beforeId Optional message ID; only earlier messages are returned when provided.
+ * @returns A promise resolving to the requested message page and pagination metadata.
+ */
 export async function listConversationMessages(
   userId: number,
   conversationId: number,
@@ -258,6 +332,13 @@ export async function listConversationMessages(
   };
 }
 
+/**
+ * Validates the sender’s access and creates a message in the conversation.
+ * @param userId ID of the authenticated participant accessing the conversation or contact list.
+ * @param conversationId ID of the conversation to list, send to, or mark read.
+ * @param rawBody Untrusted message text supplied by the sender.
+ * @returns A promise resolving to the created message with public sender and recipient details.
+ */
 export async function sendConversationMessage(userId: number, conversationId: number, rawBody: unknown) {
   const { conversation, otherParticipant } = await getAccessibleConversation(conversationId, userId);
   const body = typeof rawBody === 'string' ? rawBody.trim() : '';
@@ -286,6 +367,12 @@ export async function sendConversationMessage(userId: number, conversationId: nu
   return serializeMessage(message);
 }
 
+/**
+ * Marks the user’s unread messages in the conversation as read and returns the read-receipt details.
+ * @param userId ID of the authenticated participant accessing the conversation or contact list.
+ * @param conversationId ID of the conversation to list, send to, or mark read.
+ * @returns A promise resolving to the number of messages marked read and the other participant ID.
+ */
 export async function markConversationRead(userId: number, conversationId: number) {
   const { otherParticipant } = await getAccessibleConversation(conversationId, userId);
   const readAt = new Date();

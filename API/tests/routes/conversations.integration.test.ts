@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Exercises the conversations API routes through the Express application.
+ */
+
 import request from 'supertest';
 import app from '../../src_ts/app';
 import {
@@ -8,6 +14,11 @@ import {
   type TestUser,
 } from '../helpers/testHelpets';
 
+/**
+ * Builds an Authorization header from the access token in the supplied test session.
+ * @param session Authenticated test session whose access token is added to requests.
+ * @returns A request helper that adds the session’s bearer access token.
+ */
 function authorizedAs(session: { tokens: AuthTokens }) {
   return authHeader(session.tokens.accessToken);
 }

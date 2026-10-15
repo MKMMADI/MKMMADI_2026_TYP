@@ -11,20 +11,11 @@
  */
 const apiUrl = (process.env.EXPO_PUBLIC_API_URL || '').trim();
 
-if (!apiUrl) {
-  throw new Error(
-    'EXPO_PUBLIC_API_URL is required. Set it in mobile-app/.env for local development ' +
-      'or in the EAS build environment. Use a reachable HTTPS URL for a device build.',
-  );
-}
-
-console.log('[app.config] Using configured EXPO_PUBLIC_API_URL');
-
 module.exports = ({ config }) => ({
   ...config,
   plugins: [...(config.plugins || []), '@react-native-community/datetimepicker'],
   extra: {
     ...(config.extra || {}),
-    apiUrl,
+    apiUrl: apiUrl || config.extra?.apiUrl,
   },
 });

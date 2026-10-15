@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Exercises the report API routes through the Express application.
+ */
+
 import request from 'supertest';
 import app from '../../src_ts/app';
 import {
@@ -7,6 +13,11 @@ import {
 } from '../helpers/testHelpers';
 import prisma from '../../src_ts/prisma';
 
+/**
+ * Returns the standard date range used by report integration tests.
+
+ * @returns The date-range object shared by report tests.
+ */
 function reportRange() {
   const startDate = new Date();
   const endDate = new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);

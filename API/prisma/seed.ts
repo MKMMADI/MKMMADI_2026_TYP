@@ -37,6 +37,36 @@ const adapter = new PrismaPg(pool, { disposeExternalPool: true });
 const prisma = new PrismaClient({ adapter });
 
 const PASSWORD = "Password123!"; // shared demo password for all seed users
+const ROOM_IMAGES = {
+  atlas: {
+    url: "https://images.unsplash.com/photo-1431540015161-0bf868a2d407?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Benjamin Child",
+  },
+  studio2: {
+    url: "https://images.unsplash.com/photo-1571624436279-b272aff752b5?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Andy Vult",
+  },
+  horizon: {
+    url: "https://images.unsplash.com/photo-1628062699790-7c45262b82b4?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Michael Fousert",
+  },
+  baobab: {
+    url: "https://images.unsplash.com/photo-1582653291997-079a1c04e5a1?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Danielle Cerullo",
+  },
+  podA: {
+    url: "https://images.unsplash.com/photo-1517502884422-41eaead166d4?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Dane Deaner",
+  },
+  karoo: {
+    url: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Nastuh Abootalebi",
+  },
+  archiveRoom: {
+    url: "https://images.unsplash.com/photo-1622675363311-3e1904dc1885?fm=jpg&q=60&w=800&h=600&auto=format&fit=crop",
+    photographer: "Mapbox",
+  },
+} as const;
 
 function daysFromNow(days: number, hour = 9, minute = 0) {
   const d = new Date();
@@ -415,6 +445,7 @@ async function main() {
     data: {
       name: "Atlas Boardroom",
       description: "Main boardroom on level 3 — ideal for leadership and client meetings.",
+      imageUrl: ROOM_IMAGES.atlas.url,
       capacity: 12,
       status: RoomStatus.AVAILABLE,
       isActive: true,
@@ -436,6 +467,7 @@ async function main() {
     data: {
       name: "Studio 2",
       description: "Design studio with writable walls — product and creative sessions.",
+      imageUrl: ROOM_IMAGES.studio2.url,
       capacity: 8,
       status: RoomStatus.AVAILABLE,
       isActive: true,
@@ -454,6 +486,7 @@ async function main() {
     data: {
       name: "Horizon Room",
       description: "Quiet mid-size room with city views — strategy and 1:1s.",
+      imageUrl: ROOM_IMAGES.horizon.url,
       capacity: 6,
       status: RoomStatus.AVAILABLE,
       isActive: true,
@@ -472,6 +505,7 @@ async function main() {
     data: {
       name: "Baobab",
       description: "Large training room for workshops and all-hands.",
+      imageUrl: ROOM_IMAGES.baobab.url,
       capacity: 24,
       status: RoomStatus.AVAILABLE,
       isActive: true,
@@ -493,6 +527,7 @@ async function main() {
     data: {
       name: "Focus Pod A",
       description: "Small focus booth for interviews and private calls.",
+      imageUrl: ROOM_IMAGES.podA.url,
       capacity: 2,
       status: RoomStatus.AVAILABLE,
       isActive: true,
@@ -506,6 +541,7 @@ async function main() {
     data: {
       name: "Karoo Lounge",
       description: "Informal lounge space — currently under maintenance.",
+      imageUrl: ROOM_IMAGES.karoo.url,
       capacity: 10,
       status: RoomStatus.MAINTENANCE,
       isActive: true,
@@ -519,6 +555,7 @@ async function main() {
     data: {
       name: "Old Library (archived)",
       description: "Decommissioned space — kept for historical bookings only.",
+      imageUrl: ROOM_IMAGES.archiveRoom.url,
       capacity: 4,
       status: RoomStatus.OUT_OF_SERVICE,
       isActive: false,

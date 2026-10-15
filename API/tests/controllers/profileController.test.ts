@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Tests the profile controller behavior and response handling.
+ */
+
 import { getProfile, updateProfile, deactivateAccount, getMyBookings } from '../../src_ts/controllers/profileController';
 import * as profileService from '../../src_ts/services/profileService';
 
@@ -6,6 +12,11 @@ jest.mock('../../src_ts/services/profileService', () => ({
 }));
 
 const user = { id: 1 };
+/**
+ * Creates a minimal mocked Express response for controller unit tests.
+
+ * @returns A mocked response object with the methods used by the controller.
+ */
 const res = () => ({ json: jest.fn() }) as any;
 
 describe('profileController service delegation', () => {

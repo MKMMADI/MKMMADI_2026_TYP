@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Provides shared logger utility functions for the API.
+ */
+
 import winston from 'winston';
 import config from '../config';
 

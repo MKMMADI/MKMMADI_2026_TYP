@@ -1,12 +1,28 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Implements consumable service domain operations and their persistence or integrations.
+ */
+
 import prisma from '../prisma';
 import { createHttpError } from '../utils/httpError';
 
 const adjustmentInclude = { adjustedBy: { select: { id: true, name: true, email: true } } } as const;
 
+/**
+ * Returns consumable items ordered from newest to oldest.
+
+ * @returns A promise resolving to consumable records ordered by creation time.
+ */
 export function listConsumables() {
   return prisma.consumableItem.findMany({ orderBy: { createdAt: 'desc' } });
 }
 
+/**
+ * Returns a consumable with its ten most recent stock adjustments or throws when it does not exist.
+ * @param id ID of the consumable item to retrieve.
+ * @returns A promise resolving to the item and its ten most recent stock adjustments.
+ */
 export async function getConsumable(id: number) {
   const item = await prisma.consumableItem.findUnique({
     where: { id },
@@ -16,6 +32,12 @@ export async function getConsumable(id: number) {
   return item;
 }
 
+/**
+ * Creates a uniquely named consumable and records an initial stock adjustment when starting quantity is positive.
+ * @param input Consumable name and unit, with optional starting quantity and reorder level.
+ * @param userId ID of the account responsible for the initial stock record or adjustment.
+ * @returns A promise resolving to the newly created consumable record.
+ */
 export async function createConsumable(input: {
   name?: string; unit?: string; quantityOnHand?: unknown; reorderLevel?: unknown;
 }, userId: number) {
@@ -40,6 +62,12 @@ export async function createConsumable(input: {
   return item;
 }
 
+/**
+ * Updates the supplied item fields without changing fields omitted from the request.
+ * @param id ID of the consumable item to update.
+ * @param input Optional name, unit, on-hand quantity, and reorder level; omitted fields remain unchanged.
+ * @returns A promise resolving to the updated consumable record.
+ */
 export async function updateConsumable(id: number, input: {
   name?: string; unit?: string; quantityOnHand?: unknown; reorderLevel?: unknown;
 }) {
@@ -58,6 +86,11 @@ export async function updateConsumable(id: number, input: {
   });
 }
 
+/**
+ * Deletes the specified consumable and returns a success message; throws when it does not exist.
+ * @param id ID of the consumable item to delete.
+ * @returns A promise resolving to a deletion confirmation message.
+ */
 export async function deleteConsumable(id: number) {
   if (!(await prisma.consumableItem.findUnique({ where: { id }, include: { adjustments: true } }))) {
     throw createHttpError('Consumable item not found', 404);
@@ -66,6 +99,14 @@ export async function deleteConsumable(id: number) {
   return { message: 'Consumable item deleted successfully' };
 }
 
+/**
+ * Applies a stock change, prevents the quantity becoming negative, and records the adjustment in a transaction.
+ * @param id ID of the consumable item whose stock changes.
+ * @param userId ID of the account responsible for the initial stock record or adjustment.
+ * @param quantityChange Amount to add to or subtract from on-hand stock.
+ * @param reason Required explanation stored with this stock adjustment.
+ * @returns A promise resolving to the updated item and the created stock-adjustment record.
+ */
 export async function adjustStock(id: number, userId: number, quantityChange: unknown, reason: string) {
   if (quantityChange === undefined || quantityChange === null) throw createHttpError('Quantity change is required', 400);
   if (!reason) throw createHttpError('Reason for adjustment is required', 400);
@@ -84,6 +125,12 @@ export async function adjustStock(id: number, userId: number, quantityChange: un
   });
 }
 
+/**
+ * Returns the newest stock adjustments for an existing consumable up to the requested limit.
+ * @param id ID of the consumable item whose adjustments are listed.
+ * @param limit Maximum number of recent adjustments to return.
+ * @returns A promise resolving to the item’s stock adjustments ordered newest first.
+ */
 export async function getStockAdjustments(id: number, limit: number) {
   if (!(await prisma.consumableItem.findUnique({ where: { id } }))) {
     throw createHttpError('Consumable item not found', 404);
@@ -93,6 +140,11 @@ export async function getStockAdjustments(id: number, limit: number) {
   });
 }
 
+/**
+ * Returns consumables at or below their reorder level, ordered by quantity.
+
+ * @returns A promise resolving to consumable records at or below their reorder levels.
+ */
 export function getLowStockItems() {
   return prisma.consumableItem.findMany({
     where: { quantityOnHand: { lte: prisma.consumableItem.fields.reorderLevel } },

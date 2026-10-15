@@ -28,6 +28,7 @@
       "package": "com.mkmmadi.conferencerooms"
     },
     "extra": {
+      "apiUrl": "https://api.kaltego-mmadi.co.za",
       "eas": {
         "projectId": "9d7243c5-ce4e-431e-bd38-2272da7fe52f"
       }

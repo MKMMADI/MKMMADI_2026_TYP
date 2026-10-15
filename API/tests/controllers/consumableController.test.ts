@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Tests the consumable controller behavior and response handling.
+ */
+
 import {
   listConsumables, getConsumable, createConsumable, updateConsumable, deleteConsumable,
   adjustStock, getStockAdjustments, getLowStockItems,
@@ -11,6 +17,11 @@ jest.mock('../../src_ts/services/consumableService', () => ({
 }));
 
 const user = { id: 7 };
+/**
+ * Creates a minimal mocked Express response for controller unit tests.
+
+ * @returns A mocked response object with the methods used by the controller.
+ */
 const response = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn() }) as any;
 
 describe('consumableController service delegation', () => {

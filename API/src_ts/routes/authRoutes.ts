@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Defines the Express endpoints for auth API operations.
+ */
+
 import { Router } from 'express';
 import { signup, signupManager, login, refresh, logout } from '../controllers/authController';
 import { authenticate, requireRole } from '../middleware/auth';

@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Configures shared setup behavior for API tests.
+ */
+
 /// <reference types="node" />
 
 process.env.NODE_ENV = 'test';

@@ -2,12 +2,14 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api/v1";
 export const API_SOCKET_URL = new URL(API_URL).origin;
 
 function getTokenStorage(): Storage | null {
-  if (localStorage.getItem("accessToken") || localStorage.getItem("refreshToken")) {
+  if (localStorage.getItem("accessToken")) {
     return localStorage;
   }
-  if (sessionStorage.getItem("accessToken") || sessionStorage.getItem("refreshToken")) {
+  if (sessionStorage.getItem("accessToken")) {
     return sessionStorage;
   }
+  if (localStorage.getItem("refreshToken")) return localStorage;
+  if (sessionStorage.getItem("refreshToken")) return sessionStorage;
   return null;
 }
 
@@ -75,19 +77,31 @@ async function refreshAccessToken(storage: Storage): Promise<string> {
   return body.accessToken;
 }
 
+let refreshInFlight: { storage: Storage; promise: Promise<string> } | null = null;
+
+async function refreshAccessTokenOnce(storage: Storage) {
+  if (refreshInFlight?.storage === storage) return refreshInFlight.promise;
+
+  const flight = { storage, promise: refreshAccessToken(storage) };
+  refreshInFlight = flight;
+  try {
+    return await flight.promise;
+  } finally {
+    if (refreshInFlight === flight) refreshInFlight = null;
+  }
+}
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const storage = getTokenStorage();
   let accessToken = storage?.getItem("accessToken") || null;
   let hasRetried = false;
 
   while (true) {
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    };
+    const headers = new Headers(options.headers);
+    if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
     if (accessToken) {
-      (headers as Record<string, string>)["Authorization"] = `Bearer ${accessToken}`;
+      headers.set("Authorization", `Bearer ${accessToken}`);
     }
 
     const response = await fetch(`${API_URL}${path}`, {
@@ -105,7 +119,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 
     hasRetried = true;
     try {
-      accessToken = await refreshAccessToken(storage);
+      accessToken = await refreshAccessTokenOnce(storage);
     } catch (error) {
       clearStoredTokens();
       throw error;

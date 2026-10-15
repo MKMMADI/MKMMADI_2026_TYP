@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Implements auth Express middleware for API requests.
+ */
+
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import prisma from '../prisma';
@@ -10,6 +16,13 @@ export interface AuthRequest extends Request {
   tokenJti?: string;
 }
 
+/**
+ * Verifies the bearer token and active server-side session, then attaches the active user to the request.
+ * @param req Request with Authorization header and, after authentication, the user identity.
+ * @param res Express response used to return an authentication or authorization failure.
+ * @param next Express callback used to continue processing or forward an error.
+ * @returns A promise resolving after authentication continues the request, or forwards an error.
+ */
 export async function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers['authorization'];
@@ -45,6 +58,11 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   }
 }
 
+/**
+ * Creates middleware that allows only an authenticated user with the specified role.
+ * @param role Single role required to access the protected route.
+ * @returns Middleware that continues for an authenticated user with the specified role.
+ */
 export function requireRole(role: string) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
@@ -53,6 +71,11 @@ export function requireRole(role: string) {
   };
 }
 
+/**
+ * Creates middleware that allows an authenticated user with any of the specified roles.
+ * @param roles Roles permitted to access the protected route.
+ * @returns Middleware that continues for an authenticated user with one of the specified roles.
+ */
 export function requireRoles(roles: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ message: 'Not authenticated' });

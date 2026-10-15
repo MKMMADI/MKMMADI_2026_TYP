@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Tests the booking controller behavior and response handling.
+ */
+
 import {
   createBookingHandler, rescheduleBooking, listBookings, listAssignableClerks, assignBookingClerk,
   getBooking, approveBooking, rejectBooking, updateBookingStatus, cancelBooking, listOccupancy,
@@ -24,6 +30,11 @@ jest.mock('../../src_ts/services/realtime', () => ({ publishBookingUpdate: jest.
 
 const user = { id: 1, role: 'EMPLOYEE' };
 const booking = { id: 12, employeeId: 1, status: 'CONFIRMED' };
+/**
+ * Creates a minimal mocked Express response for controller unit tests.
+
+ * @returns A mocked response object with the methods used by the controller.
+ */
 const response = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn() }) as any;
 
 describe('bookingController service delegation', () => {

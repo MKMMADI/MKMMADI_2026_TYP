@@ -1,6 +1,18 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Implements report service domain operations and their persistence or integrations.
+ */
+
 import prisma from '../prisma';
 import { createHttpError } from '../utils/httpError';
 
+/**
+ * Requires valid start and end dates with the end after the start, then returns the parsed range.
+ * @param startDate Inclusive beginning of the report period.
+ * @param endDate End of the report period; must be later than startDate.
+ * @returns The parsed start and end dates for the validated report period.
+ */
 function parsePeriod(startDate?: string, endDate?: string) {
   if (!startDate || !endDate) throw createHttpError('Start date and end date are required', 400);
   const start = new Date(startDate);
@@ -12,13 +24,29 @@ function parsePeriod(startDate?: string, endDate?: string) {
   return { start, end };
 }
 
+/**
+ * Loads active rooms with amenity relations for report calculations.
+
+ * @returns A promise resolving to active room records with amenity relations.
+ */
 const activeRooms = () => prisma.room.findMany({
   where: { isActive: true },
   include: { amenities: { include: { amenity: true } } },
 });
 
+/**
+ * Rounds a numeric value to one decimal place.
+ * @param value Number to round to one decimal place.
+ * @returns The input value rounded to one decimal place.
+ */
 const round1 = (value: number) => Math.round(value * 10) / 10;
 
+/**
+ * Summarizes room status and booking availability across the requested date range.
+ * @param startDate Inclusive beginning of the report period.
+ * @param endDate End of the report period; must be later than startDate.
+ * @returns A promise resolving to the availability summary, room breakdown, daily breakdown, and period.
+ */
 export async function getAvailabilityReport(startDate?: string, endDate?: string) {
   const { start, end } = parsePeriod(startDate, endDate);
   const [rooms, bookings] = await Promise.all([
@@ -72,6 +100,12 @@ export async function getAvailabilityReport(startDate?: string, endDate?: string
   };
 }
 
+/**
+ * Summarizes room and department usage, booking durations, and daily activity for the date range.
+ * @param startDate Inclusive beginning of the report period.
+ * @param endDate End of the report period; must be later than startDate.
+ * @returns A promise resolving to room and department usage summaries and daily trends.
+ */
 export async function getUsageReport(startDate?: string, endDate?: string) {
   const { start, end } = parsePeriod(startDate, endDate);
   const [bookings, rooms] = await Promise.all([
@@ -84,7 +118,12 @@ export async function getUsageReport(startDate?: string, endDate?: string) {
     }),
     activeRooms(),
   ]);
-  const durationHours = (booking: any) => (new Date(booking.endAt).getTime() - new Date(booking.startAt).getTime()) / 3600000;
+    /**
+   * Calculates the elapsed hours between a booking’s start and end times.
+   * @param booking Booking with startAt and endAt timestamps.
+   * @returns The elapsed booking duration in hours.
+   */
+  const durationHours =   (booking: any) => (new Date(booking.endAt).getTime() - new Date(booking.startAt).getTime()) / 3600000;
   const roomUsage = rooms.map((room) => {
     const roomBookings = bookings.filter((booking) => booking.rooms.some((link: any) => link.roomId === room.id));
     const totalHours = roomBookings.reduce((sum, booking) => sum + durationHours(booking), 0);
@@ -132,6 +171,13 @@ export async function getUsageReport(startDate?: string, endDate?: string) {
   };
 }
 
+/**
+ * Ranks rooms by bookings, duration, and distinct users for the requested date range.
+ * @param startDate Inclusive beginning of the report period.
+ * @param endDate End of the report period; must be later than startDate.
+ * @param limit Maximum number of ranked rooms to include in the popularity report.
+ * @returns A promise resolving to ranked room metrics and aggregate popularity statistics.
+ */
 export async function getPopularityReport(startDate?: string, endDate?: string, limit?: number) {
   const { start, end } = parsePeriod(startDate, endDate);
   const limitCount = limit ? Number(limit) : 10;
@@ -149,7 +195,12 @@ export async function getPopularityReport(startDate?: string, endDate?: string, 
     room,
     bookings: bookings.filter((booking) => booking.rooms.some((link: any) => link.roomId === room.id)),
   }));
-  const durations = (items: any[]) => items.reduce((sum, booking) =>
+    /**
+   * Sums the elapsed booking hours for the supplied bookings.
+   * @param items Bookings whose total or average duration is calculated.
+   * @returns The sum of the supplied bookings’ durations in hours.
+   */
+  const durations =   (items: any[]) => items.reduce((sum, booking) =>
     sum + (new Date(booking.endAt).getTime() - new Date(booking.startAt).getTime()) / 3600000, 0);
   const maxBookings = Math.max(...roomBookings.map((item) => item.bookings.length), 1);
   const maxHours = Math.max(...roomBookings.map((item) => durations(item.bookings)), 1);
@@ -161,7 +212,12 @@ export async function getPopularityReport(startDate?: string, endDate?: string, 
     const score = roomBookingList.length / maxBookings * 0.4 + totalHours / maxHours * 0.3 + uniqueUsers / maxUsers * 0.3;
     const sorted = [...roomBookingList].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
     const midpoint = Math.floor(sorted.length / 2);
-    const average = (items: any[]) => items.length ? durations(items) / items.length : 0;
+        /**
+     * Returns the mean booking duration, or zero when the list is empty.
+     * @param items Bookings whose total or average duration is calculated.
+     * @returns The average booking duration in hours, or zero for an empty list.
+     */
+    const average =     (items: any[]) => items.length ? durations(items) / items.length : 0;
     const firstAvg = average(sorted.slice(0, midpoint));
     const secondAvg = average(sorted.slice(midpoint));
     return {

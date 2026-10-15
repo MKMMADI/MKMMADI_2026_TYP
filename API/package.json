@@ -12,10 +12,14 @@
     "build": "tsc",
     "prebuild": "npm test",
     "seed": "tsx prisma/seed.ts",
+    "seed:reports": "tsx prisma/seed-report-history.ts",
+    "seed:reports:production": "node dist-seed/prisma/seed-report-history.js",
     "seed:compiled": "node dist-seed/prisma/seed.js",
     "compile": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1149.0",
+    "@aws-sdk/s3-request-presigner": "^3.1149.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.10.0",
     "approve": "^0.0.12",

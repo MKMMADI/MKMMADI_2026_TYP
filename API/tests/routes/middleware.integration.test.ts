@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Exercises the middleware API routes through the Express application.
+ */
+
 import request from 'supertest';
 import app from '../../src_ts/app';
 import {
@@ -10,6 +16,11 @@ import jwt from 'jsonwebtoken';
 import config from '../../src_ts/config';
 import logger from '../../src_ts/utils/logger';
 
+/**
+ * Returns the standard date range used by report integration tests.
+
+ * @returns The date-range object shared by report tests.
+ */
 function reportRange() {
   const startDate = new Date();
   const endDate = new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);

@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Exercises the realtime API routes through the Express application.
+ */
+
 import { createServer } from 'http';
 import { AddressInfo } from 'net';
 import { io as ioClient, Socket } from 'socket.io-client';
@@ -11,12 +17,24 @@ import {
   createAndLoginUser,
 } from '../helpers/testHelpets';
 
+/**
+ * Waits for a named socket event and rejects if it does not arrive before the timeout.
+ * @param socket Socket.IO connection being authenticated or observed.
+ * @param event Socket event name to await.
+ * @param timeoutMs Maximum wait time in milliseconds.
+ * @returns A promise that resolves with the event payload or rejects when the timeout expires.
+ */
 function waitForEvent<T = unknown>(socket: Socket, event: string, timeoutMs = 4000): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       socket.off(event, onEvent);
       reject(new Error(`Timed out waiting for ${event}`));
     }, timeoutMs);
+        /**
+     * Resolves the pending socket-event promise with the received payload.
+     * @param payload Expected type of the event payload returned by the listener.
+     * @returns No value; resolves the event listener promise with the received payload.
+     */
     function onEvent(payload: T) {
       clearTimeout(timer);
       resolve(payload);
@@ -61,6 +79,11 @@ describe('Realtime messaging', () => {
     outsider = { id: o.user.id, tokens: o.tokens };
   });
 
+    /**
+   * Connects a test Socket.IO client using the supplied access token.
+   * @param accessToken Access token presented by the test Socket.IO client.
+   * @returns A Socket.IO client connected to the test server.
+   */
   function connectSocket(accessToken: string): Socket {
     return ioClient(baseUrl, {
       transports: ['websocket'],

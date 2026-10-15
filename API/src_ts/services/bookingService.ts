@@ -1,8 +1,15 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Implements booking service domain operations and their persistence or integrations.
+ */
+
 import prisma from '../prisma';
 import { createHttpError } from '../utils/httpError';
 import { Prisma, BookingStatus } from '@prisma/client';
 import { publishBookingDisplacement } from './realtime';
 import { isValidRejectionCode } from '../constants/rejectionReasons';
+import { serializeBookingRoomImages } from './roomImageService';
 
 //used to validate input
 export interface CreateBookingInput {
@@ -65,6 +72,12 @@ const bookingDetailsInclude = {
   },
 } as const;
 
+/**
+ * Converts a date string or Date to a valid Date and throws a client error when parsing fails.
+ * @param value Date string or Date instance to parse.
+ * @param fieldName Field name to include in an invalid-date error.
+ * @returns The parsed Date instance.
+ */
 function parseDate(value: string | Date, fieldName: string) {
   const parsed = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(parsed.getTime())) {
@@ -73,6 +86,11 @@ function parseDate(value: string | Date, fieldName: string) {
   return parsed;
 }
 
+/**
+ * Requires a non-empty array of unique positive integer room IDs.
+ * @param roomIds Room IDs supplied for a booking; each must be a positive integer.
+ * @returns The unique, validated room ID array.
+ */
 function normalizeRoomIds(roomIds: unknown) {
   if (!Array.isArray(roomIds) || roomIds.length === 0) {
     throw createHttpError('At least one room is required', 400);
@@ -86,6 +104,11 @@ function normalizeRoomIds(roomIds: unknown) {
   return normalizedRoomIds;
 }
 
+/**
+ * Requires capacity to be a positive whole number and returns it as a number.
+ * @param capacity Requested attendee count; must be a positive whole number.
+ * @returns The validated capacity as a number.
+ */
 function normalizeCapacity(capacity: unknown) {
   if (!Number.isInteger(capacity) || Number(capacity) <= 0) {
     throw createHttpError('Capacity must be a positive whole number', 400);
@@ -94,6 +117,15 @@ function normalizeCapacity(capacity: unknown) {
   return Number(capacity);
 }
 
+/**
+ * Searches the next 90 days in half-hour increments for a conflict-free replacement slot for the selected rooms.
+ * @param tx Prisma transaction client used for booking-related database queries.
+ * @param roomIds Room IDs that must all be free during the suggested slot.
+ * @param originalStartAt Original requested booking start time; the search begins on the following day.
+ * @param durationMs Length of the booking to preserve in the replacement slot.
+ * @param excludedBookingIds Booking IDs excluded from conflict checks, such as displaced bookings.
+ * @returns A promise resolving to the available replacement start and end times.
+ */
 async function findSuggestedSlot(
   tx: Prisma.TransactionClient,
   roomIds: number[],
@@ -135,6 +167,12 @@ async function findSuggestedSlot(
   throw createHttpError('No future replacement time is available for the displaced booking', 409);
 }
 
+/**
+ * Returns unique active amenity IDs and throws if any requested amenity is missing or inactive.
+ * @param amenityIds Optional amenity IDs requested for the booking; each must refer to an active amenity.
+ * @param tx Prisma transaction client used for booking-related database queries.
+ * @returns A promise resolving to the unique active amenity IDs; an empty array when none were requested.
+ */
 async function validateRequestedAmenities(amenityIds: number[] | undefined, tx: Prisma.TransactionClient) {
   if (!amenityIds || amenityIds.length === 0) {
     return [];
@@ -149,6 +187,11 @@ async function validateRequestedAmenities(amenityIds: number[] | undefined, tx: 
   return uniqueAmenityIds;
 }
 
+/**
+ * Validates the requested time, rooms, capacity, and amenities before creating the booking and any required displacement records.
+ * @param input Employee ID, purpose, requested start/end, room IDs, optional amenity IDs, and attendee capacity.
+ * @returns A promise resolving to the created booking and any displacement details.
+ */
 export async function createBooking(input: CreateBookingInput) {
   const startAt = parseDate(input.startAt, 'startAt');
   const endAt = parseDate(input.endAt, 'endAt');
@@ -282,9 +325,14 @@ export async function createBooking(input: CreateBookingInput) {
     });
   }
 
-  return result;
+  return serializeBookingRoomImages(result);
 }
 
+/**
+ * Accepts a suggested replacement time or finds a new available slot for the displaced booking.
+ * @param input Booking and employee IDs, whether to accept the suggestion, and optional replacement start/end times.
+ * @returns A promise resolving to the rescheduled booking and updated displacement records.
+ */
 export async function rescheduleDisplacedBooking(input: {
   bookingId: number;
   employeeId: number;
@@ -292,7 +340,7 @@ export async function rescheduleDisplacedBooking(input: {
   startAt?: string | Date;
   endAt?: string | Date;
 }) {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
       where: { id: input.bookingId },
       include: { rooms: { select: { roomId: true } } },
@@ -353,8 +401,14 @@ export async function rescheduleDisplacedBooking(input: {
 
     return tx.booking.findUniqueOrThrow({ where: { id: booking.id }, include: bookingInclude });
   });
+  return serializeBookingRoomImages(result);
 }
 
+/**
+ * Returns active rooms available for the requested time range, capacity, and amenity set.
+ * @param options Optional start/end times, minimum capacity, and amenity IDs used to find available rooms.
+ * @returns A promise resolving to rooms that satisfy the requested availability criteria.
+ */
 export async function listAvailableRooms(options: {
   startAt?: string | Date;
   endAt?: string | Date;
@@ -415,16 +469,29 @@ export async function listAvailableRooms(options: {
   }));
 }
 
-export function listBookings(role: string | undefined, userId: number, statusParam?: string) {
+/**
+ * Returns bookings visible to the requested role and user, optionally filtered by status.
+ * @param role Role used to determine which bookings the caller may see.
+ * @param userId Current user ID; employee-role results are restricted to bookings owned by this user.
+ * @param statusParam Optional comma-separated booking statuses by which to filter results.
+ * @returns A promise resolving to the bookings permitted by the role, user, and status filter.
+ */
+export async function listBookings(role: string | undefined, userId: number, statusParam?: string) {
   const where: Record<string, unknown> = role === 'EMPLOYEE' ? { employeeId: userId } : {};
   if (statusParam) {
     const statuses = statusParam.split(',').map((status) => status.trim()).filter(Boolean);
     if (statuses.length === 1) where.status = statuses[0];
     else if (statuses.length > 1) where.status = { in: statuses };
   }
-  return prisma.booking.findMany({ where, include: bookingDetailsInclude, orderBy: { createdAt: 'desc' } });
+  const bookings = await prisma.booking.findMany({ where, include: bookingDetailsInclude, orderBy: { createdAt: 'desc' } });
+  return Promise.all(bookings.map((booking) => serializeBookingRoomImages(booking)));
 }
 
+/**
+ * Returns active clerk accounts eligible for booking assignment.
+
+ * @returns A promise resolving to active clerk user records eligible for assignment.
+ */
 export function listAssignableClerks() {
   return prisma.user.findMany({
     where: { role: 'CLERK', Active: true },
@@ -433,6 +500,12 @@ export function listAssignableClerks() {
   });
 }
 
+/**
+ * Assigns the booking to a clerk or clears its clerk assignment when clerkId is null.
+ * @param id ID of the booking to assign or unassign.
+ * @param clerkId ID of the clerk to assign, or null to remove the current clerk assignment.
+ * @returns A promise resolving to the updated booking and assigned clerk, if any.
+ */
 export async function assignBookingClerk(id: number, clerkId: number | null) {
   const booking = await prisma.booking.findUnique({ where: { id }, select: { id: true, status: true } });
   if (!booking) throw createHttpError('Booking not found', 404);
@@ -445,18 +518,32 @@ export async function assignBookingClerk(id: number, clerkId: number | null) {
     });
     if (!clerk) throw createHttpError('Active clerk not found', 404);
   }
-  return prisma.booking.update({ where: { id }, data: { assignedClerkId: clerkId }, include: bookingDetailsInclude });
+  const updated = await prisma.booking.update({ where: { id }, data: { assignedClerkId: clerkId }, include: bookingDetailsInclude });
+  return serializeBookingRoomImages(updated);
 }
 
+/**
+ * Returns booking details when the user’s role and ownership permit access.
+ * @param id ID of the booking to retrieve.
+ * @param userId ID of the user requesting booking details.
+ * @param role User role used to select behavior or permissions.
+ * @returns A promise resolving to booking details visible to the specified user.
+ */
 export async function getBooking(id: number, userId: number, role: string) {
   const booking = await prisma.booking.findUnique({ where: { id }, include: bookingDetailsInclude });
   if (!booking) throw createHttpError('Booking not found', 404);
   if (role !== 'MANAGER' && role !== 'CLERK' && booking.employeeId !== userId) {
     throw createHttpError('Forbidden', 403);
   }
-  return booking;
+  return serializeBookingRoomImages(booking);
 }
 
+/**
+ * Approves the booking as the specified reviewer and returns its updated details.
+ * @param id ID of the booking to approve.
+ * @param reviewerId ID of the user performing the booking review.
+ * @returns A promise resolving to the approved booking details.
+ */
 export async function approveBooking(id: number, reviewerId: number) {
   const existing = await prisma.booking.findUnique({ where: { id } });
   if (!existing) throw createHttpError('Booking not found', 404);
@@ -468,9 +555,18 @@ export async function approveBooking(id: number, reviewerId: number) {
       rejectionReasonCode: null, rejectionNote: null,
     },
   });
-  return prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+  const updated = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+  return serializeBookingRoomImages(updated);
 }
 
+/**
+ * Rejects the booking with a standard reason code and optional note, then returns its updated details.
+ * @param id ID of the booking to reject.
+ * @param reviewerId ID of the user performing the booking review.
+ * @param reasonCode Supported rejection code explaining why the booking was rejected.
+ * @param note Optional additional explanation accompanying the rejection.
+ * @returns A promise resolving to the rejected booking details.
+ */
 export async function rejectBooking(id: number, reviewerId: number, reasonCode: string, note?: string) {
   if (!reasonCode || !isValidRejectionCode(reasonCode)) {
     throw createHttpError('A valid rejection reasonCode is required', 400);
@@ -488,11 +584,19 @@ export async function rejectBooking(id: number, reviewerId: number, reasonCode: 
       reviewedById: reviewerId, reviewedAt: new Date(),
     },
   });
-  return prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+  const updated = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+  return serializeBookingRoomImages(updated);
 }
 
 const preparationStatuses = ['CONFIRMED', 'PREPARING', 'READY', 'COMPLETED'];
 
+/**
+ * Applies an allowed status transition by the specified user and returns the updated booking.
+ * @param id ID of the booking whose status should change.
+ * @param status Requested booking status; must be a transition permitted for the user.
+ * @param userId ID of the user requesting the status transition.
+ * @returns A promise resolving to the booking after its status transition.
+ */
 export async function updateBookingStatus(id: number, status: string, userId: number) {
   if (!status) throw createHttpError('Status is required', 400);
   if (!preparationStatuses.includes(status)) {
@@ -507,9 +611,17 @@ export async function updateBookingStatus(id: number, status: string, userId: nu
   if (status === 'PREPARING') data.preparedById = userId;
   if (status === 'CONFIRMED') data.preparedById = null;
   await prisma.booking.update({ where: { id }, data });
-  return prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+  const updated = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+  return serializeBookingRoomImages(updated);
 }
 
+/**
+ * Cancels the booking when permitted for the user and role, returning its updated details.
+ * @param id ID of the booking to cancel.
+ * @param userId ID of the user requesting cancellation.
+ * @param role Role of the user requesting cancellation.
+ * @returns A promise resolving to the cancelled booking details.
+ */
 export async function cancelBooking(id: number, userId: number, role: string) {
   const booking = await prisma.booking.findUnique({ where: { id } });
   if (!booking) throw createHttpError('Booking not found', 404);
@@ -526,9 +638,16 @@ export async function cancelBooking(id: number, userId: number, role: string) {
     }
   }
   await prisma.booking.update({ where: { id }, data: { status: 'CANCELLED' } });
-  return prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+  const updated = await prisma.booking.findUniqueOrThrow({ where: { id }, include: bookingDetailsInclude });
+  return serializeBookingRoomImages(updated);
 }
 
+/**
+ * Returns room occupancy windows within the optional date bounds without personal information.
+ * @param fromValue Optional start date/time for the occupancy interval.
+ * @param toValue Optional end date/time for the occupancy interval.
+ * @returns A promise resolving to room occupancy intervals without personal information.
+ */
 export async function listOccupancy(fromValue?: string, toValue?: string) {
   const from = fromValue ? new Date(fromValue) : new Date();
   const to = toValue ? new Date(toValue) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);

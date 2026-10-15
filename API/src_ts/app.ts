@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Creates and configures the Express application, middleware, and API routes.
+ */
+
 import express from 'express';
 import cors from 'cors';
 import config from './config';
@@ -16,6 +22,8 @@ import { authenticate } from './middleware/auth';
 import apiLimiter, { authLimiter } from './utils/rateLimiting';
 
 const app = express();
+
+app.set('trust proxy', 1);
 
 const allowedOrigins = new Set(
   config.CORS_ALLOWED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean),

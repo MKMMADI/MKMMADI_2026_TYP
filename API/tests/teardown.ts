@@ -1,3 +1,9 @@
+/**
+ * Author : Katlego Mmadi
+ * Student Number : 221052648
+ * Description : Cleans up shared resources after API tests.
+ */
+
 import prisma, { pool as prismaPool } from '../src_ts/prisma';
 import prismaTest, { pool as prismaTestPool } from '../src_ts/prismaTest';
 
